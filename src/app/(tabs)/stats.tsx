@@ -100,10 +100,13 @@ export default function StatisticsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <ChevronLeft size={24} color="#FFFFFF" />
+          <ChevronLeft size={22} color="#FFFFFF" />
           <Text style={styles.backText}>Dashboard</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thống kê học tập</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          Thống kê học tập
+        </Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
@@ -252,6 +255,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 16,
@@ -260,15 +264,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#120E2E',
   },
   backButton: {
+    width: 88,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    position: 'absolute',
-    left: 16,
-    zIndex: 1,
   },
   backText: {
-    fontSize: 15,
+    fontSize: 13,
     color: '#FFFFFF',
     fontWeight: '600',
   },
@@ -278,6 +279,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  headerSpacer: {
+    width: 88,
   },
   scrollContainer: {
     flex: 1,

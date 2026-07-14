@@ -52,7 +52,9 @@ async function cacheAudioFile(audioUrl: string | null): Promise<string | null> {
   if (!audioUrl) return null;
 
   try {
-    const filename = audioUrl.split('/').pop() || `audio_${Date.now()}.mp3`;
+    // The pronunciation endpoint uses query parameters and has no file extension.
+    // AVFoundation relies on the local path's extension to select an audio decoder.
+    const filename = `audio_${hashString(audioUrl)}.mp3`;
     const localUri = `${FileSystem.documentDirectory}${filename}`;
 
     // Check if file already exists
@@ -68,6 +70,14 @@ async function cacheAudioFile(audioUrl: string | null): Promise<string | null> {
     console.error('Failed to cache audio file:', error);
     return audioUrl; // Fallback to remote URL
   }
+}
+
+function hashString(value: string): string {
+  let hash = 5381;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 33) ^ value.charCodeAt(index);
+  }
+  return (hash >>> 0).toString(36);
 }
 
 // ---------------------------------------------------------------------------

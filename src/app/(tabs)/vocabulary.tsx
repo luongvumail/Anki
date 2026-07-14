@@ -11,8 +11,8 @@ import {
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
 import { ChevronLeft, Search, Trash2, Volume2, HelpCircle } from 'lucide-react-native';
+import { router } from 'expo-router';
 import { useHaptics } from '@/hooks/useHaptics';
 import { useAudio } from '@/hooks/useAudio';
 import { localVocab, localSyncQueue } from '@/services/sqlite';
@@ -186,7 +186,7 @@ export default function VocabularyScreen() {
                 style={styles.actionBtn}
                 onPress={() => {
                   lightHaptic();
-                  playAudio(item.audio_url);
+                  playAudio(item.audio_url, item.simplified);
                 }}
               >
                 <Volume2 size={18} color="#FFD60A" />
@@ -212,10 +212,13 @@ export default function VocabularyScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <ChevronLeft size={24} color="#FFFFFF" />
+          <ChevronLeft size={22} color="#FFFFFF" />
           <Text style={styles.backText}>Dashboard</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Sổ từ vựng cá nhân</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          Sổ từ vựng cá nhân
+        </Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       {/* Search Input */}
@@ -334,6 +337,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 16,
@@ -342,15 +346,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#120E2E',
   },
   backButton: {
+    width: 88,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    position: 'absolute',
-    left: 16,
-    zIndex: 1,
   },
   backText: {
-    fontSize: 15,
+    fontSize: 13,
     color: '#FFFFFF',
     fontWeight: '600',
   },
@@ -360,6 +361,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  headerSpacer: {
+    width: 88,
   },
   searchSection: {
     padding: 16,

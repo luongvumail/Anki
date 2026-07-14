@@ -8,7 +8,6 @@ import { useHaptics } from '../hooks/useHaptics';
 
 export default function FlashcardScreen() {
   const { queue, currentIndex, totalInQueue, completedCount, submitReview } = useAppStore();
-
   const { lightHaptic } = useHaptics();
 
   // If the queue is loaded but has 0 words, or all cards are completed, auto-route back
@@ -60,9 +59,6 @@ export default function FlashcardScreen() {
         <Text style={styles.successSubtitle}>
           Danh sách ôn tập hôm nay đang trống. Hãy thêm từ vựng mới bằng AI để bắt đầu!
         </Text>
-        <TouchableOpacity style={styles.backButtonCenter} onPress={handleBack}>
-          <Text style={styles.backButtonTextCenter}>Quay lại Dashboard</Text>
-        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -71,12 +67,13 @@ export default function FlashcardScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Header with Back button */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <ChevronLeft size={24} color="#FFFFFF" />
+          <ChevronLeft size={22} color="#FFFFFF" />
           <Text style={styles.backText}>Dashboard</Text>
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Ôn tập</Text>
         <Text style={styles.progressCounter}>
           {completedCount + 1} / {totalInQueue}
         </Text>
@@ -139,16 +136,25 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   backButton: {
+    width: 88,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
   backText: {
-    fontSize: 16,
+    fontSize: 13,
     color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 17,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
   progressCounter: {
+    width: 88,
+    textAlign: 'right',
     fontSize: 15,
     fontWeight: '700',
     color: '#8E8E93',
@@ -220,17 +226,5 @@ const styles = StyleSheet.create({
     marginTop: 10,
     lineHeight: 20,
     paddingHorizontal: 20,
-  },
-  backButtonCenter: {
-    marginTop: 24,
-    backgroundColor: '#FF2D55',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  backButtonTextCenter: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
   },
 });

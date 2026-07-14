@@ -85,12 +85,12 @@ export default function Flashcard3D({
   const flipCard = () => {
     lightHaptic();
     const toValue = isFlipped ? 0 : 180;
-    rotateY.value = withSpring(toValue, { damping: 15 });
+    rotateY.value = withTiming(toValue, { duration: 550 });
     setIsFlipped(!isFlipped);
 
     // Auto play audio on flip to back
     if (!isFlipped && audio_url) {
-      playAudio(audio_url);
+      playAudio(audio_url, simplified);
     }
   };
 
@@ -106,38 +106,46 @@ export default function Flashcard3D({
       if (event.translationX > swipeThreshold) {
         // Swipe Right: Easy
         runOnJS(successHaptic)();
-        translateX.value = withTiming(screenWidth * 1.5, { duration: 250 }, () => {
+        translateX.value = withTiming(screenWidth * 1.5, { duration: 420 }, () => {
           runOnJS(onSwipeComplete)('easy');
         });
       } else if (event.translationX < -swipeThreshold) {
         // Swipe Left: Forgot
         runOnJS(warningHaptic)();
-        translateX.value = withTiming(-screenWidth * 1.5, { duration: 250 }, () => {
+        translateX.value = withTiming(-screenWidth * 1.5, { duration: 420 }, () => {
           runOnJS(onSwipeComplete)('forgot');
         });
       } else if (event.translationY < -swipeThreshold) {
         // Swipe Up: Hard
         runOnJS(lightHaptic)();
-        translateY.value = withTiming(-screenHeight * 1.5, { duration: 250 }, () => {
+        translateY.value = withTiming(-screenHeight * 1.5, { duration: 420 }, () => {
           runOnJS(onSwipeComplete)('hard');
         });
       } else {
         // Reset card positioning
-        translateX.value = withSpring(0, { damping: 15 });
-        translateY.value = withSpring(0, { damping: 15 });
+        translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
+        translateY.value = withSpring(0, { damping: 20, stiffness: 120 });
       }
     });
 
   // Tap Gesture to flip (Only triggers if not dragging)
-  const tapGesture = Gesture.Tap().onEnd(() => {
-    runOnJS(flipCard)();
+  const audioTapGesture = Gesture.Tap().onEnd(() => {
+    if (audio_url) {
+      runOnJS(playAudio)(audio_url, simplified);
+    }
   });
+
+  const tapGesture = Gesture.Tap()
+    .requireExternalGestureToFail(audioTapGesture)
+    .onEnd(() => {
+      runOnJS(flipCard)();
+    });
 
   const composedGesture = Gesture.Exclusive(panGesture, tapGesture);
 
   // Card transform styles
   const cardAnimatedStyle = useAnimatedStyle(() => {
-    const rotate = interpolate(translateX.value, [-screenWidth, screenWidth], [-10, 10]);
+    const rotate = interpolate(translateX.value, [-screenWidth, screenWidth], [-6, 6]);
     return {
       transform: [
         { translateX: translateX.value },
@@ -268,12 +276,11 @@ export default function Flashcard3D({
               <View style={styles.pinyinRow}>
                 {renderPinyin()}
                 {audio_url && (
-                  <TouchableOpacity
-                    style={styles.soundButtonInline}
-                    onPress={() => playAudio(audio_url)}
-                  >
-                    <Volume2 size={22} color="#FFD60A" />
-                  </TouchableOpacity>
+                  <GestureDetector gesture={audioTapGesture}>
+                    <Animated.View style={styles.soundButtonInline}>
+                      <Volume2 size={22} color="#FFD60A" />
+                    </Animated.View>
+                  </GestureDetector>
                 )}
               </View>
 

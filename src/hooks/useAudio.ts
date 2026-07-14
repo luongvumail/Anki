@@ -1,11 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
+import * as Speech from 'expo-speech';
 
 export function useAudio() {
   const soundRef = useRef<Audio.Sound | null>(null);
 
-  const playAudio = async (url: string | null | undefined) => {
-    if (!url) return;
+  const playAudio = async (url: string | null | undefined, fallbackText?: string) => {
+    if (!url) {
+      speakFallback(fallbackText);
+      return;
+    }
 
     try {
       // Unload previous sound if it exists
@@ -22,11 +27,16 @@ export function useAudio() {
         staysActiveInBackground: false,
       });
 
-      const { sound: newSound } = await Audio.Sound.createAsync({ uri: url }, { shouldPlay: true });
+      const playableUri = await normalizeLocalAudioUri(url);
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: playableUri },
+        { shouldPlay: true },
+      );
 
       soundRef.current = newSound;
     } catch (error) {
       console.error('Failed to load or play audio:', error);
+      speakFallback(fallbackText);
     }
   };
 
@@ -42,4 +52,35 @@ export function useAudio() {
   }, []);
 
   return { playAudio };
+}
+
+function speakFallback(text?: string) {
+  if (!text) return;
+
+  Speech.stop();
+  Speech.speak(text, {
+    language: 'zh-CN',
+    rate: 0.75,
+    useApplicationAudioSession: false,
+  });
+}
+
+async function normalizeLocalAudioUri(uri: string): Promise<string> {
+  if (!uri.startsWith('file:') || /\.(mp3|m4a|aac|wav|caf|aiff)$/i.test(uri.split('?')[0])) {
+    return uri;
+  }
+
+  // Older builds cached Youdao's query URL as an extensionless local file.
+  // AVFoundation then cannot determine that the bytes are MP3 audio.
+  const legacyUri = uri.split('?')[0];
+  const mp3Uri = `${legacyUri}.mp3`;
+
+  const migratedFile = await FileSystem.getInfoAsync(mp3Uri);
+  if (migratedFile.exists) return mp3Uri;
+
+  const legacyFile = await FileSystem.getInfoAsync(legacyUri);
+  if (!legacyFile.exists) return uri;
+
+  await FileSystem.copyAsync({ from: legacyUri, to: mp3Uri });
+  return mp3Uri;
 }

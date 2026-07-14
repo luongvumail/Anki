@@ -6,6 +6,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme, View, ActivityIndicator, Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 import { initLocalDB } from '@/services/sqlite';
@@ -92,7 +94,7 @@ export default function TabLayout() {
 
   if (authLoading) {
     return (
-      <ErrorBoundary>
+      <AppRoot>
         <View
           style={{
             flex: 1,
@@ -103,28 +105,28 @@ export default function TabLayout() {
         >
           <ActivityIndicator size="large" color="#FF2D55" />
         </View>
-      </ErrorBoundary>
+      </AppRoot>
     );
   }
 
   if (showOnboarding) {
     return (
-      <ErrorBoundary>
+      <AppRoot>
         <OnboardingScreen onComplete={() => setShowOnboarding(false)} />
-      </ErrorBoundary>
+      </AppRoot>
     );
   }
 
   if (!userId) {
     return (
-      <ErrorBoundary>
+      <AppRoot>
         <LoginScreen />
-      </ErrorBoundary>
+      </AppRoot>
     );
   }
 
   return (
-    <ErrorBoundary>
+    <AppRoot>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
@@ -133,6 +135,16 @@ export default function TabLayout() {
           <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
         </Stack>
       </ThemeProvider>
-    </ErrorBoundary>
+    </AppRoot>
+  );
+}
+
+function AppRoot({ children }: React.PropsWithChildren) {
+  return (
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

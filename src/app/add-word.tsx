@@ -159,9 +159,6 @@ export default function AIAddWordScreen() {
             pinyin: editedResult.pinyin,
             han_viet: editedResult.han_viet,
             definition_vi: editedResult.definition_vi,
-            example_zh: editedResult.example_zh || null,
-            example_pinyin: editedResult.example_pinyin || null,
-            example_vi: editedResult.example_vi || null,
             audio_url: `https://dict.youdao.com/dictvoice?type=0&audio=${encodeURIComponent(editedResult.simplified)}`,
           })
           .select('id')
@@ -229,10 +226,13 @@ export default function AIAddWordScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <ChevronLeft size={24} color="#FFFFFF" />
+          <ChevronLeft size={22} color="#FFFFFF" />
           <Text style={styles.backText}>Dashboard</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thêm từ bằng AI</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          Thêm từ bằng AI
+        </Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.searchSection}>
@@ -398,6 +398,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 16,
@@ -406,15 +407,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#120E2E',
   },
   backButton: {
+    width: 88,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    position: 'absolute',
-    left: 16,
-    zIndex: 1,
   },
   backText: {
-    fontSize: 15,
+    fontSize: 13,
     color: '#FFFFFF',
     fontWeight: '600',
   },
@@ -424,6 +422,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  headerSpacer: {
+    width: 88,
   },
   searchSection: {
     flexDirection: 'row',

@@ -1,8 +1,12 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Home, Book, TrendingUp } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom - 8, 8);
+
   return (
     <Tabs
       screenOptions={{
@@ -11,9 +15,9 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: '#120E2E',
           borderTopColor: 'rgba(255, 255, 255, 0.1)',
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
+          height: 44 + bottomInset,
+          paddingBottom: bottomInset,
+          paddingTop: 4,
         },
         headerShown: false,
       }}

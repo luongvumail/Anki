@@ -27,10 +27,10 @@ export default function SettingsScreen() {
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [reminderHour, setReminderHour] = useState(20);
-  
+
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [loadingPassword, setLoadingPassword] = useState(false);
 
@@ -136,8 +136,10 @@ export default function SettingsScreen() {
           onPress: async () => {
             try {
               // 1. Reset progress locally in sqlite
-              db.execSync("UPDATE local_progress SET status = 'learning', interval_days = 0, ease_factor = 2.5, repetitions = 0, next_review_at = datetime('now')");
-              
+              db.execSync(
+                "UPDATE local_progress SET status = 'learning', interval_days = 0, ease_factor = 2.5, repetitions = 0, next_review_at = datetime('now')",
+              );
+
               // 2. Clear progress on Supabase progress table for this user
               const { error } = await supabase
                 .from('user_progress')
@@ -151,7 +153,7 @@ export default function SettingsScreen() {
                 .eq('user_id', userId);
 
               if (error) throw error;
-              
+
               await loadQueue();
               successHaptic();
               Alert.alert('Thành công', 'Tiến trình học tập đã được reset!');
@@ -161,7 +163,7 @@ export default function SettingsScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -189,7 +191,7 @@ export default function SettingsScreen() {
               db.execSync('DELETE FROM local_progress');
               db.execSync('DELETE FROM local_vocabulary');
               db.execSync('DELETE FROM sync_queue');
-              
+
               await loadQueue();
               successHaptic();
               Alert.alert('Thành công', 'Đã xóa toàn bộ dữ liệu.');
@@ -200,14 +202,14 @@ export default function SettingsScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
@@ -218,7 +220,6 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-        
         {/* Section 1: Profile Info */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -237,8 +238,8 @@ export default function SettingsScreen() {
                 autoCorrect={false}
               />
             </View>
-            <TouchableOpacity 
-              style={styles.primaryButton} 
+            <TouchableOpacity
+              style={styles.primaryButton}
               onPress={handleUpdateProfile}
               disabled={loadingProfile}
             >
@@ -282,8 +283,8 @@ export default function SettingsScreen() {
                 autoCapitalize="none"
               />
             </View>
-            <TouchableOpacity 
-              style={[styles.primaryButton, { backgroundColor: '#0A84FF' }]} 
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: '#0A84FF' }]}
               onPress={handleUpdatePassword}
               disabled={loadingPassword}
             >
@@ -326,7 +327,12 @@ export default function SettingsScreen() {
                       style={[styles.hourChip, reminderHour === h && styles.activeHourChip]}
                       onPress={() => handleHourChange(h)}
                     >
-                      <Text style={[styles.hourChipText, reminderHour === h && styles.activeHourChipText]}>
+                      <Text
+                        style={[
+                          styles.hourChipText,
+                          reminderHour === h && styles.activeHourChipText,
+                        ]}
+                      >
                         {h}:00
                       </Text>
                     </TouchableOpacity>
@@ -344,24 +350,40 @@ export default function SettingsScreen() {
             <Text style={styles.sectionTitle}>Khu vực nguy hiểm</Text>
           </View>
           <View style={styles.sectionBody}>
-            <TouchableOpacity 
-              style={[styles.dangerButton, { backgroundColor: 'rgba(255, 69, 58, 0.1)', borderColor: 'rgba(255, 69, 58, 0.25)' }]} 
+            <TouchableOpacity
+              style={[
+                styles.dangerButton,
+                {
+                  backgroundColor: 'rgba(255, 69, 58, 0.1)',
+                  borderColor: 'rgba(255, 69, 58, 0.25)',
+                },
+              ]}
               onPress={handleResetProgress}
             >
               <Trash2 size={16} color="#FF453A" />
-              <Text style={[styles.dangerButtonText, { color: '#FF453A' }]}>Đặt lại tiến trình học tập</Text>
+              <Text style={[styles.dangerButtonText, { color: '#FF453A' }]}>
+                Đặt lại tiến trình học tập
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.dangerButton, { backgroundColor: 'rgba(255, 69, 58, 0.2)', borderColor: '#FF453A', marginTop: 12 }]} 
+            <TouchableOpacity
+              style={[
+                styles.dangerButton,
+                {
+                  backgroundColor: 'rgba(255, 69, 58, 0.2)',
+                  borderColor: '#FF453A',
+                  marginTop: 12,
+                },
+              ]}
               onPress={handleClearAllData}
             >
               <ShieldAlert size={16} color="#FF453A" />
-              <Text style={[styles.dangerButtonText, { color: '#FF453A', fontWeight: 'bold' }]}>Xóa toàn bộ từ vựng & dữ liệu</Text>
+              <Text style={[styles.dangerButtonText, { color: '#FF453A', fontWeight: 'bold' }]}>
+                Xóa toàn bộ từ vựng & dữ liệu
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-        
       </ScrollView>
     </SafeAreaView>
   );

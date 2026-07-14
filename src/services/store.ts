@@ -21,7 +21,7 @@ interface AppState {
   online: boolean;
   isLoading: boolean;
   isSubmittingReview: boolean;
-  
+
   setUserId: (id: string | null) => void;
   loadQueue: () => Promise<void>;
   submitReview: (grade: 'easy' | 'hard' | 'forgot') => Promise<void>;
@@ -52,14 +52,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         .select('display_name, streak, last_active_at')
         .eq('id', userId)
         .single();
-      
+
       if (!error && data) {
         set({
           profile: {
             display_name: data.display_name,
             streak: data.streak,
-            last_active_at: data.last_active_at
-          }
+            last_active_at: data.last_active_at,
+          },
         });
       }
     } catch (e) {
@@ -98,17 +98,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!userId || queue.length === 0 || currentIndex >= queue.length || isSubmittingReview) return;
 
     set({ isSubmittingReview: true });
-    
+
     try {
       const currentItem = queue[currentIndex];
-      
+
       // 1. Calculate new SRS metrics using SM-2 Variant
       const currentSRS = {
         repetitions: currentItem.progress.repetitions,
         easeFactor: currentItem.progress.ease_factor,
         intervalDays: currentItem.progress.interval_days,
       };
-      
+
       const updatedSRS = calculateSRS(grade, currentSRS);
 
       const updatedProgress = {
@@ -135,11 +135,11 @@ export const useAppStore = create<AppState>((set, get) => ({
           ...currentItem,
           progress: updatedProgress, // Use updated progress metrics
         };
-        
+
         // Remove from current index, and push to the end
         updatedQueue.splice(currentIndex, 1);
         updatedQueue.push(forgotItem);
-        
+
         set({
           queue: updatedQueue,
           // We do not increment completed count or index, because the queue size did not reduce

@@ -50,11 +50,11 @@ export default function LoginScreen() {
         });
 
         if (error) throw error;
-        
+
         successHaptic();
         Alert.alert(
           'Đăng ký thành công',
-          'Tài khoản của bạn đã được đăng ký. Bạn có thể sử dụng tài khoản để bắt đầu học tập!'
+          'Tài khoản của bạn đã được đăng ký. Bạn có thể sử dụng tài khoản để bắt đầu học tập!',
         );
       } else {
         // Login flow
@@ -89,7 +89,10 @@ export default function LoginScreen() {
       });
       if (error) throw error;
       successHaptic();
-      Alert.alert('Kiểm tra email', 'Nếu email này có tài khoản, chúng tôi đã gửi liên kết đặt lại mật khẩu.');
+      Alert.alert(
+        'Kiểm tra email',
+        'Nếu email này có tài khoản, chúng tôi đã gửi liên kết đặt lại mật khẩu.',
+      );
     } catch (error: any) {
       warningHaptic();
       Alert.alert('Không thể gửi email', error.message || 'Vui lòng thử lại sau.');
@@ -152,7 +155,7 @@ export default function LoginScreen() {
       warningHaptic();
       Alert.alert(
         'Thất bại',
-        error.message || `Không thể đăng nhập bằng ${provider === 'google' ? 'Google' : 'Apple'}.`
+        error.message || `Không thể đăng nhập bằng ${provider === 'google' ? 'Google' : 'Apple'}.`,
       );
     } finally {
       setLoading(false);
@@ -214,11 +217,7 @@ export default function LoginScreen() {
             />
           </View>
 
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleAuth}
-            disabled={loading}
-          >
+          <TouchableOpacity style={styles.primaryButton} onPress={handleAuth} disabled={loading}>
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
@@ -229,7 +228,11 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           {!isSignUp && (
-            <TouchableOpacity style={styles.forgotPasswordButton} onPress={handleForgotPassword} disabled={loading}>
+            <TouchableOpacity
+              style={styles.forgotPasswordButton}
+              onPress={handleForgotPassword}
+              disabled={loading}
+            >
               <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
             </TouchableOpacity>
           )}
@@ -242,9 +245,7 @@ export default function LoginScreen() {
             }}
           >
             <Text style={styles.switchButtonText}>
-              {isSignUp
-                ? 'Đã có tài khoản? Đăng nhập ngay'
-                : 'Chưa có tài khoản? Đăng ký tại đây'}
+              {isSignUp ? 'Đã có tài khoản? Đăng nhập ngay' : 'Chưa có tài khoản? Đăng ký tại đây'}
             </Text>
           </TouchableOpacity>
         </View>

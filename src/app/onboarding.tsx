@@ -1,18 +1,9 @@
 import React, { useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  Dimensions,
-} from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Sparkles, Brain, Notebook, ChevronRight } from 'lucide-react-native';
 import { useHaptics } from '../hooks/useHaptics';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ONBOARDING_COMPLETED_KEY = '@anki_onboarding_completed';
 
 interface OnboardingSlide {
@@ -29,19 +20,22 @@ export default function OnboardingScreen({ onComplete }: { onComplete?: () => vo
   const slides: OnboardingSlide[] = [
     {
       title: 'Sổ tay từ vựng của bạn',
-      description: 'Lưu trữ và theo dõi các từ tiếng Trung bạn tự thêm trong quá trình đọc sách, xem phim, hoặc học trên lớp.',
+      description:
+        'Lưu trữ và theo dõi các từ tiếng Trung bạn tự thêm trong quá trình đọc sách, xem phim, hoặc học trên lớp.',
       icon: <Notebook size={80} color="#FFFFFF" />,
       color: '#FF2D55', // Cherry Pink
     },
     {
       title: 'Tự động tra cứu bằng AI',
-      description: 'Chỉ cần nhập chữ Hán, AI của ứng dụng sẽ tự tra cứu bộ thủ, phiên âm bính âm, Hán Việt, định nghĩa và đặt câu ví dụ.',
+      description:
+        'Chỉ cần nhập chữ Hán, AI của ứng dụng sẽ tự tra cứu bộ thủ, phiên âm bính âm, Hán Việt, định nghĩa và đặt câu ví dụ.',
       icon: <Sparkles size={80} color="#FFFFFF" fill="#FFFFFF" />,
       color: '#FFD60A', // Gold
     },
     {
       title: 'Thuật toán SRS thông minh',
-      description: 'Hệ thống lặp lại ngắt quãng (SM-2) tự động tính toán lịch ôn tập tối ưu để bạn ghi nhớ từ vựng lâu nhất với ít nỗ lực nhất.',
+      description:
+        'Hệ thống lặp lại ngắt quãng (SM-2) tự động tính toán lịch ôn tập tối ưu để bạn ghi nhớ từ vựng lâu nhất với ít nỗ lực nhất.',
       icon: <Brain size={80} color="#FFFFFF" />,
       color: '#0A84FF', // Electric Blue
     },
@@ -78,7 +72,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete?: () => vo
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
+
       {/* Skip Button */}
       <View style={styles.header}>
         {currentSlideIndex < slides.length - 1 ? (

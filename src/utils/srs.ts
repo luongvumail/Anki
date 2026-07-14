@@ -3,9 +3,9 @@ import { Palette } from '../constants/theme';
 // Spaced Repetition System (SRS) Utility utilizing SM-2 Variant logic
 
 export interface SRSParams {
-  repetitions: number;      // Số lần trả lời đúng liên tiếp (repetitions)
-  easeFactor: number;       // Hệ số độ dễ của từ (ease_factor)
-  intervalDays: number;     // Khoảng thời gian chờ tính bằng ngày (interval_days)
+  repetitions: number; // Số lần trả lời đúng liên tiếp (repetitions)
+  easeFactor: number; // Hệ số độ dễ của từ (ease_factor)
+  intervalDays: number; // Khoảng thời gian chờ tính bằng ngày (interval_days)
 }
 
 export interface SRSResult extends SRSParams {
@@ -15,15 +15,12 @@ export interface SRSResult extends SRSParams {
 
 /**
  * Calculates the next SRS interval, ease factor, and repetitions based on user input.
- * 
+ *
  * @param grade 'easy' (Vuốt phải) | 'hard' (Vuốt lên) | 'forgot' (Vuốt trái)
  * @param current Current SRS parameters
  * @returns Updated SRS parameters and next review date
  */
-export function calculateSRS(
-  grade: 'easy' | 'hard' | 'forgot',
-  current: SRSParams
-): SRSResult {
+export function calculateSRS(grade: 'easy' | 'hard' | 'forgot', current: SRSParams): SRSResult {
   let { repetitions, easeFactor, intervalDays } = current;
 
   // Set default values if uninitialized
@@ -99,6 +96,6 @@ export function getToneColor(pinyin: string): string {
   if (t2.test(pinyin)) return Palette.tone2;
   if (t3.test(pinyin)) return Palette.tone3;
   if (t4.test(pinyin)) return Palette.tone4;
-  
+
   return Palette.toneNeutral; // Neutral tone
 }

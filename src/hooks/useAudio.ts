@@ -22,10 +22,7 @@ export function useAudio() {
         staysActiveInBackground: false,
       });
 
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: url },
-        { shouldPlay: true }
-      );
+      const { sound: newSound } = await Audio.Sound.createAsync({ uri: url }, { shouldPlay: true });
 
       soundRef.current = newSound;
     } catch (error) {
@@ -37,7 +34,9 @@ export function useAudio() {
   useEffect(() => {
     return () => {
       if (soundRef.current) {
-        soundRef.current.unloadAsync().catch((err) => console.log('Error unloading sound on unmount:', err));
+        soundRef.current
+          .unloadAsync()
+          .catch((err) => console.log('Error unloading sound on unmount:', err));
       }
     };
   }, []);

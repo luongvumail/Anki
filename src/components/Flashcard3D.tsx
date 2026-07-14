@@ -53,7 +53,7 @@ export default function Flashcard3D({
 
   const [isFlipped, setIsFlipped] = useState(false);
   const [showRadicals, setShowRadicals] = useState(false);
-  
+
   const { playAudio } = useAudio();
   const { lightHaptic, warningHaptic, successHaptic } = useHaptics();
 
@@ -79,7 +79,7 @@ export default function Flashcard3D({
     rotateY.value = 0;
     translateX.value = 0;
     translateY.value = 0;
-  }, [simplified]);
+  }, [simplified, rotateY, translateX, translateY]);
 
   // Handle Flip action
   const flipCard = () => {
@@ -87,7 +87,7 @@ export default function Flashcard3D({
     const toValue = isFlipped ? 0 : 180;
     rotateY.value = withSpring(toValue, { damping: 15 });
     setIsFlipped(!isFlipped);
-    
+
     // Auto play audio on flip to back
     if (!isFlipped && audio_url) {
       playAudio(audio_url);
@@ -201,7 +201,6 @@ export default function Flashcard3D({
     <View style={[styles.container, { width: screenWidth * 0.9, height: screenHeight * 0.58 }]}>
       <GestureDetector gesture={composedGesture}>
         <Animated.View style={[styles.cardContainer, cardAnimatedStyle]}>
-          
           {/* FRONT SIDE */}
           <Animated.View style={[styles.card, styles.frontCard, frontStyle]}>
             <View style={styles.cardHeader}>
@@ -298,18 +297,26 @@ export default function Flashcard3D({
           </Animated.View>
 
           {/* Swipe Indicator Overlays */}
-          <Animated.View pointerEvents="none" style={[styles.overlay, styles.easyOverlay, easyOverlayStyle]}>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.overlay, styles.easyOverlay, easyOverlayStyle]}
+          >
             <Text style={styles.overlayTextEasy}>DỄ</Text>
           </Animated.View>
-          
-          <Animated.View pointerEvents="none" style={[styles.overlay, styles.forgotOverlay, forgotOverlayStyle]}>
+
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.overlay, styles.forgotOverlay, forgotOverlayStyle]}
+          >
             <Text style={styles.overlayTextForgot}>QUÊN</Text>
           </Animated.View>
 
-          <Animated.View pointerEvents="none" style={[styles.overlay, styles.hardOverlay, hardOverlayStyle]}>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.overlay, styles.hardOverlay, hardOverlayStyle]}
+          >
             <Text style={styles.overlayTextHard}>KHÓ</Text>
           </Animated.View>
-
         </Animated.View>
       </GestureDetector>
     </View>

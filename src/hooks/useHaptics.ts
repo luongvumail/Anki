@@ -5,7 +5,7 @@ export function useHaptics() {
     try {
       // Haptics work on real iOS/Android devices
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (e) {
+    } catch {
       // Fail silently in simulator or unsupported platforms
     }
   };
@@ -13,7 +13,7 @@ export function useHaptics() {
   const warningHaptic = async () => {
     try {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    } catch (e) {
+    } catch {
       // Fail silently
     }
   };
@@ -21,7 +21,7 @@ export function useHaptics() {
   const successHaptic = async () => {
     try {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e) {
+    } catch {
       // Fail silently
     }
   };

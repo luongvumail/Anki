@@ -4,11 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configure how notifications are handled when the app is in the foreground
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  } as any),
+  handleNotification: async () =>
+    ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }) as any,
 });
 
 const NOTIFICATION_SETTINGS_KEY = '@anki_notification_settings';
@@ -31,20 +32,20 @@ export const notificationService = {
    */
   requestPermissions: async (): Promise<boolean> => {
     if (Platform.OS === 'web') return false;
-    
+
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
-      
+
       if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
-      
+
       if (finalStatus !== 'granted') {
         return false;
       }
-      
+
       // On Android, set notification channels
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
@@ -54,7 +55,7 @@ export const notificationService = {
           lightColor: '#FF2D55',
         });
       }
-      
+
       return true;
     } catch (e) {
       console.error('Failed to request notification permission:', e);
@@ -85,7 +86,7 @@ export const notificationService = {
       const current = await notificationService.getSettings();
       const updated = { ...current, ...settings };
       await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(updated));
-      
+
       if (updated.enabled) {
         await notificationService.scheduleDailyNotification(updated.hour, updated.minute);
       } else {

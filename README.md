@@ -35,11 +35,23 @@ npm run reset-project
 
 This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
-### Other setup steps
+## Quality checks
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Use Node.js 24.17.0 (`nvm use` reads the included `.nvmrc`), then run the full local gate before opening a pull request:
+
+```bash
+npm run check
+```
+
+Individual commands are also available:
+
+- `npm run lint` / `npm run lint:fix` — Expo ESLint checks and safe fixes.
+- `npm run format` / `npm run format:check` — Prettier formatting.
+- `npm run typecheck` — strict TypeScript validation.
+- `npm run test:ci` — deterministic Jest test run.
+- `npm run audit` — report dependency vulnerabilities at high severity or above.
+
+Husky runs `lint-staged` before every commit, checking and formatting only staged files. GitHub Actions runs the full quality gate for pull requests and pushes to `main`.
 
 ## Learn more
 

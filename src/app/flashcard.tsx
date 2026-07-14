@@ -1,12 +1,5 @@
 import React, { useEffect } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-} from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
 import { router } from 'expo-router';
 import { useAppStore } from '../services/store';
 import Flashcard3D from '../components/Flashcard3D';
@@ -14,13 +7,7 @@ import { ChevronLeft } from 'lucide-react-native';
 import { useHaptics } from '../hooks/useHaptics';
 
 export default function FlashcardScreen() {
-  const {
-    queue,
-    currentIndex,
-    totalInQueue,
-    completedCount,
-    submitReview,
-  } = useAppStore();
+  const { queue, currentIndex, totalInQueue, completedCount, submitReview } = useAppStore();
 
   const { lightHaptic } = useHaptics();
 

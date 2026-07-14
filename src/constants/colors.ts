@@ -13,4 +13,3 @@ export const AppColors = {
   border: 'rgba(255, 255, 255, 0.1)',
   surface: 'rgba(255, 255, 255, 0.06)',
 } as const;
-

@@ -12,8 +12,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
-import { usePreventRemove } from '@react-navigation/native';
+import { useNavigation, usePreventRemove } from '@react-navigation/native';
 import { supabase } from '../services/supabase';
 import { useAppStore } from '../services/store';
 import { useHaptics } from '../hooks/useHaptics';
@@ -34,7 +33,7 @@ export default function AIAddWordScreen() {
 
   // Helper: update a single field in editedResult
   const updateField = <K extends keyof AIWordResult>(field: K, value: AIWordResult[K]) => {
-    setEditedResult((current) => current ? { ...current, [field]: value } : current);
+    setEditedResult((current) => (current ? { ...current, [field]: value } : current));
   };
 
   const hasUnsavedChanges = Boolean(searchText.trim() || editedResult);
@@ -46,24 +45,20 @@ export default function AIAddWordScreen() {
       return;
     }
 
-    Alert.alert(
-      'Bỏ thay đổi?',
-      'Nội dung bạn đã nhập hoặc chỉnh sửa sẽ không được lưu.',
-      [
-        { text: 'Ở lại', style: 'cancel' },
-        {
-          text: 'Bỏ thay đổi',
-          style: 'destructive',
-          onPress: () => {
-            isDiscardingRef.current = true;
-            setSearchText('');
-            setResult(null);
-            setEditedResult(null);
-            navigation.dispatch(data.action);
-          },
+    Alert.alert('Bỏ thay đổi?', 'Nội dung bạn đã nhập hoặc chỉnh sửa sẽ không được lưu.', [
+      { text: 'Ở lại', style: 'cancel' },
+      {
+        text: 'Bỏ thay đổi',
+        style: 'destructive',
+        onPress: () => {
+          isDiscardingRef.current = true;
+          setSearchText('');
+          setResult(null);
+          setEditedResult(null);
+          navigation.dispatch(data.action);
         },
-      ],
-    );
+      },
+    ]);
   });
 
   const handleAISearch = async () => {
@@ -103,7 +98,7 @@ export default function AIAddWordScreen() {
         setResult(parsed);
         setEditedResult(parsed);
       }
-      
+
       successHaptic();
     } catch (e) {
       console.warn('Network error or endpoint error, loading simulated response:', e);
@@ -129,12 +124,17 @@ export default function AIAddWordScreen() {
         const { data: radData, error: radErr } = await supabase
           .from('radicals')
           .upsert(
-            { character: rad.character, pinyin: rad.pinyin, vietnamese_name: rad.vietnamese_name, stroke_count: rad.stroke_count },
-            { onConflict: 'character' }
+            {
+              character: rad.character,
+              pinyin: rad.pinyin,
+              vietnamese_name: rad.vietnamese_name,
+              stroke_count: rad.stroke_count,
+            },
+            { onConflict: 'character' },
           )
           .select('id')
           .single();
-        
+
         if (!radErr && radData) {
           radicalIds.push(radData.id);
         }
@@ -180,9 +180,8 @@ export default function AIAddWordScreen() {
       }
 
       // 4. Create user progress tracker for SRS
-      const { error: progErr } = await supabase
-        .from('user_progress')
-        .upsert({
+      const { error: progErr } = await supabase.from('user_progress').upsert(
+        {
           user_id: userId,
           vocabulary_id: vocabId,
           status: 'learning',
@@ -190,23 +189,29 @@ export default function AIAddWordScreen() {
           ease_factor: 2.5,
           repetitions: 0,
           next_review_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,vocabulary_id' });
+        },
+        { onConflict: 'user_id,vocabulary_id' },
+      );
 
       if (progErr) throw progErr;
 
       successHaptic();
-      Alert.alert('Thành công', `Đã thêm từ "${editedResult.simplified}" vào kho từ học tập cá nhân của bạn!`, [
-        {
-          text: 'OK',
-          onPress: async () => {
-            await loadQueue();
-            setSearchText('');
-            setResult(null);
-            setEditedResult(null);
-            router.back();
+      Alert.alert(
+        'Thành công',
+        `Đã thêm từ "${editedResult.simplified}" vào kho từ học tập cá nhân của bạn!`,
+        [
+          {
+            text: 'OK',
+            onPress: async () => {
+              await loadQueue();
+              setSearchText('');
+              setResult(null);
+              setEditedResult(null);
+              router.back();
+            },
           },
-        },
-      ]);
+        ],
+      );
     } catch (error: any) {
       warningHaptic();
       Alert.alert('Thất bại', error.message || 'Không thể lưu từ vựng vào tài khoản.');
@@ -262,7 +267,10 @@ export default function AIAddWordScreen() {
         {!loading && !result && (
           <View style={styles.emptyContainer}>
             <Sparkles size={48} color="#C7C7CC" />
-            <Text style={styles.emptyText}>Nhập chữ Hán ở trên để AI tự động tra cứu bộ thủ, phiên âm, dịch âm Hán Việt và đặt câu ví dụ.</Text>
+            <Text style={styles.emptyText}>
+              Nhập chữ Hán ở trên để AI tự động tra cứu bộ thủ, phiên âm, dịch âm Hán Việt và đặt
+              câu ví dụ.
+            </Text>
           </View>
         )}
 
@@ -270,7 +278,7 @@ export default function AIAddWordScreen() {
           <View style={styles.resultContainer}>
             <Text style={styles.resultLabel}>KẾT QUẢ PHÂN TÍCH AI</Text>
             <Text style={styles.editHint}>✏️ Chỉnh sửa trực tiếp nếu AI phân tích sai</Text>
-            
+
             {/* Visual preview card with editable fields */}
             <View style={styles.previewCard}>
               <View style={styles.previewHeader}>
@@ -279,7 +287,7 @@ export default function AIAddWordScreen() {
                   <Text style={styles.previewTraditional}>Phồn thể: {result.traditional}</Text>
                 )}
               </View>
-              
+
               <View style={styles.previewDivider} />
 
               <View style={styles.previewBody}>
@@ -367,7 +375,11 @@ export default function AIAddWordScreen() {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.addButton} onPress={handleAddWordToCollection} disabled={loading}>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={handleAddWordToCollection}
+              disabled={loading}
+            >
               <PlusCircle size={22} color="#FFFFFF" />
               <Text style={styles.addButtonText}>Xác nhận & Thêm vào bài học</Text>
             </TouchableOpacity>

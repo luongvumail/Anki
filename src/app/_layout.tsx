@@ -1,8 +1,9 @@
 import 'react-native-url-polyfill/auto';
+import '@/global.css';
 import React, { useEffect, useState } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme, View, ActivityIndicator } from 'react-native';
+import { useColorScheme, View, ActivityIndicator, Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -27,6 +28,8 @@ export default function TabLayout() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
+    if (Platform.OS === 'web') return;
+
     const redirectFromNotification = (notification: Notifications.Notification) => {
       const url = notification.request.content.data?.url;
       if (typeof url === 'string' && url.startsWith('/')) {
@@ -60,7 +63,9 @@ export default function TabLayout() {
     });
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserId(session?.user?.id || null);
     });
 
@@ -81,24 +86,41 @@ export default function TabLayout() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [setUserId]);
 
   // Queue loading is handled by index.tsx on mount to avoid concurrent loadQueue() calls.
 
   if (authLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#120E2E' }}>
-        <ActivityIndicator size="large" color="#FF2D55" />
-      </View>
+      <ErrorBoundary>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: '#120E2E',
+          }}
+        >
+          <ActivityIndicator size="large" color="#FF2D55" />
+        </View>
+      </ErrorBoundary>
     );
   }
 
   if (showOnboarding) {
-    return <OnboardingScreen onComplete={() => setShowOnboarding(false)} />;
+    return (
+      <ErrorBoundary>
+        <OnboardingScreen onComplete={() => setShowOnboarding(false)} />
+      </ErrorBoundary>
+    );
   }
 
   if (!userId) {
-    return <LoginScreen />;
+    return (
+      <ErrorBoundary>
+        <LoginScreen />
+      </ErrorBoundary>
+    );
   }
 
   return (

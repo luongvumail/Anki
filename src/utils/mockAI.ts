@@ -22,7 +22,7 @@ export interface AIWordResult {
  */
 export const getMockAIResponse = (word: string): AIWordResult => {
   const dict: Record<string, AIWordResult> = {
-    '学习': {
+    学习: {
       simplified: '学习',
       traditional: '學習',
       pinyin: 'xué xí',
@@ -35,7 +35,7 @@ export const getMockAIResponse = (word: string): AIWordResult => {
         { character: '子', pinyin: 'zǐ', vietnamese_name: 'Tử (Con cái)', stroke_count: 3 },
       ],
     },
-    '老师': {
+    老师: {
       simplified: '老师',
       traditional: '老師',
       pinyin: 'lǎo shī',
@@ -48,7 +48,7 @@ export const getMockAIResponse = (word: string): AIWordResult => {
         { character: '⼫', pinyin: 'shī', vietnamese_name: 'Thi (Xác chết)', stroke_count: 3 },
       ],
     },
-    '中国': {
+    中国: {
       simplified: '中国',
       traditional: '中國',
       pinyin: 'zhōng guó',
@@ -61,7 +61,7 @@ export const getMockAIResponse = (word: string): AIWordResult => {
         { character: '⼞', pinyin: 'wéi', vietnamese_name: 'Vi (Vây quanh)', stroke_count: 3 },
       ],
     },
-    '谢谢': {
+    谢谢: {
       simplified: '谢谢',
       traditional: '謝謝',
       pinyin: 'xiè xie',
@@ -70,9 +70,7 @@ export const getMockAIResponse = (word: string): AIWordResult => {
       example_zh: '谢谢你的帮助。',
       example_pinyin: 'Xièxie nǐ de bāngzhù.',
       example_vi: 'Cảm ơn sự giúp đỡ của bạn.',
-      radicals: [
-        { character: '⾨', pinyin: 'mén', vietnamese_name: 'Môn (Cửa)', stroke_count: 3 },
-      ],
+      radicals: [{ character: '⾨', pinyin: 'mén', vietnamese_name: 'Môn (Cửa)', stroke_count: 3 }],
     },
   };
 

@@ -38,7 +38,7 @@ export default function DashboardScreen() {
   // Load queue on component mount
   useEffect(() => {
     loadQueue();
-  }, []);
+  }, [loadQueue]);
 
   const handleRefresh = useCallback(async () => {
     lightHaptic();
@@ -77,7 +77,10 @@ export default function DashboardScreen() {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
           } catch (error) {
-            Alert.alert('Không thể đăng xuất', error instanceof Error ? error.message : 'Vui lòng thử lại.');
+            Alert.alert(
+              'Không thể đăng xuất',
+              error instanceof Error ? error.message : 'Vui lòng thử lại.',
+            );
           } finally {
             setIsSigningOut(false);
           }
@@ -104,7 +107,7 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
+
       {/* Header bar */}
       <View style={styles.header}>
         <View>
@@ -126,8 +129,16 @@ export default function DashboardScreen() {
           <TouchableOpacity style={styles.iconButton} onPress={handleGoToSettings}>
             <Settings size={20} color="#FFFFFF" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} onPress={handleSignOut} disabled={isSigningOut}>
-            {isSigningOut ? <ActivityIndicator size="small" color={AppColors.error} /> : <LogOut size={20} color={AppColors.error} />}
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={handleSignOut}
+            disabled={isSigningOut}
+          >
+            {isSigningOut ? (
+              <ActivityIndicator size="small" color={AppColors.error} />
+            ) : (
+              <LogOut size={20} color={AppColors.error} />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -141,7 +152,7 @@ export default function DashboardScreen() {
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
             tintColor="#FF2D55"
-            colors={["#FF2D55"]}
+            colors={['#FF2D55']}
           />
         }
       >
@@ -178,7 +189,8 @@ export default function DashboardScreen() {
             <View style={styles.summaryContainer}>
               {remainingCount > 0 ? (
                 <Text style={styles.summaryText}>
-                  Hôm nay bạn cần học <Text style={styles.boldText}>{remainingCount}</Text> từ mới và đến hạn ôn tập.
+                  Hôm nay bạn cần học <Text style={styles.boldText}>{remainingCount}</Text> từ mới
+                  và đến hạn ôn tập.
                 </Text>
               ) : (
                 <Text style={styles.summaryText}>
@@ -191,10 +203,7 @@ export default function DashboardScreen() {
           {/* Action Controls */}
           <View style={styles.actionSection}>
             <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                remainingCount === 0 && styles.disabledButton,
-              ]}
+              style={[styles.primaryButton, remainingCount === 0 && styles.disabledButton]}
               onPress={handleStartReview}
               disabled={remainingCount === 0 || isLoading}
             >

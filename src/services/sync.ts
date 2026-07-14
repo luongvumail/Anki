@@ -50,17 +50,17 @@ export async function isOnline(): Promise<boolean> {
  */
 async function cacheAudioFile(audioUrl: string | null): Promise<string | null> {
   if (!audioUrl) return null;
-  
+
   try {
     const filename = audioUrl.split('/').pop() || `audio_${Date.now()}.mp3`;
     const localUri = `${FileSystem.documentDirectory}${filename}`;
-    
+
     // Check if file already exists
     const fileInfo = await FileSystem.getInfoAsync(localUri);
     if (fileInfo.exists) {
       return localUri;
     }
-    
+
     // Download file
     const downloadResult = await FileSystem.downloadAsync(audioUrl, localUri);
     return downloadResult.uri;
@@ -94,7 +94,7 @@ export async function syncLocalChanges(): Promise<void> {
   for (const item of queue) {
     try {
       const payload = JSON.parse(item.payload) as ProgressRecord;
-      
+
       if (item.table_name === 'user_progress') {
         if (item.action === 'DELETE') {
           const { error } = await supabase
@@ -105,9 +105,8 @@ export async function syncLocalChanges(): Promise<void> {
 
           if (error) throw error;
         } else {
-          const { error } = await supabase
-            .from('user_progress')
-            .upsert({
+          const { error } = await supabase.from('user_progress').upsert(
+            {
               user_id: session.user.id,
               vocabulary_id: payload.vocabulary_id,
               status: payload.status,
@@ -115,13 +114,15 @@ export async function syncLocalChanges(): Promise<void> {
               ease_factor: payload.ease_factor,
               repetitions: payload.repetitions,
               next_review_at: payload.next_review_at,
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id,vocabulary_id' });
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,vocabulary_id' },
+          );
 
           if (error) throw error;
         }
       }
-      
+
       // Successfully synced item, remove it from local queue
       localSyncQueue.dequeue(item.id);
     } catch (error) {
@@ -159,8 +160,12 @@ export async function updateStreakOnServer(userId: string): Promise<void> {
 
     // Calculate calendar days difference using local dates to match the user's actual day.
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const startOfLastActive = new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate()).getTime();
-    
+    const startOfLastActive = new Date(
+      lastActive.getFullYear(),
+      lastActive.getMonth(),
+      lastActive.getDate(),
+    ).getTime();
+
     const msInDay = 24 * 60 * 60 * 1000;
     const diffDays = Math.round((startOfToday - startOfLastActive) / msInDay);
 
@@ -177,7 +182,7 @@ export async function updateStreakOnServer(userId: string): Promise<void> {
       .from('profiles')
       .update({
         streak: newStreak,
-        last_active_at: now.toISOString()
+        last_active_at: now.toISOString(),
       })
       .eq('id', userId);
 
@@ -209,7 +214,7 @@ export async function fetchDailyQueue(userId: string): Promise<{
     // Retrieve progress that is due and its vocabulary definitions locally
     const nowStr = new Date().toISOString();
     const dueProgress = localProgress.getDueProgress(nowStr) as ProgressRecord[];
-    
+
     const result: QueueItem[] = [];
     for (const prog of dueProgress) {
       const vocab = localVocab.getById(prog.vocabulary_id) as VocabularyRecord | null;
@@ -217,7 +222,7 @@ export async function fetchDailyQueue(userId: string): Promise<{
         result.push({ vocabulary: vocab, progress: prog });
       }
     }
-    
+
     return { queue: result, online: false };
   }
 
@@ -233,11 +238,12 @@ export async function fetchDailyQueue(userId: string): Promise<{
 
     if (progErr) throw progErr;
 
-    const studiedVocabIds = progressRecords?.map(r => r.vocabulary_id) || [];
+    const studiedVocabIds = progressRecords?.map((r) => r.vocabulary_id) || [];
 
     // 3. Fetch due progress cards
     const nowISO = new Date().toISOString();
-    const dueRecords = progressRecords?.filter(r => new Date(r.next_review_at) <= new Date(nowISO)) || [];
+    const dueRecords =
+      progressRecords?.filter((r) => new Date(r.next_review_at) <= new Date(nowISO)) || [];
 
     // 4. Fetch up to 5 NEW vocabulary words (not yet studied)
     let newVocabQuery = supabase
@@ -270,11 +276,14 @@ export async function fetchDailyQueue(userId: string): Promise<{
 
       // Cache audio and map radicals
       const cachedAudio = await cacheAudioFile(vocab.audio_url);
-      const radicalsList = vocab.vocabulary_radicals?.map((vr: { radicals: unknown }) => vr.radicals).filter(Boolean) || [];
-      const cachedVocab: VocabularyRecord = { 
-        ...vocab, 
-        audio_url: cachedAudio, 
-        radicals_json: JSON.stringify(radicalsList)
+      const radicalsList =
+        vocab.vocabulary_radicals
+          ?.map((vr: { radicals: unknown }) => vr.radicals)
+          .filter(Boolean) || [];
+      const cachedVocab: VocabularyRecord = {
+        ...vocab,
+        audio_url: cachedAudio,
+        radicals_json: JSON.stringify(radicalsList),
       };
 
       localVocab.upsert(cachedVocab);
@@ -296,11 +305,14 @@ export async function fetchDailyQueue(userId: string): Promise<{
 
       // Cache audio and map radicals
       const cachedAudio = await cacheAudioFile(vocab.audio_url);
-      const radicalsList = vocab.vocabulary_radicals?.map((vr: { radicals: unknown }) => vr.radicals).filter(Boolean) || [];
-      const cachedVocab: VocabularyRecord = { 
-        ...vocab, 
-        audio_url: cachedAudio, 
-        radicals_json: JSON.stringify(radicalsList)
+      const radicalsList =
+        vocab.vocabulary_radicals
+          ?.map((vr: { radicals: unknown }) => vr.radicals)
+          .filter(Boolean) || [];
+      const cachedVocab: VocabularyRecord = {
+        ...vocab,
+        audio_url: cachedAudio,
+        radicals_json: JSON.stringify(radicalsList),
       };
 
       localVocab.upsert(cachedVocab);

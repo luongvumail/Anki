@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
-import { ChevronLeft, Flame, Award, BookCheck, TrendingUp, Calendar } from 'lucide-react-native';
+import { ChevronLeft, Flame, Award, Calendar } from 'lucide-react-native';
 import { useHaptics } from '@/hooks/useHaptics';
 import { useAppStore } from '@/services/store';
 import { localProgress } from '@/services/sqlite';
@@ -38,11 +38,11 @@ export default function StatisticsScreen() {
   const loadStats = () => {
     try {
       const data = localProgress.getStats();
-      
+
       let learning = 0;
       let reviewing = 0;
       let mastered = 0;
-      
+
       data.statusCounts.forEach((c) => {
         if (c.status === 'learning') learning = c.count;
         if (c.status === 'reviewing') reviewing = c.count;
@@ -75,12 +75,12 @@ export default function StatisticsScreen() {
     const days = [];
     const msInDay = 24 * 60 * 60 * 1000;
     const now = Date.now();
-    
+
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now - i * msInDay);
       const isoDate = date.toISOString().split('T')[0];
-      const historyItem = stats.history.find(h => h.study_date === isoDate);
-      
+      const historyItem = stats.history.find((h) => h.study_date === isoDate);
+
       days.push({
         label: date.toLocaleDateString('vi-VN', { weekday: 'short' }),
         dateString: isoDate,
@@ -90,13 +90,13 @@ export default function StatisticsScreen() {
     return days;
   };
 
-  const maxHistoryCount = Math.max(...stats.history.map(h => h.count), 1);
+  const maxHistoryCount = Math.max(...stats.history.map((h) => h.count), 1);
   const recentDays = getRecentDays();
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
@@ -107,7 +107,6 @@ export default function StatisticsScreen() {
       </View>
 
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-        
         {/* Streak & Rank Banner */}
         <View style={styles.bannerCard}>
           <View style={styles.bannerItem}>
@@ -119,7 +118,11 @@ export default function StatisticsScreen() {
           <View style={styles.bannerItem}>
             <Award size={32} color="#FFD60A" fill="#FFD60A" />
             <Text style={styles.bannerVal}>
-              {stats.masteredCount >= 50 ? 'Thượng Thừa' : stats.masteredCount >= 20 ? 'Thành Thạo' : 'Sơ Cấp'}
+              {stats.masteredCount >= 50
+                ? 'Thượng Thừa'
+                : stats.masteredCount >= 20
+                  ? 'Thành Thạo'
+                  : 'Sơ Cấp'}
             </Text>
             <Text style={styles.bannerLabel}>Danh hiệu học tập</Text>
           </View>
@@ -127,7 +130,7 @@ export default function StatisticsScreen() {
 
         {/* Breakdown Stats */}
         <Text style={styles.sectionTitle}>Trạng thái học tập</Text>
-        
+
         <View style={styles.grid}>
           <View style={[styles.gridCard, { borderColor: 'rgba(255, 255, 255, 0.1)' }]}>
             <Text style={styles.gridVal}>{stats.totalVocab}</Text>
@@ -153,16 +156,27 @@ export default function StatisticsScreen() {
         {/* Progress Progress Bars */}
         <View style={styles.progressBarsCard}>
           <Text style={styles.progressBarTitle}>Tiến độ ôn tập học tập</Text>
-          
+
           <View style={styles.barWrapper}>
             <View style={styles.barLabelRow}>
               <Text style={styles.barLabel}>Đã thuộc bài học (Mastered)</Text>
               <Text style={styles.barVal}>
-                {stats.totalVocab > 0 ? Math.round((stats.masteredCount / stats.totalVocab) * 100) : 0}%
+                {stats.totalVocab > 0
+                  ? Math.round((stats.masteredCount / stats.totalVocab) * 100)
+                  : 0}
+                %
               </Text>
             </View>
             <View style={styles.barTrack}>
-              <View style={[styles.barFill, { backgroundColor: '#30D158', width: `${stats.totalVocab > 0 ? (stats.masteredCount / stats.totalVocab) * 100 : 0}%` }]} />
+              <View
+                style={[
+                  styles.barFill,
+                  {
+                    backgroundColor: '#30D158',
+                    width: `${stats.totalVocab > 0 ? (stats.masteredCount / stats.totalVocab) * 100 : 0}%`,
+                  },
+                ]}
+              />
             </View>
           </View>
 
@@ -170,18 +184,29 @@ export default function StatisticsScreen() {
             <View style={styles.barLabelRow}>
               <Text style={styles.barLabel}>Đang ôn tập (Reviewing)</Text>
               <Text style={styles.barVal}>
-                {stats.totalVocab > 0 ? Math.round((stats.reviewingCount / stats.totalVocab) * 100) : 0}%
+                {stats.totalVocab > 0
+                  ? Math.round((stats.reviewingCount / stats.totalVocab) * 100)
+                  : 0}
+                %
               </Text>
             </View>
             <View style={styles.barTrack}>
-              <View style={[styles.barFill, { backgroundColor: '#0A84FF', width: `${stats.totalVocab > 0 ? (stats.reviewingCount / stats.totalVocab) * 100 : 0}%` }]} />
+              <View
+                style={[
+                  styles.barFill,
+                  {
+                    backgroundColor: '#0A84FF',
+                    width: `${stats.totalVocab > 0 ? (stats.reviewingCount / stats.totalVocab) * 100 : 0}%`,
+                  },
+                ]}
+              />
             </View>
           </View>
         </View>
 
         {/* Activity Chart */}
         <Text style={styles.sectionTitle}>Lịch sử học tập (7 ngày qua)</Text>
-        
+
         <View style={styles.chartCard}>
           <View style={styles.chartHeader}>
             <Calendar size={18} color="#AEAEB2" />
@@ -193,12 +218,20 @@ export default function StatisticsScreen() {
               // Calculate bar height ratio
               const barHeightRatio = d.count / maxHistoryCount;
               const barPercent = Math.max(barHeightRatio * 100, 5); // Minimum height to make it visible
-              
+
               return (
                 <View key={index} style={styles.chartCol}>
                   <View style={styles.barContainer}>
                     {d.count > 0 && <Text style={styles.barCountLabel}>{d.count}</Text>}
-                    <View style={[styles.chartBar, { height: `${barPercent}%`, backgroundColor: d.count > 0 ? '#FF2D55' : 'rgba(255, 255, 255, 0.08)' }]} />
+                    <View
+                      style={[
+                        styles.chartBar,
+                        {
+                          height: `${barPercent}%`,
+                          backgroundColor: d.count > 0 ? '#FF2D55' : 'rgba(255, 255, 255, 0.08)',
+                        },
+                      ]}
+                    />
                   </View>
                   <Text style={styles.chartColLabel}>{d.label}</Text>
                 </View>
@@ -206,7 +239,6 @@ export default function StatisticsScreen() {
             })}
           </View>
         </View>
-        
       </ScrollView>
     </SafeAreaView>
   );

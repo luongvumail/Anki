@@ -90,7 +90,7 @@ export const localVocab = {
         word.example_zh || null,
         word.example_pinyin || null,
         word.example_vi || null,
-      ]
+      ],
     );
   },
 
@@ -102,7 +102,7 @@ export const localVocab = {
     return db.getAllSync<any>(
       `SELECT v.*, p.status, p.interval_days, p.repetitions, p.next_review_at 
        FROM local_vocabulary v 
-       LEFT JOIN local_progress p ON v.id = p.vocabulary_id`
+       LEFT JOIN local_progress p ON v.id = p.vocabulary_id`,
     );
   },
 
@@ -139,7 +139,7 @@ export const localProgress = {
         progress.repetitions,
         progress.next_review_at,
         now,
-      ]
+      ],
     );
   },
 
@@ -150,29 +150,32 @@ export const localProgress = {
   getDueProgress: (nowStr: string) => {
     return db.getAllSync(
       `SELECT * FROM local_progress WHERE datetime(next_review_at) <= datetime(?)`,
-      [nowStr]
+      [nowStr],
     );
   },
 
   getById: (vocabularyId: string) => {
-    return db.getFirstSync<any>(
-      'SELECT * FROM local_progress WHERE vocabulary_id = ?',
-      [vocabularyId]
-    );
+    return db.getFirstSync<any>('SELECT * FROM local_progress WHERE vocabulary_id = ?', [
+      vocabularyId,
+    ]);
   },
 
   getStats: () => {
-    const totalVocab = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM local_vocabulary');
-    const totalProgress = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM local_progress');
+    const totalVocab = db.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM local_vocabulary',
+    );
+    const totalProgress = db.getFirstSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM local_progress',
+    );
     const statusCounts = db.getAllSync<{ status: string; count: number }>(
-      'SELECT status, COUNT(*) as count FROM local_progress GROUP BY status'
+      'SELECT status, COUNT(*) as count FROM local_progress GROUP BY status',
     );
     const history = db.getAllSync<{ study_date: string; count: number }>(
       `SELECT date(updated_at) as study_date, COUNT(*) as count 
        FROM local_progress 
        GROUP BY study_date 
        ORDER BY study_date DESC 
-       LIMIT 7`
+       LIMIT 7`,
     );
     return {
       totalVocab: totalVocab?.count || 0,
@@ -185,16 +188,20 @@ export const localProgress = {
   clearAll: () => {
     db.runSync('DELETE FROM local_progress');
     db.runSync('DELETE FROM local_vocabulary');
-  }
+  },
 };
 
 // Sync queue helper methods
 export const localSyncQueue = {
-  enqueue: (action: 'INSERT' | 'UPDATE' | 'UPSERT' | 'DELETE', tableName: string, payload: object) => {
+  enqueue: (
+    action: 'INSERT' | 'UPDATE' | 'UPSERT' | 'DELETE',
+    tableName: string,
+    payload: object,
+  ) => {
     const now = new Date().toISOString();
     db.runSync(
       `INSERT INTO sync_queue (action, table_name, payload, created_at) VALUES (?, ?, ?, ?)`,
-      [action, tableName, JSON.stringify(payload), now]
+      [action, tableName, JSON.stringify(payload), now],
     );
   },
 

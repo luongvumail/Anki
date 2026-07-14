@@ -29,7 +29,7 @@ export default function ProgressCircle({
     const cleanProgress = Math.min(Math.max(progress, 0), 1);
     const strokeOffset = circumference - cleanProgress * circumference;
     animatedStrokeOffset.value = withTiming(strokeOffset, { duration: 800 });
-  }, [progress, circumference]);
+  }, [progress, circumference, animatedStrokeOffset]);
 
   const animatedProps = useAnimatedProps(() => {
     return {

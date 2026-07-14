@@ -37,7 +37,9 @@ interface VocabItem {
 export default function VocabularyScreen() {
   const [vocabList, setVocabList] = useState<VocabItem[]>([]);
   const [searchText, setSearchText] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'learning' | 'reviewing' | 'mastered'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'learning' | 'reviewing' | 'mastered'>(
+    'all',
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -99,10 +101,10 @@ export default function VocabularyScreen() {
 
               // 3. Reload list
               fetchVocabData();
-              
+
               // 4. Reload main queue to make sure it doesn't appear
               await loadQueue();
-              
+
               successHaptic();
 
               // 5. Trigger background sync silently
@@ -113,7 +115,7 @@ export default function VocabularyScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -146,7 +148,7 @@ export default function VocabularyScreen() {
 
   const renderVocabCard = ({ item }: { item: VocabItem }) => {
     const badge = getStatusBadge(item.status);
-    
+
     return (
       <View style={styles.vocabCard}>
         <View style={styles.cardMain}>
@@ -160,7 +162,9 @@ export default function VocabularyScreen() {
           <View style={styles.infoContainer}>
             <Text style={styles.pinyinText}>{item.pinyin}</Text>
             <Text style={styles.hanVietText}>{item.han_viet.toUpperCase()}</Text>
-            <Text style={styles.defText} numberOfLines={2}>{item.definition_vi}</Text>
+            <Text style={styles.defText} numberOfLines={2}>
+              {item.definition_vi}
+            </Text>
           </View>
         </View>
 
@@ -204,7 +208,7 @@ export default function VocabularyScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
@@ -236,34 +240,63 @@ export default function VocabularyScreen() {
       <View style={styles.filterSection}>
         <TouchableOpacity
           style={[styles.filterTab, activeFilter === 'all' && styles.activeFilterTab]}
-          onPress={() => { lightHaptic(); setActiveFilter('all'); }}
+          onPress={() => {
+            lightHaptic();
+            setActiveFilter('all');
+          }}
         >
-          <Text style={[styles.filterTabText, activeFilter === 'all' && styles.activeFilterTabText]}>
+          <Text
+            style={[styles.filterTabText, activeFilter === 'all' && styles.activeFilterTabText]}
+          >
             Tất cả ({vocabList.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterTab, activeFilter === 'learning' && styles.activeFilterTab]}
-          onPress={() => { lightHaptic(); setActiveFilter('learning'); }}
+          onPress={() => {
+            lightHaptic();
+            setActiveFilter('learning');
+          }}
         >
-          <Text style={[styles.filterTabText, activeFilter === 'learning' && styles.activeFilterTabText]}>
-            Đang học ({vocabList.filter(v => (v.status || 'learning') === 'learning').length})
+          <Text
+            style={[
+              styles.filterTabText,
+              activeFilter === 'learning' && styles.activeFilterTabText,
+            ]}
+          >
+            Đang học ({vocabList.filter((v) => (v.status || 'learning') === 'learning').length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterTab, activeFilter === 'reviewing' && styles.activeFilterTab]}
-          onPress={() => { lightHaptic(); setActiveFilter('reviewing'); }}
+          onPress={() => {
+            lightHaptic();
+            setActiveFilter('reviewing');
+          }}
         >
-          <Text style={[styles.filterTabText, activeFilter === 'reviewing' && styles.activeFilterTabText]}>
-            Ôn tập ({vocabList.filter(v => v.status === 'reviewing').length})
+          <Text
+            style={[
+              styles.filterTabText,
+              activeFilter === 'reviewing' && styles.activeFilterTabText,
+            ]}
+          >
+            Ôn tập ({vocabList.filter((v) => v.status === 'reviewing').length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterTab, activeFilter === 'mastered' && styles.activeFilterTab]}
-          onPress={() => { lightHaptic(); setActiveFilter('mastered'); }}
+          onPress={() => {
+            lightHaptic();
+            setActiveFilter('mastered');
+          }}
         >
-          <Text style={[styles.filterTabText, activeFilter === 'mastered' && styles.activeFilterTabText]}>
-            Đã thuộc ({vocabList.filter(v => v.status === 'mastered').length})
+          <Text
+            style={[
+              styles.filterTabText,
+              activeFilter === 'mastered' && styles.activeFilterTabText,
+            ]}
+          >
+            Đã thuộc ({vocabList.filter((v) => v.status === 'mastered').length})
           </Text>
         </TouchableOpacity>
       </View>

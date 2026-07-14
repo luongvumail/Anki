@@ -22,27 +22,21 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => (
-            <Home size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="vocabulary"
         options={{
           title: 'Từ Vựng',
-          tabBarIcon: ({ color, size }) => (
-            <Book size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Book size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="stats"
         options={{
           title: 'Thống Kê',
-          tabBarIcon: ({ color, size }) => (
-            <TrendingUp size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <TrendingUp size={size} color={color} />,
         }}
       />
     </Tabs>

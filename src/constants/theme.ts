@@ -3,22 +3,20 @@
  * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
 
-import '@/global.css';
-
 import { Platform } from 'react-native';
 import { AppColors } from './colors';
 
 export const Palette = {
   ...AppColors,
   streak: AppColors.warning,
-  
+
   // Tones mapping
   tone1: '#FF3B30',
   tone2: '#FFCC00',
   tone3: '#34C759',
   tone4: '#007AFF',
   toneNeutral: '#8E8E93',
-  
+
   // Grays / UI Elements
   text: '#FFFFFF',
   textSecondary: '#AEAEB2',

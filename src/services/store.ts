@@ -20,6 +20,7 @@ interface AppState {
   completedCount: number;
   online: boolean;
   isLoading: boolean;
+  isSubmittingReview: boolean;
   
   setUserId: (id: string | null) => void;
   loadQueue: () => Promise<void>;
@@ -37,6 +38,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   completedCount: 0,
   online: true,
   isLoading: false,
+  isSubmittingReview: false,
 
   setUserId: (id) => set({ userId: id }),
 
@@ -92,67 +94,75 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   submitReview: async (grade) => {
-    const { queue, currentIndex, userId } = get();
-    if (!userId || queue.length === 0 || currentIndex >= queue.length) return;
+    const { queue, currentIndex, userId, isSubmittingReview } = get();
+    if (!userId || queue.length === 0 || currentIndex >= queue.length || isSubmittingReview) return;
 
-    const currentItem = queue[currentIndex];
+    set({ isSubmittingReview: true });
     
-    // 1. Calculate new SRS metrics using SM-2 Variant
-    const currentSRS = {
-      repetitions: currentItem.progress.repetitions,
-      easeFactor: currentItem.progress.ease_factor,
-      intervalDays: currentItem.progress.interval_days,
-    };
-    
-    const updatedSRS = calculateSRS(grade, currentSRS);
-
-    const updatedProgress = {
-      vocabulary_id: currentItem.vocabulary.id,
-      status: updatedSRS.status,
-      interval_days: updatedSRS.intervalDays,
-      ease_factor: updatedSRS.easeFactor,
-      repetitions: updatedSRS.repetitions,
-      next_review_at: updatedSRS.nextReviewAt.toISOString(),
-    };
-
-    // 2. Save locally in SQLite immediately
-    localProgress.upsert(updatedProgress);
-
-    // 3. Queue synchronization action for offline syncing
-    localSyncQueue.enqueue('UPSERT', 'user_progress', updatedProgress);
-
-    // 4. Update memory Queue structure
-    const updatedQueue = [...queue];
-
-    if (grade === 'forgot') {
-      // Swipe left (Forgot): Push this card to the end of the queue for re-learning this session
-      const forgotItem = {
-        ...currentItem,
-        progress: updatedProgress, // Use updated progress metrics
+    try {
+      const currentItem = queue[currentIndex];
+      
+      // 1. Calculate new SRS metrics using SM-2 Variant
+      const currentSRS = {
+        repetitions: currentItem.progress.repetitions,
+        easeFactor: currentItem.progress.ease_factor,
+        intervalDays: currentItem.progress.interval_days,
       };
       
-      // Remove from current index, and push to the end
-      updatedQueue.splice(currentIndex, 1);
-      updatedQueue.push(forgotItem);
-      
-      set({
-        queue: updatedQueue,
-        // We do not increment completed count or index, because the queue size did not reduce
-        // and the current card was swapped. The next card moves to currentIndex automatically.
-      });
-    } else {
-      // Swipe Right (Easy) or Swipe Up (Hard): Card is completed in this session
-      set((state) => ({
-        completedCount: state.completedCount + 1,
-        currentIndex: state.currentIndex + 1,
-      }));
-    }
+      const updatedSRS = calculateSRS(grade, currentSRS);
 
-    // 5. Fire-and-forget background sync — non-blocking, no streak update per card
-    // Streak is updated at session load (loadQueue) and manual sync (syncProgress).
-    syncLocalChanges().catch(() => {
-      console.log('Background sync skipped (offline or network error).');
-    });
+      const updatedProgress = {
+        vocabulary_id: currentItem.vocabulary.id,
+        status: updatedSRS.status,
+        interval_days: updatedSRS.intervalDays,
+        ease_factor: updatedSRS.easeFactor,
+        repetitions: updatedSRS.repetitions,
+        next_review_at: updatedSRS.nextReviewAt.toISOString(),
+      };
+
+      // 2. Save locally in SQLite immediately
+      localProgress.upsert(updatedProgress);
+
+      // 3. Queue synchronization action for offline syncing
+      localSyncQueue.enqueue('UPSERT', 'user_progress', updatedProgress);
+
+      // 4. Update memory Queue structure
+      const updatedQueue = [...queue];
+
+      if (grade === 'forgot') {
+        // Swipe left (Forgot): Push this card to the end of the queue for re-learning this session
+        const forgotItem = {
+          ...currentItem,
+          progress: updatedProgress, // Use updated progress metrics
+        };
+        
+        // Remove from current index, and push to the end
+        updatedQueue.splice(currentIndex, 1);
+        updatedQueue.push(forgotItem);
+        
+        set({
+          queue: updatedQueue,
+          // We do not increment completed count or index, because the queue size did not reduce
+          // and the current card was swapped. The next card moves to currentIndex automatically.
+        });
+      } else {
+        // Swipe Right (Easy) or Swipe Up (Hard): Card is completed in this session
+        set((state) => ({
+          completedCount: state.completedCount + 1,
+          currentIndex: state.currentIndex + 1,
+        }));
+      }
+
+      // 5. Fire-and-forget background sync — non-blocking, no streak update per card
+      // Streak is updated at session load (loadQueue) and manual sync (syncProgress).
+      syncLocalChanges().catch(() => {
+        console.log('Background sync skipped (offline or network error).');
+      });
+    } catch (e) {
+      console.error('Error submitting review:', e);
+    } finally {
+      set({ isSubmittingReview: false });
+    }
   },
 
   syncProgress: async () => {

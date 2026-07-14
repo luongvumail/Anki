@@ -1,3 +1,5 @@
+import { Palette } from '../constants/theme';
+
 // Spaced Repetition System (SRS) Utility utilizing SM-2 Variant logic
 
 export interface SRSParams {
@@ -93,10 +95,10 @@ export function getToneColor(pinyin: string): string {
   const t3 = /[ǎěǐǒǔǚ]/i;
   const t4 = /[àèìòùǜ]/i;
 
-  if (t1.test(pinyin)) return '#FF3B30';
-  if (t2.test(pinyin)) return '#FFCC00';
-  if (t3.test(pinyin)) return '#34C759';
-  if (t4.test(pinyin)) return '#007AFF';
+  if (t1.test(pinyin)) return Palette.tone1;
+  if (t2.test(pinyin)) return Palette.tone2;
+  if (t3.test(pinyin)) return Palette.tone3;
+  if (t4.test(pinyin)) return Palette.tone4;
   
-  return '#8E8E93'; // Neutral tone
+  return Palette.toneNeutral; // Neutral tone
 }

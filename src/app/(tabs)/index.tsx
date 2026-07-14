@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,13 +7,17 @@ import {
   ActivityIndicator,
   SafeAreaView,
   StatusBar,
+  ScrollView,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useAppStore } from '../services/store';
-import ProgressCircle from '../components/ProgressCircle';
-import { useHaptics } from '../hooks/useHaptics';
-import { supabase } from '../services/supabase';
-import { Flame, Plus, Play, RefreshCw, LogOut, WifiOff } from 'lucide-react-native';
+import { useAppStore } from '@/services/store';
+import ProgressCircle from '@/components/ProgressCircle';
+import { useHaptics } from '@/hooks/useHaptics';
+import { supabase } from '@/services/supabase';
+import { Flame, Plus, Play, RefreshCw, LogOut, WifiOff, Settings } from 'lucide-react-native';
+import { AppColors } from '@/constants/colors';
 
 export default function DashboardScreen() {
   const {
@@ -28,11 +32,25 @@ export default function DashboardScreen() {
   } = useAppStore();
 
   const { lightHaptic, successHaptic } = useHaptics();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Load queue on component mount
   useEffect(() => {
     loadQueue();
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    lightHaptic();
+    setIsRefreshing(true);
+    try {
+      await syncProgress();
+      await loadQueue();
+    } catch (e) {
+      console.log('Dashboard refresh failed:', e);
+    }
+    setIsRefreshing(false);
+  }, [lightHaptic, loadQueue, syncProgress]);
 
   const handleStartReview = () => {
     lightHaptic();
@@ -46,15 +64,37 @@ export default function DashboardScreen() {
     router.push('/add-word');
   };
 
-  const handleSignOut = async () => {
-    lightHaptic();
-    await supabase.auth.signOut();
+  const handleSignOut = () => {
+    Alert.alert('Đăng xuất?', 'Bạn sẽ cần đăng nhập lại để tiếp tục học trên thiết bị này.', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Đăng xuất',
+        style: 'destructive',
+        onPress: async () => {
+          lightHaptic();
+          setIsSigningOut(true);
+          try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+          } catch (error) {
+            Alert.alert('Không thể đăng xuất', error instanceof Error ? error.message : 'Vui lòng thử lại.');
+          } finally {
+            setIsSigningOut(false);
+          }
+        },
+      },
+    ]);
   };
 
   const handleManualSync = async () => {
     lightHaptic();
     await syncProgress();
     successHaptic();
+  };
+
+  const handleGoToSettings = () => {
+    lightHaptic();
+    router.push('/settings' as never);
   };
 
   // Calculate stats
@@ -83,77 +123,92 @@ export default function DashboardScreen() {
               <RefreshCw size={20} color="#FFFFFF" />
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={styles.iconButton} onPress={handleSignOut}>
-            <LogOut size={20} color="#FF3B30" />
+          <TouchableOpacity style={styles.iconButton} onPress={handleGoToSettings}>
+            <Settings size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={handleSignOut} disabled={isSigningOut}>
+            {isSigningOut ? <ActivityIndicator size="small" color={AppColors.error} /> : <LogOut size={20} color={AppColors.error} />}
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Main card panel */}
-      <View style={styles.content}>
-        
-        {/* Streak Indicator */}
-        <View style={styles.streakContainer}>
-          <Flame size={32} color="#FF9500" fill="#FF9500" />
-          <View>
-            <Text style={styles.streakNumber}>{profile?.streak || 0} ngày</Text>
-            <Text style={styles.streakLabel}>Chuỗi học tập liên tục (Streak)</Text>
-          </View>
-        </View>
-
-        {/* Circular Progress Area */}
-        <View style={styles.progressSection}>
-          {isLoading ? (
-            <View style={styles.loaderContainer}>
-              <ActivityIndicator size="large" color="#FF2D55" />
-              <Text style={styles.loadingText}>Đang bốc thuốc từ vựng hôm nay...</Text>
+      {/* Main card panel with pull-to-refresh scroll view wrapper */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FF2D55"
+            colors={["#FF2D55"]}
+          />
+        }
+      >
+        <View style={styles.content}>
+          {/* Streak Indicator */}
+          <View style={styles.streakContainer}>
+            <Flame size={32} color="#FF9500" fill="#FF9500" />
+            <View>
+              <Text style={styles.streakNumber}>{profile?.streak || 0} ngày</Text>
+              <Text style={styles.streakLabel}>Chuỗi học tập liên tục (Streak)</Text>
             </View>
-          ) : (
-            <ProgressCircle
-              progress={progressRatio}
-              size={220}
-              strokeWidth={16}
-              label={totalInQueue > 0 ? `${completedCount}/${totalInQueue}` : 'Xong'}
-              subLabel={totalInQueue > 0 ? 'Từ đã học' : 'Hoàn thành'}
-            />
-          )}
-        </View>
+          </View>
 
-        {/* Study summary */}
-        {!isLoading && (
-          <View style={styles.summaryContainer}>
-            {remainingCount > 0 ? (
-              <Text style={styles.summaryText}>
-                Hôm nay bạn cần học <Text style={styles.boldText}>{remainingCount}</Text> từ mới và đến hạn ôn tập.
-              </Text>
+          {/* Circular Progress Area */}
+          <View style={styles.progressSection}>
+            {isLoading ? (
+              <View style={styles.loaderContainer}>
+                <ActivityIndicator size="large" color="#FF2D55" />
+                <Text style={styles.loadingText}>Đang bốc thuốc từ vựng hôm nay...</Text>
+              </View>
             ) : (
-              <Text style={styles.summaryText}>
-                Chúc mừng! Bạn đã hoàn thành tất cả mục tiêu học tập của ngày hôm nay 🎉
-              </Text>
+              <ProgressCircle
+                progress={progressRatio}
+                size={220}
+                strokeWidth={16}
+                label={totalInQueue > 0 ? `${completedCount}/${totalInQueue}` : 'Xong'}
+                subLabel={totalInQueue > 0 ? 'Từ đã học' : 'Hoàn thành'}
+              />
             )}
           </View>
-        )}
 
-        {/* Action Controls */}
-        <View style={styles.actionSection}>
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              remainingCount === 0 && styles.disabledButton,
-            ]}
-            onPress={handleStartReview}
-            disabled={remainingCount === 0 || isLoading}
-          >
-            <Play size={22} color="#FFFFFF" fill="#FFFFFF" />
-            <Text style={styles.primaryButtonText}>Bắt đầu ôn tập</Text>
-          </TouchableOpacity>
+          {/* Study summary */}
+          {!isLoading && (
+            <View style={styles.summaryContainer}>
+              {remainingCount > 0 ? (
+                <Text style={styles.summaryText}>
+                  Hôm nay bạn cần học <Text style={styles.boldText}>{remainingCount}</Text> từ mới và đến hạn ôn tập.
+                </Text>
+              ) : (
+                <Text style={styles.summaryText}>
+                  Chúc mừng! Bạn đã hoàn thành tất cả mục tiêu học tập của ngày hôm nay 🎉
+                </Text>
+              )}
+            </View>
+          )}
 
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleAddWord}>
-            <Plus size={22} color="#FF2D55" />
-            <Text style={styles.secondaryButtonText}>Thêm từ nhanh bằng AI</Text>
-          </TouchableOpacity>
+          {/* Action Controls */}
+          <View style={styles.actionSection}>
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                remainingCount === 0 && styles.disabledButton,
+              ]}
+              onPress={handleStartReview}
+              disabled={remainingCount === 0 || isLoading}
+            >
+              <Play size={22} color="#FFFFFF" fill="#FFFFFF" />
+              <Text style={styles.primaryButtonText}>Bắt đầu ôn tập</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleAddWord}>
+              <Plus size={22} color="#FF2D55" />
+              <Text style={styles.secondaryButtonText}>Thêm từ nhanh bằng AI</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -162,6 +217,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#120E2E',
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',

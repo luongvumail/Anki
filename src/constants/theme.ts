@@ -6,6 +6,28 @@
 import '@/global.css';
 
 import { Platform } from 'react-native';
+import { AppColors } from './colors';
+
+export const Palette = {
+  ...AppColors,
+  streak: AppColors.warning,
+  
+  // Tones mapping
+  tone1: '#FF3B30',
+  tone2: '#FFCC00',
+  tone3: '#34C759',
+  tone4: '#007AFF',
+  toneNeutral: '#8E8E93',
+  
+  // Grays / UI Elements
+  text: '#FFFFFF',
+  textSecondary: '#AEAEB2',
+  textMuted: '#8E8E93',
+  border: 'rgba(255, 255, 255, 0.1)',
+  borderLight: 'rgba(255, 255, 255, 0.08)',
+  cardBg: 'rgba(255, 255, 255, 0.06)',
+  cardBgLight: 'rgba(255, 255, 255, 0.08)',
+} as const;
 
 export const Colors = {
   light: {

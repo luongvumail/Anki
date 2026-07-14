@@ -16,6 +16,9 @@ export interface VocabularyRecord {
   definition_vi: string;
   audio_url?: string | null;
   radicals_json?: string | null;
+  example_zh?: string | null;
+  example_pinyin?: string | null;
+  example_vi?: string | null;
 }
 
 export interface ProgressRecord {
@@ -93,20 +96,30 @@ export async function syncLocalChanges(): Promise<void> {
       const payload = JSON.parse(item.payload) as ProgressRecord;
       
       if (item.table_name === 'user_progress') {
-        const { error } = await supabase
-          .from('user_progress')
-          .upsert({
-            user_id: session.user.id,
-            vocabulary_id: payload.vocabulary_id,
-            status: payload.status,
-            interval_days: payload.interval_days,
-            ease_factor: payload.ease_factor,
-            repetitions: payload.repetitions,
-            next_review_at: payload.next_review_at,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'user_id,vocabulary_id' });
+        if (item.action === 'DELETE') {
+          const { error } = await supabase
+            .from('user_progress')
+            .delete()
+            .eq('user_id', session.user.id)
+            .eq('vocabulary_id', payload.vocabulary_id);
 
-        if (error) throw error;
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('user_progress')
+            .upsert({
+              user_id: session.user.id,
+              vocabulary_id: payload.vocabulary_id,
+              status: payload.status,
+              interval_days: payload.interval_days,
+              ease_factor: payload.ease_factor,
+              repetitions: payload.repetitions,
+              next_review_at: payload.next_review_at,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id,vocabulary_id' });
+
+          if (error) throw error;
+        }
       }
       
       // Successfully synced item, remove it from local queue
@@ -144,11 +157,9 @@ export async function updateStreakOnServer(userId: string): Promise<void> {
     const now = new Date();
     const lastActive = new Date(profile.last_active_at);
 
-    // Calculate calendar days difference using UTC dates to avoid timezone issues.
-    // Using local getFullYear/getDate would miscount for UTC+7 users when last_active_at
-    // is late UTC evening (e.g. 22:00 UTC = 05:00 ICT next day → same local date, diffDays=0).
-    const startOfToday = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-    const startOfLastActive = Date.UTC(lastActive.getUTCFullYear(), lastActive.getUTCMonth(), lastActive.getUTCDate());
+    // Calculate calendar days difference using local dates to match the user's actual day.
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfLastActive = new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate()).getTime();
     
     const msInDay = 24 * 60 * 60 * 1000;
     const diffDays = Math.round((startOfToday - startOfLastActive) / msInDay);

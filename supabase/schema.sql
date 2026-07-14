@@ -71,8 +71,16 @@ CREATE TABLE public.vocabulary (
     han_viet TEXT NOT NULL,
     definition_vi TEXT NOT NULL,
     audio_url TEXT,
+    example_zh TEXT,
+    example_pinyin TEXT,
+    example_vi TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Migration: add example columns to existing installations
+ALTER TABLE public.vocabulary ADD COLUMN IF NOT EXISTS example_zh TEXT;
+ALTER TABLE public.vocabulary ADD COLUMN IF NOT EXISTS example_pinyin TEXT;
+ALTER TABLE public.vocabulary ADD COLUMN IF NOT EXISTS example_vi TEXT;
 
 -- Enable RLS on Vocabulary
 ALTER TABLE public.vocabulary ENABLE ROW LEVEL SECURITY;

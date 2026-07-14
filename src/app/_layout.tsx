@@ -3,24 +3,55 @@ import React, { useEffect, useState } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme, View, ActivityIndicator } from 'react-native';
+import { Stack, router } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
-import AppTabs from '@/components/AppTabs';
 import { initLocalDB } from '@/services/sqlite';
 import { useAppStore } from '@/services/store';
 import { supabase } from '@/services/supabase';
+import { notificationService } from '@/services/notifications';
 import LoginScreen from './(auth)/login';
+import OnboardingScreen from './onboarding';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 SplashScreen.preventAutoHideAsync();
 
-// Initialize local DB on app start
-initLocalDB();
+// Singleton check to make sure database is initialized only once
+let dbInitialized = false;
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { userId, setUserId } = useAppStore();
   const [authLoading, setAuthLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
+    const redirectFromNotification = (notification: Notifications.Notification) => {
+      const url = notification.request.content.data?.url;
+      if (typeof url === 'string' && url.startsWith('/')) {
+        router.push(url as never);
+      }
+    };
+
+    const lastResponse = Notifications.getLastNotificationResponse();
+    if (lastResponse?.notification) {
+      redirectFromNotification(lastResponse.notification);
+    }
+
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      redirectFromNotification(response.notification);
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!dbInitialized) {
+      initLocalDB();
+      dbInitialized = true;
+    }
+
     // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id || null);
@@ -31,6 +62,20 @@ export default function TabLayout() {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserId(session?.user?.id || null);
+    });
+
+    // Check if onboarding completed
+    AsyncStorage.getItem('@anki_onboarding_completed').then((val) => {
+      if (val !== 'true') {
+        setShowOnboarding(true);
+      }
+    });
+
+    // Request notification permissions and schedule daily notification
+    notificationService.getSettings().then((settings) => {
+      if (settings.enabled) {
+        notificationService.scheduleDailyNotification(settings.hour, settings.minute);
+      }
     });
 
     return () => {
@@ -48,13 +93,24 @@ export default function TabLayout() {
     );
   }
 
+  if (showOnboarding) {
+    return <OnboardingScreen onComplete={() => setShowOnboarding(false)} />;
+  }
+
   if (!userId) {
     return <LoginScreen />;
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AppTabs />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="flashcard" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="add-word" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+        </Stack>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

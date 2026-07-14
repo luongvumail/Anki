@@ -74,6 +74,30 @@ export default function LoginScreen() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      Alert.alert('Nhập email', 'Nhập email tài khoản để nhận liên kết đặt lại mật khẩu.');
+      return;
+    }
+
+    setLoading(true);
+    lightHaptic();
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: Linking.createURL('/'),
+      });
+      if (error) throw error;
+      successHaptic();
+      Alert.alert('Kiểm tra email', 'Nếu email này có tài khoản, chúng tôi đã gửi liên kết đặt lại mật khẩu.');
+    } catch (error: any) {
+      warningHaptic();
+      Alert.alert('Không thể gửi email', error.message || 'Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   /**
    * OAuth Sign-in via Google or Apple using Supabase + expo-web-browser.
    *
@@ -204,6 +228,12 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
+          {!isSignUp && (
+            <TouchableOpacity style={styles.forgotPasswordButton} onPress={handleForgotPassword} disabled={loading}>
+              <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={styles.switchButton}
             onPress={() => {
@@ -328,6 +358,15 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  forgotPasswordButton: {
+    alignSelf: 'center',
+    paddingVertical: 12,
+  },
+  forgotPasswordText: {
+    color: '#FFD60A',
+    fontSize: 14,
     fontWeight: '700',
   },
   switchButton: {

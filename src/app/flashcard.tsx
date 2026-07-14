@@ -110,6 +110,9 @@ export default function FlashcardScreen() {
           definition_vi={currentItem.vocabulary.definition_vi}
           audio_url={currentItem.vocabulary.audio_url}
           radicals_json={currentItem.vocabulary.radicals_json}
+          example_zh={currentItem.vocabulary.example_zh}
+          example_pinyin={currentItem.vocabulary.example_pinyin}
+          example_vi={currentItem.vocabulary.example_vi}
           onSwipeComplete={handleSwipeComplete}
         />
       </View>

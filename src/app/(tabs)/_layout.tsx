@@ -1,14 +1,8 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Home, BookOpen } from 'lucide-react-native';
-import { useAppStore } from '../services/store';
+import { Home, Book, TrendingUp } from 'lucide-react-native';
 
-export default function AppTabs() {
-  const { queue, completedCount, totalInQueue } = useAppStore();
-
-  // Tab is accessible only when there are cards remaining in the session
-  const hasActiveSession = queue.length > 0 && completedCount < totalInQueue;
-
+export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
@@ -33,15 +27,21 @@ export default function AppTabs() {
           ),
         }}
       />
-
       <Tabs.Screen
-        name="flashcard"
+        name="vocabulary"
         options={{
-          title: 'Ôn Tập',
-          // href: null hides the tab when there is no active session
-          href: hasActiveSession ? undefined : null,
+          title: 'Từ Vựng',
           tabBarIcon: ({ color, size }) => (
-            <BookOpen size={size} color={color} />
+            <Book size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="stats"
+        options={{
+          title: 'Thống Kê',
+          tabBarIcon: ({ color, size }) => (
+            <TrendingUp size={size} color={color} />
           ),
         }}
       />

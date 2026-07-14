@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
 
 export function useAudio() {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   const playAudio = async (url: string | null | undefined) => {
     if (!url) return;
 
     try {
       // Unload previous sound if it exists
-      if (sound) {
-        await sound.unloadAsync();
+      if (soundRef.current) {
+        const soundToUnload = soundRef.current;
+        soundRef.current = null; // Clear reference immediately
+        await soundToUnload.unloadAsync().catch(() => {});
       }
 
       // Configure audio session for iOS and Android
@@ -25,7 +27,7 @@ export function useAudio() {
         { shouldPlay: true }
       );
 
-      setSound(newSound);
+      soundRef.current = newSound;
     } catch (error) {
       console.error('Failed to load or play audio:', error);
     }
@@ -34,11 +36,11 @@ export function useAudio() {
   // Clean up sound resource when hook unmounts
   useEffect(() => {
     return () => {
-      if (sound) {
-        sound.unloadAsync().catch((err) => console.log('Error unloading sound:', err));
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch((err) => console.log('Error unloading sound on unmount:', err));
       }
     };
-  }, [sound]);
+  }, []);
 
   return { playAudio };
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -13,9 +13,6 @@ import { Volume2, HelpCircle } from 'lucide-react-native';
 import { useAudio } from '../hooks/useAudio';
 import { useHaptics } from '../hooks/useHaptics';
 import { getToneColor } from '../utils/srs';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.35;
 
 export interface RadicalInfo {
   character: string;
@@ -32,6 +29,9 @@ interface Flashcard3DProps {
   definition_vi: string;
   audio_url?: string | null;
   radicals_json?: string | null; // Cached JSON list of radicals
+  example_zh?: string | null;
+  example_pinyin?: string | null;
+  example_vi?: string | null;
   onSwipeComplete: (grade: 'easy' | 'hard' | 'forgot') => void;
 }
 
@@ -43,8 +43,14 @@ export default function Flashcard3D({
   definition_vi,
   audio_url,
   radicals_json,
+  example_zh,
+  example_pinyin,
+  example_vi,
   onSwipeComplete,
 }: Flashcard3DProps) {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const swipeThreshold = screenWidth * 0.35;
+
   const [isFlipped, setIsFlipped] = useState(false);
   const [showRadicals, setShowRadicals] = useState(false);
   
@@ -56,8 +62,15 @@ export default function Flashcard3D({
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
 
-  // Parse radicals list from JSON string
-  const radicals: RadicalInfo[] = radicals_json ? JSON.parse(radicals_json) : [];
+  // Parse radicals list from JSON string with error handling to avoid crashes
+  let radicals: RadicalInfo[] = [];
+  if (radicals_json) {
+    try {
+      radicals = JSON.parse(radicals_json);
+    } catch (e) {
+      console.error('Failed to parse radicals JSON:', e);
+    }
+  }
 
   // Reset card state when content changes
   useEffect(() => {
@@ -90,22 +103,22 @@ export default function Flashcard3D({
       translateY.value = event.translationY;
     })
     .onEnd((event) => {
-      if (event.translationX > SWIPE_THRESHOLD) {
+      if (event.translationX > swipeThreshold) {
         // Swipe Right: Easy
         runOnJS(successHaptic)();
-        translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 250 }, () => {
+        translateX.value = withTiming(screenWidth * 1.5, { duration: 250 }, () => {
           runOnJS(onSwipeComplete)('easy');
         });
-      } else if (event.translationX < -SWIPE_THRESHOLD) {
+      } else if (event.translationX < -swipeThreshold) {
         // Swipe Left: Forgot
         runOnJS(warningHaptic)();
-        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 250 }, () => {
+        translateX.value = withTiming(-screenWidth * 1.5, { duration: 250 }, () => {
           runOnJS(onSwipeComplete)('forgot');
         });
-      } else if (event.translationY < -SWIPE_THRESHOLD) {
+      } else if (event.translationY < -swipeThreshold) {
         // Swipe Up: Hard
         runOnJS(lightHaptic)();
-        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, { duration: 250 }, () => {
+        translateY.value = withTiming(-screenHeight * 1.5, { duration: 250 }, () => {
           runOnJS(onSwipeComplete)('hard');
         });
       } else {
@@ -124,7 +137,7 @@ export default function Flashcard3D({
 
   // Card transform styles
   const cardAnimatedStyle = useAnimatedStyle(() => {
-    const rotate = interpolate(translateX.value, [-SCREEN_WIDTH, SCREEN_WIDTH], [-10, 10]);
+    const rotate = interpolate(translateX.value, [-screenWidth, screenWidth], [-10, 10]);
     return {
       transform: [
         { translateX: translateX.value },
@@ -154,17 +167,17 @@ export default function Flashcard3D({
 
   // Swipe Action Label Overlays
   const easyOverlayStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1], 'clamp');
+    const opacity = interpolate(translateX.value, [0, swipeThreshold], [0, 1], 'clamp');
     return { opacity };
   });
 
   const forgotOverlayStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(translateX.value, [-SWIPE_THRESHOLD, 0], [1, 0], 'clamp');
+    const opacity = interpolate(translateX.value, [-swipeThreshold, 0], [1, 0], 'clamp');
     return { opacity };
   });
 
   const hardOverlayStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(translateY.value, [-SWIPE_THRESHOLD, 0], [1, 0], 'clamp');
+    const opacity = interpolate(translateY.value, [-swipeThreshold, 0], [1, 0], 'clamp');
     return { opacity };
   });
 
@@ -185,7 +198,7 @@ export default function Flashcard3D({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { width: screenWidth * 0.9, height: screenHeight * 0.58 }]}>
       <GestureDetector gesture={composedGesture}>
         <Animated.View style={[styles.cardContainer, cardAnimatedStyle]}>
           
@@ -270,6 +283,15 @@ export default function Flashcard3D({
 
               {/* Purely Vietnamese meaning below it */}
               <Text style={styles.backDefinition}>{definition_vi}</Text>
+
+              {/* Example sentences */}
+              {example_zh && (
+                <View style={styles.backExampleContainer}>
+                  <Text style={styles.backExampleZh}>{example_zh}</Text>
+                  {example_pinyin && <Text style={styles.backExamplePinyin}>{example_pinyin}</Text>}
+                  {example_vi && <Text style={styles.backExampleVi}>{example_vi}</Text>}
+                </View>
+              )}
             </View>
 
             <Text style={styles.tapTextBack}>Vuốt Trái: Quên | Vuốt Phải: Dễ | Vuốt Lên: Khó</Text>
@@ -296,8 +318,6 @@ export default function Flashcard3D({
 
 const styles = StyleSheet.create({
   container: {
-    width: SCREEN_WIDTH * 0.9,
-    height: SCREEN_HEIGHT * 0.58,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -558,5 +578,34 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#0A84FF',
     letterSpacing: 1.5,
+  },
+  backExampleContainer: {
+    marginTop: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 4,
+    width: '90%',
+    alignSelf: 'center',
+  },
+  backExampleZh: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  backExamplePinyin: {
+    fontSize: 13,
+    color: '#FFD60A',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  backExampleVi: {
+    fontSize: 13,
+    color: '#AEAEB2',
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });

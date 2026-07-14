@@ -17,7 +17,10 @@ export function initLocalDB() {
         han_viet TEXT NOT NULL,
         definition_vi TEXT NOT NULL,
         audio_url TEXT,
-        radicals_json TEXT
+        radicals_json TEXT,
+        example_zh TEXT,
+        example_pinyin TEXT,
+        example_vi TEXT
       );
 
       CREATE TABLE IF NOT EXISTS local_progress (
@@ -38,6 +41,17 @@ export function initLocalDB() {
         created_at TEXT NOT NULL
       );
     `);
+
+    // Migration: add example columns to existing local DB installations.
+    // SQLite doesn't support ADD COLUMN IF NOT EXISTS, so we try/catch each.
+    for (const col of ['example_zh', 'example_pinyin', 'example_vi']) {
+      try {
+        db.execSync(`ALTER TABLE local_vocabulary ADD COLUMN ${col} TEXT;`);
+      } catch {
+        // Column already exists — safe to ignore
+      }
+    }
+
     console.log('Local SQLite Database initialized successfully.');
   } catch (error) {
     console.error('Failed to initialize local SQLite database:', error);
@@ -55,11 +69,15 @@ export const localVocab = {
     definition_vi: string;
     audio_url?: string | null;
     radicals_json?: string | null;
+    example_zh?: string | null;
+    example_pinyin?: string | null;
+    example_vi?: string | null;
   }) => {
     db.runSync(
       `INSERT OR REPLACE INTO local_vocabulary 
-      (id, simplified, traditional, pinyin, han_viet, definition_vi, audio_url, radicals_json) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, simplified, traditional, pinyin, han_viet, definition_vi, audio_url, radicals_json,
+       example_zh, example_pinyin, example_vi) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         word.id,
         word.simplified,
@@ -69,6 +87,9 @@ export const localVocab = {
         word.definition_vi,
         word.audio_url || null,
         word.radicals_json || null,
+        word.example_zh || null,
+        word.example_pinyin || null,
+        word.example_vi || null,
       ]
     );
   },
@@ -77,8 +98,21 @@ export const localVocab = {
     return db.getAllSync('SELECT * FROM local_vocabulary');
   },
 
+  getAllWithProgress: () => {
+    return db.getAllSync<any>(
+      `SELECT v.*, p.status, p.interval_days, p.repetitions, p.next_review_at 
+       FROM local_vocabulary v 
+       LEFT JOIN local_progress p ON v.id = p.vocabulary_id`
+    );
+  },
+
   getById: (id: string) => {
     return db.getFirstSync('SELECT * FROM local_vocabulary WHERE id = ?', [id]);
+  },
+
+  delete: (id: string) => {
+    db.runSync('DELETE FROM local_vocabulary WHERE id = ?', [id]);
+    db.runSync('DELETE FROM local_progress WHERE vocabulary_id = ?', [id]);
   },
 };
 
@@ -127,6 +161,27 @@ export const localProgress = {
     );
   },
 
+  getStats: () => {
+    const totalVocab = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM local_vocabulary');
+    const totalProgress = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM local_progress');
+    const statusCounts = db.getAllSync<{ status: string; count: number }>(
+      'SELECT status, COUNT(*) as count FROM local_progress GROUP BY status'
+    );
+    const history = db.getAllSync<{ study_date: string; count: number }>(
+      `SELECT date(updated_at) as study_date, COUNT(*) as count 
+       FROM local_progress 
+       GROUP BY study_date 
+       ORDER BY study_date DESC 
+       LIMIT 7`
+    );
+    return {
+      totalVocab: totalVocab?.count || 0,
+      totalProgress: totalProgress?.count || 0,
+      statusCounts,
+      history,
+    };
+  },
+
   clearAll: () => {
     db.runSync('DELETE FROM local_progress');
     db.runSync('DELETE FROM local_vocabulary');
@@ -135,7 +190,7 @@ export const localProgress = {
 
 // Sync queue helper methods
 export const localSyncQueue = {
-  enqueue: (action: 'INSERT' | 'UPDATE' | 'UPSERT', tableName: string, payload: object) => {
+  enqueue: (action: 'INSERT' | 'UPDATE' | 'UPSERT' | 'DELETE', tableName: string, payload: object) => {
     const now = new Date().toISOString();
     db.runSync(
       `INSERT INTO sync_queue (action, table_name, payload, created_at) VALUES (?, ?, ?, ?)`,

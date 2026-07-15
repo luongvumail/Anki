@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { calculateSRS } from '../utils/srs';
 import { fetchDailyQueue, syncLocalChanges, updateStreakOnServer, QueueItem } from './sync';
-import { localProgress, localSyncQueue } from './sqlite';
+import { localProgress, localSyncQueue, localReviewLogs } from './sqlite';
 import { supabase } from './supabase';
 
 // Re-export QueueItem as FlashcardItem for backward compatibility
@@ -122,6 +122,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       // 2. Save locally in SQLite immediately
       localProgress.upsert(updatedProgress);
+
+      // 2.5 Log the review locally
+      localReviewLogs.log(currentItem.vocabulary.id, grade);
 
       // 3. Queue synchronization action for offline syncing
       localSyncQueue.enqueue('UPSERT', 'user_progress', updatedProgress);

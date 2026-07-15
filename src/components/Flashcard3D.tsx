@@ -88,13 +88,13 @@ export default function Flashcard3D({
     rotateY.value = withTiming(toValue, { duration: 550 });
     setIsFlipped(!isFlipped);
 
-    // Auto play audio on flip to back
-    if (!isFlipped && audio_url) {
-      playAudio(audio_url, simplified);
+    // Auto play audio on flip to back (always — TTS fallback if no audio_url)
+    if (!isFlipped) {
+      playAudio(audio_url ?? undefined, simplified);
     }
   };
 
-  // Drag Gesture
+  // Drag Gesture — swipes only commit after card is flipped (user has seen the answer)
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])
     .activeOffsetY([-10, 10])
@@ -103,6 +103,12 @@ export default function Flashcard3D({
       translateY.value = event.translationY;
     })
     .onEnd((event) => {
+      if (!isFlipped) {
+        // Card not yet flipped — snap back without submitting grade
+        translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
+        translateY.value = withSpring(0, { damping: 20, stiffness: 120 });
+        return;
+      }
       if (event.translationX > swipeThreshold) {
         // Swipe Right: Easy
         runOnJS(successHaptic)();
@@ -300,7 +306,7 @@ export default function Flashcard3D({
               )}
             </View>
 
-            <Text style={styles.tapTextBack}>Vuốt Trái: Quên | Vuốt Phải: Dễ | Vuốt Lên: Khó</Text>
+            <Text style={styles.tapTextBack}>← Quên | Khó ↑ | Dễ →</Text>
           </Animated.View>
 
           {/* Swipe Indicator Overlays */}

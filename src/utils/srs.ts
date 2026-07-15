@@ -31,13 +31,14 @@ export function calculateSRS(grade: 'easy' | 'hard' | 'forgot', current: SRSPara
   if (grade === 'forgot') {
     // 1. Nếu người dùng chọn "Quên" (Vuốt trái):
     repetitions = 0;
-    intervalDays = 1; // Khoảng thời gian chờ đặt về mặc định: 1 ngày
+    intervalDays = 0; // Khoảng thời gian chờ đặt về 0 để lặp lại sớm
     easeFactor = Math.max(1.3, easeFactor - 0.2); // Hệ số độ dễ bị giảm đi 0.2, tối thiểu 1.3
   } else if (grade === 'hard') {
     // 2. Nếu người dùng chọn "Khó" (Vuốt lên):
     repetitions += 1;
-    intervalDays = 2; // Khoảng thời gian chờ đặt cố định: 2 ngày để kiểm tra lại độ phản xạ sớm
-    // Hệ số độ dễ được giữ nguyên
+    // Adaptive interval: grow slightly (1.2x) but slower than Easy — min 1 day
+    intervalDays = Math.max(1, Math.ceil(intervalDays * 1.2));
+    easeFactor = Math.max(1.3, easeFactor - 0.15); // Penalize easeFactor slightly
   } else {
     // 3. Nếu người dùng chọn "Dễ" (Vuốt phải):
     if (repetitions === 0) {

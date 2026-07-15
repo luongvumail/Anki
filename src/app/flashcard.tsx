@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
 import { router } from 'expo-router';
 import { useAppStore } from '../services/store';
@@ -9,6 +9,7 @@ import { useHaptics } from '../hooks/useHaptics';
 export default function FlashcardScreen() {
   const { queue, currentIndex, totalInQueue, completedCount, submitReview } = useAppStore();
   const { lightHaptic } = useHaptics();
+  const [swipeCount, setSwipeCount] = useState(0);
 
   // If the queue is loaded but has 0 words, or all cards are completed, auto-route back
   useEffect(() => {
@@ -27,6 +28,7 @@ export default function FlashcardScreen() {
 
   const handleSwipeComplete = (grade: 'easy' | 'hard' | 'forgot') => {
     submitReview(grade);
+    setSwipeCount((prev) => prev + 1);
   };
 
   // Determine current active item
@@ -75,7 +77,7 @@ export default function FlashcardScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Ôn tập</Text>
         <Text style={styles.progressCounter}>
-          {completedCount + 1} / {totalInQueue}
+          Bài {completedCount + 1}/{totalInQueue}
         </Text>
       </View>
 
@@ -87,6 +89,7 @@ export default function FlashcardScreen() {
       {/* Main interactive Flashcard panel */}
       <View style={styles.cardArea}>
         <Flashcard3D
+          key={`${currentItem.vocabulary.id}-${swipeCount}`}
           simplified={currentItem.vocabulary.simplified}
           traditional={currentItem.vocabulary.traditional}
           pinyin={currentItem.vocabulary.pinyin}

@@ -1,5 +1,5 @@
 import NetInfo from '@react-native-community/netinfo';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from './supabase';
 import { localVocab, localProgress, localSyncQueue } from './sqlite';
 
@@ -57,15 +57,35 @@ async function cacheAudioFile(audioUrl: string | null): Promise<string | null> {
     const filename = `audio_${hashString(audioUrl)}.mp3`;
     const localUri = `${FileSystem.documentDirectory}${filename}`;
 
-    // Check if file already exists
+    // Check if file already exists and has data
     const fileInfo = await FileSystem.getInfoAsync(localUri);
-    if (fileInfo.exists) {
+    if (fileInfo.exists && fileInfo.size && fileInfo.size > 0) {
       return localUri;
     }
 
-    // Download file
-    const downloadResult = await FileSystem.downloadAsync(audioUrl, localUri);
-    return downloadResult.uri;
+    // Download file with browser header simulation
+    const downloadResult = await FileSystem.downloadAsync(audioUrl, localUri, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+      },
+    });
+
+    if (downloadResult.status === 200) {
+      const contentType = (
+        downloadResult.headers['content-type'] ||
+        downloadResult.headers['Content-Type'] ||
+        ''
+      ).toLowerCase();
+      if (contentType.includes('text/html') || contentType.includes('application/json')) {
+        await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => {});
+        return audioUrl; // Fallback to remote URL if block page was fetched
+      }
+      return downloadResult.uri;
+    } else {
+      await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => {});
+      return audioUrl; // Fallback to remote URL
+    }
   } catch (error) {
     console.error('Failed to cache audio file:', error);
     return audioUrl; // Fallback to remote URL
@@ -250,10 +270,11 @@ export async function fetchDailyQueue(userId: string): Promise<{
 
     const studiedVocabIds = progressRecords?.map((r) => r.vocabulary_id) || [];
 
-    // 3. Fetch due progress cards
+    // 3. Fetch due progress cards (limited to 25 to prevent review queue overload)
     const nowISO = new Date().toISOString();
-    const dueRecords =
+    const allDueRecords =
       progressRecords?.filter((r) => new Date(r.next_review_at) <= new Date(nowISO)) || [];
+    const dueRecords = allDueRecords.slice(0, 25);
 
     // 4. Fetch up to 5 NEW vocabulary words (not yet studied)
     let newVocabQuery = supabase

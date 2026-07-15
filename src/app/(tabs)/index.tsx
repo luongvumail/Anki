@@ -97,12 +97,13 @@ export default function DashboardScreen() {
 
   const handleGoToSettings = () => {
     lightHaptic();
-    router.push('/settings' as never);
+    router.push('/settings' as any);
   };
 
   // Calculate stats
-  const remainingCount = totalInQueue - completedCount;
-  const progressRatio = totalInQueue > 0 ? completedCount / totalInQueue : 1;
+  const remainingCount = Math.max(0, totalInQueue - completedCount);
+  // Show 0 progress if no words at all (new user), show full if all completed
+  const progressRatio = totalInQueue === 0 ? 0 : completedCount / totalInQueue;
 
   return (
     <SafeAreaView style={styles.container}>

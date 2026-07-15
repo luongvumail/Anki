@@ -40,6 +40,13 @@ export function initLocalDB() {
         payload TEXT NOT NULL, -- JSON stringified record
         created_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS review_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        vocabulary_id TEXT NOT NULL,
+        grade TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
     `);
 
     // Migration: add example columns to existing local DB installations.
@@ -171,8 +178,8 @@ export const localProgress = {
       'SELECT status, COUNT(*) as count FROM local_progress GROUP BY status',
     );
     const history = db.getAllSync<{ study_date: string; count: number }>(
-      `SELECT date(updated_at) as study_date, COUNT(*) as count 
-       FROM local_progress 
+      `SELECT date(created_at) as study_date, COUNT(*) as count 
+       FROM review_logs 
        GROUP BY study_date 
        ORDER BY study_date DESC 
        LIMIT 7`,
@@ -188,6 +195,22 @@ export const localProgress = {
   clearAll: () => {
     db.runSync('DELETE FROM local_progress');
     db.runSync('DELETE FROM local_vocabulary');
+    db.runSync('DELETE FROM review_logs');
+  },
+};
+
+// Local review logs helper methods
+export const localReviewLogs = {
+  log: (vocabularyId: string, grade: string) => {
+    const now = new Date().toISOString();
+    db.runSync(`INSERT INTO review_logs (vocabulary_id, grade, created_at) VALUES (?, ?, ?)`, [
+      vocabularyId,
+      grade,
+      now,
+    ]);
+  },
+  clearAll: () => {
+    db.runSync('DELETE FROM review_logs');
   },
 };
 

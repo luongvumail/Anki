@@ -199,8 +199,8 @@ export default function AIAddWordScreen() {
         [
           {
             text: 'OK',
-            onPress: async () => {
-              await loadQueue();
+            onPress: () => {
+              loadQueue().catch((e) => console.error('Background loadQueue failed:', e));
               setSearchText('');
               setResult(null);
               setEditedResult(null);

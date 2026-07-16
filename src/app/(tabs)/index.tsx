@@ -76,8 +76,6 @@ export default function DashboardScreen() {
           try {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
-            // The onAuthStateChange listener in _layout.tsx will handle
-            // setting userId to null, which triggers the auth gate to show login.
           } catch (error) {
             Alert.alert(
               'Không thể đăng xuất',
@@ -85,6 +83,8 @@ export default function DashboardScreen() {
             );
           } finally {
             setIsSigningOut(false);
+            // Always navigate to root after sign-out attempt
+            router.replace('/');
           }
         },
       },

@@ -70,8 +70,8 @@ export default function TabLayout() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       setUserId(session?.user?.id || null);
       if (event === 'SIGNED_OUT') {
-        // Navigate to root so the auth gate in this layout shows the login screen
-        router.replace('/');
+        // Defer navigation so React can re-render the auth gate first
+        setTimeout(() => router.replace('/'), 0);
       }
     });
 

@@ -15,7 +15,6 @@ import { useAppStore } from '@/services/store';
 import { supabase } from '@/services/supabase';
 import { setupAuthListener } from '@/services/auth';
 import { notificationService } from '@/services/notifications';
-import LoginScreen from './(auth)/login';
 import OnboardingScreen from './onboarding';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -124,7 +123,9 @@ export default function TabLayout() {
   if (!userId) {
     return (
       <AppRoot>
-        <LoginScreen />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" />
+        </Stack>
       </AppRoot>
     );
   }

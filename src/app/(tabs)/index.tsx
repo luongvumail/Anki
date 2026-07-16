@@ -76,8 +76,8 @@ export default function DashboardScreen() {
           try {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
-            // Navigate to root — the auth gate in _layout.tsx will show login screen
-            router.replace('/');
+            // The onAuthStateChange listener in _layout.tsx will handle
+            // setting userId to null, which triggers the auth gate to show login.
           } catch (error) {
             Alert.alert(
               'Không thể đăng xuất',

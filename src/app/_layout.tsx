@@ -13,6 +13,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { initLocalDB } from '@/services/sqlite';
 import { useAppStore } from '@/services/store';
 import { supabase } from '@/services/supabase';
+import { setupAuthListener } from '@/services/auth';
 import { notificationService } from '@/services/notifications';
 import LoginScreen from './(auth)/login';
 import OnboardingScreen from './onboarding';
@@ -85,8 +86,11 @@ export default function TabLayout() {
       }
     });
 
+    const cleanupAuthListener = setupAuthListener();
+
     return () => {
       subscription.unsubscribe();
+      cleanupAuthListener();
     };
   }, [setUserId]);
 

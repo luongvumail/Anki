@@ -106,11 +106,11 @@ async function cacheAudioFile(audioUrl: string | null): Promise<string | null> {
       return downloadResult.uri;
     } else {
       await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => {});
-      return audioUrl; // Fallback to remote URL
+      return null; // Download failed — don't store the broken URL
     }
   } catch (error) {
     console.error('Failed to cache audio file:', error);
-    return audioUrl; // Fallback to remote URL
+    return null; // Download failed — don't store the broken URL
   }
 }
 

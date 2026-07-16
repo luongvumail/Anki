@@ -1,3 +1,96 @@
+# Stats Dashboard Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Rewrite the stats screen with 4 sections: Streak + Tổng quan, Mục tiêu hôm nay (SRS-based), Biểu đồ 7/30 ngày, Lịch sử SRS chi tiết.
+
+**Architecture:** Add 4 new SQL query helpers to `sqlite.ts`, then rewrite `stats.tsx` entirely. Reuse existing `ProgressCircle` component. No changes to store, sync, or SRS utils.
+
+**Tech Stack:** React Native, Expo, expo-sqlite, react-native-reanimated
+
+**Spec:** `docs/superpowers/specs/2026-07-16-stats-dashboard-design.md`
+
+---
+
+### Task 1: Add 4 new SQL query helpers to sqlite.ts
+
+**Files:**
+
+- Modify: `src/services/sqlite.ts` (add methods to `localProgress` object)
+
+**Interfaces:**
+
+- Produces: `getDueTodayCount(endOfToday: string) => number`
+- Produces: `getOverdueCount(startOfToday: string) => number`
+- Produces: `getTodayReviewCount(todayDate: string) => number`
+- Produces: `getHistory30Days() => { study_date: string; count: number }[]`
+
+- [ ] **Step 1: Add 4 new helpers to `localProgress`**
+
+Add these methods inside the `localProgress` object (after `getStats`):
+
+```typescript
+getDueTodayCount: (endOfToday: string) => {
+  const row = db.getFirstSync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM local_progress WHERE next_review_at <= ?`,
+    [endOfToday],
+  );
+  return row?.count || 0;
+},
+
+getOverdueCount: (startOfToday: string) => {
+  const row = db.getFirstSync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM local_progress WHERE next_review_at < ?`,
+    [startOfToday],
+  );
+  return row?.count || 0;
+},
+
+getTodayReviewCount: (todayDate: string) => {
+  const row = db.getFirstSync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM review_logs WHERE date(created_at) = ?`,
+    [todayDate],
+  );
+  return row?.count || 0;
+},
+
+getHistory30Days: () => {
+  return db.getAllSync<{ study_date: string; count: number }>(
+    `SELECT date(created_at) as study_date, COUNT(*) as count
+     FROM review_logs
+     GROUP BY study_date
+     ORDER BY study_date DESC
+     LIMIT 30`,
+  );
+},
+```
+
+- [ ] **Step 2: Verify lint passes**
+
+```bash
+npx eslint src/services/sqlite.ts
+```
+
+Expected: no output (clean).
+
+---
+
+### Task 2: Rewrite stats.tsx
+
+**Files:**
+
+- Modify: `src/app/(tabs)/stats.tsx` (full rewrite)
+
+**Interfaces:**
+
+- Consumes: `localProgress.getStats()`, `localProgress.getDueTodayCount()`, `localProgress.getOverdueCount()`, `localProgress.getTodayReviewCount()`, `localProgress.getHistory30Days()`, `localVocab.getAllWithProgress()`
+- Consumes: `useAppStore().profile` (streak)
+
+- [ ] **Step 1: Write the new stats screen**
+
+Replace the entire `stats.tsx` with:
+
+```tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
@@ -8,6 +101,7 @@ import {
   StatusBar,
   ScrollView,
   TextInput,
+  FlatList,
   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -625,3 +719,20 @@ const styles = StyleSheet.create({
   srsStatus: { fontSize: 12, fontWeight: '700' },
   srsCell: { fontSize: 13, fontWeight: '600', color: '#AEAEB2' },
 });
+```
+
+- [ ] **Step 2: Verify lint passes**
+
+```bash
+npx eslint src/app/\(tabs\)/stats.tsx
+```
+
+Expected: no output (clean).
+
+- [ ] **Step 3: Verify full lint passes**
+
+```bash
+npx eslint src/
+```
+
+Expected: no errors (pre-existing warnings only).

@@ -1,23 +1,25 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useAudio } from '@/hooks/useAudio';
+import { useHaptics } from '@/hooks/useHaptics';
+import { localSyncQueue, localVocab } from '@/services/sqlite';
+import { useAppStore } from '@/services/store';
+import { syncLocalChanges } from '@/services/sync';
+import { router } from 'expo-router';
+import { ChevronLeft, HelpCircle, Search, Trash2, Volume2 } from 'lucide-react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  SafeAreaView,
+  StatusBar,
   StyleSheet,
-  View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
-  Alert,
-  SafeAreaView,
-  StatusBar,
-  ActivityIndicator,
+  View,
 } from 'react-native';
-import { ChevronLeft, Search, Trash2, Volume2, HelpCircle } from 'lucide-react-native';
-import { router } from 'expo-router';
-import { useHaptics } from '@/hooks/useHaptics';
-import { useAudio } from '@/hooks/useAudio';
-import { localVocab, localSyncQueue } from '@/services/sqlite';
-import { syncLocalChanges } from '@/services/sync';
-import { useAppStore } from '@/services/store';
+
+const PAGE_SIZE = 20;
 
 interface VocabItem {
   id: string;
@@ -41,23 +43,74 @@ export default function VocabularyScreen() {
     'all',
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({
+    all: 0,
+    learning: 0,
+    reviewing: 0,
+    mastered: 0,
+  });
+  const pageRef = useRef(0);
+  const filterRef = useRef(activeFilter);
+  const searchRef = useRef(searchText);
 
   const { lightHaptic, successHaptic, warningHaptic } = useHaptics();
   const { playAudio } = useAudio();
   const { loadQueue } = useAppStore();
 
-  const fetchVocabData = useCallback(() => {
+  const loadPage = useCallback((page: number, filter: string, search: string, append: boolean) => {
     try {
-      setIsLoading(true);
-      const data = localVocab.getAllWithProgress() as VocabItem[];
-      setVocabList(data);
+      const offset = page * PAGE_SIZE;
+      const data = localVocab.getAllWithProgressPaginated({
+        status: filter === 'all' ? undefined : filter,
+        search: search || undefined,
+        limit: PAGE_SIZE,
+        offset,
+      }) as VocabItem[];
+
+      if (append) {
+        setVocabList((prev) => [...prev, ...data]);
+      } else {
+        setVocabList(data);
+      }
+      setHasMore(data.length === PAGE_SIZE);
     } catch (e) {
       console.error('Failed to load vocabulary list:', e);
-    } finally {
-      setIsLoading(false);
     }
   }, []);
+
+  const loadTotalCount = useCallback((filter: string, search: string) => {
+    try {
+      const count = localVocab.getCount({
+        status: filter === 'all' ? undefined : filter,
+        search: search || undefined,
+      });
+      setTotalCount(count);
+    } catch (e) {
+      console.error('Failed to load vocabulary count:', e);
+    }
+  }, []);
+
+  const fetchFirstPage = useCallback(
+    (filter: string, search: string) => {
+      setIsLoading(true);
+      pageRef.current = 0;
+      loadPage(0, filter, search, false);
+      loadTotalCount(filter, search);
+      // Load status counts for filter tabs
+      try {
+        const counts = localVocab.getStatusCounts();
+        setStatusCounts(counts);
+      } catch (e) {
+        console.error('Failed to load status counts:', e);
+      }
+      setIsLoading(false);
+    },
+    [loadPage, loadTotalCount],
+  );
 
   const handleRefresh = useCallback(async () => {
     lightHaptic();
@@ -67,14 +120,25 @@ export default function VocabularyScreen() {
     } catch (e) {
       console.log('Refresh sync skipped:', e);
     } finally {
-      fetchVocabData();
+      fetchFirstPage(filterRef.current, searchRef.current);
       setIsRefreshing(false);
     }
-  }, [fetchVocabData, lightHaptic]);
+  }, [fetchFirstPage, lightHaptic]);
 
   useEffect(() => {
-    fetchVocabData();
-  }, [fetchVocabData]);
+    filterRef.current = activeFilter;
+    searchRef.current = searchText;
+    fetchFirstPage(activeFilter, searchText);
+  }, [activeFilter, searchText, fetchFirstPage]);
+
+  const handleLoadMore = useCallback(() => {
+    if (!hasMore || isLoadingMore) return;
+    setIsLoadingMore(true);
+    const nextPage = pageRef.current + 1;
+    pageRef.current = nextPage;
+    loadPage(nextPage, filterRef.current, searchRef.current, true);
+    setIsLoadingMore(false);
+  }, [hasMore, isLoadingMore, loadPage]);
 
   const handleBack = () => {
     lightHaptic();
@@ -99,8 +163,8 @@ export default function VocabularyScreen() {
               // 2. Queue sync delete action for Supabase
               localSyncQueue.enqueue('DELETE', 'user_progress', { vocabulary_id: item.id });
 
-              // 3. Reload list
-              fetchVocabData();
+              // 3. Reload current page
+              loadPage(pageRef.current, filterRef.current, searchRef.current, false);
 
               // 4. Reload main queue to make sure it doesn't appear
               await loadQueue();
@@ -118,21 +182,6 @@ export default function VocabularyScreen() {
       ],
     );
   };
-
-  // Filter & Search Logic with Memoization to optimize render performance
-  const filteredList = useMemo(() => {
-    const searchLower = searchText.toLowerCase();
-    return vocabList.filter((item) => {
-      const matchesSearch =
-        item.simplified.toLowerCase().includes(searchLower) ||
-        item.pinyin.toLowerCase().includes(searchLower) ||
-        item.han_viet.toLowerCase().includes(searchLower) ||
-        item.definition_vi.toLowerCase().includes(searchLower);
-
-      if (activeFilter === 'all') return matchesSearch;
-      return matchesSearch && item.status === activeFilter;
-    });
-  }, [vocabList, searchText, activeFilter]);
 
   const getStatusBadge = (status?: string | null) => {
     switch (status) {
@@ -251,7 +300,7 @@ export default function VocabularyScreen() {
           <Text
             style={[styles.filterTabText, activeFilter === 'all' && styles.activeFilterTabText]}
           >
-            Tất cả ({vocabList.length})
+            Tất cả ({statusCounts.all})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -267,7 +316,7 @@ export default function VocabularyScreen() {
               activeFilter === 'learning' && styles.activeFilterTabText,
             ]}
           >
-            Đang học ({vocabList.filter((v) => (v.status || 'learning') === 'learning').length})
+            Đang học ({statusCounts.learning})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -283,7 +332,7 @@ export default function VocabularyScreen() {
               activeFilter === 'reviewing' && styles.activeFilterTabText,
             ]}
           >
-            Ôn tập ({vocabList.filter((v) => v.status === 'reviewing').length})
+            Ôn tập ({statusCounts.reviewing})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -299,7 +348,7 @@ export default function VocabularyScreen() {
               activeFilter === 'mastered' && styles.activeFilterTabText,
             ]}
           >
-            Đã thuộc ({vocabList.filter((v) => v.status === 'mastered').length})
+            Đã thuộc ({statusCounts.mastered})
           </Text>
         </TouchableOpacity>
       </View>
@@ -309,20 +358,32 @@ export default function VocabularyScreen() {
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#FF2D55" />
         </View>
-      ) : filteredList.length === 0 ? (
+      ) : vocabList.length === 0 ? (
         <View style={styles.centerContainer}>
           <HelpCircle size={48} color="#C7C7CC" style={styles.emptyIcon} />
           <Text style={styles.emptyText}>Không tìm thấy từ vựng nào.</Text>
         </View>
       ) : (
         <FlatList
-          data={filteredList}
+          data={vocabList}
           keyExtractor={(item) => item.id}
           renderItem={renderVocabCard}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshing={isRefreshing}
           onRefresh={handleRefresh}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            isLoadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color="#FF2D55" />
+                <Text style={styles.footerText}>Đang tải thêm...</Text>
+              </View>
+            ) : !hasMore && vocabList.length > 0 ? (
+              <Text style={styles.footerEndText}>Đã hiển thị tất cả {totalCount} từ</Text>
+            ) : null
+          }
         />
       )}
     </SafeAreaView>
@@ -539,5 +600,24 @@ const styles = StyleSheet.create({
   deleteBtn: {
     backgroundColor: 'rgba(255, 69, 58, 0.1)',
     borderColor: 'rgba(255, 69, 58, 0.15)',
+  },
+  footerLoader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  footerText: {
+    fontSize: 13,
+    color: '#8E8E93',
+    fontWeight: '600',
+  },
+  footerEndText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#8E8E93',
+    fontWeight: '600',
+    paddingVertical: 16,
   },
 });

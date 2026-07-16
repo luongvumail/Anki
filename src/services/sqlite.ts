@@ -116,10 +116,90 @@ export const localVocab = {
 
   getAllWithProgress: () => {
     return db.getAllSync<any>(
-      `SELECT v.*, p.status, p.interval_days, p.repetitions, p.next_review_at 
-       FROM local_vocabulary v 
+      `SELECT v.*, p.status, p.interval_days, p.repetitions, p.next_review_at
+       FROM local_vocabulary v
        LEFT JOIN local_progress p ON v.id = p.vocabulary_id`,
     );
+  },
+
+  getAllWithProgressPaginated: (opts: {
+    status?: string;
+    search?: string;
+    limit: number;
+    offset: number;
+  }) => {
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (opts.status && opts.status !== 'all') {
+      conditions.push('p.status = ?');
+      params.push(opts.status);
+    }
+
+    if (opts.search) {
+      conditions.push(
+        '(v.simplified LIKE ? OR v.pinyin LIKE ? OR v.han_viet LIKE ? OR v.definition_vi LIKE ?)',
+      );
+      const like = `%${opts.search}%`;
+      params.push(like, like, like, like);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const rows = db.getAllSync<any>(
+      `SELECT v.*, p.status, p.interval_days, p.repetitions, p.next_review_at
+       FROM local_vocabulary v
+       LEFT JOIN local_progress p ON v.id = p.vocabulary_id
+       ${whereClause}
+       ORDER BY v.simplified ASC
+       LIMIT ? OFFSET ?`,
+      [...params, opts.limit, opts.offset],
+    );
+    return rows;
+  },
+
+  getCount: (opts?: { status?: string; search?: string }) => {
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (opts?.status && opts.status !== 'all') {
+      conditions.push('p.status = ?');
+      params.push(opts.status);
+    }
+
+    if (opts?.search) {
+      conditions.push(
+        '(v.simplified LIKE ? OR v.pinyin LIKE ? OR v.han_viet LIKE ? OR v.definition_vi LIKE ?)',
+      );
+      const like = `%${opts.search}%`;
+      params.push(like, like, like, like);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const row = db.getFirstSync<{ count: number }>(
+      `SELECT COUNT(*) as count
+       FROM local_vocabulary v
+       LEFT JOIN local_progress p ON v.id = p.vocabulary_id
+       ${whereClause}`,
+      params,
+    );
+    return row?.count || 0;
+  },
+
+  getStatusCounts: () => {
+    const rows = db.getAllSync<{ status: string; count: number }>(
+      `SELECT COALESCE(p.status, 'learning') as status, COUNT(*) as count
+       FROM local_vocabulary v
+       LEFT JOIN local_progress p ON v.id = p.vocabulary_id
+       GROUP BY status`,
+    );
+    const counts: Record<string, number> = { all: 0 };
+    for (const row of rows) {
+      counts[row.status] = row.count;
+      counts.all += row.count;
+    }
+    return counts;
   },
 
   getById: (id: string) => {

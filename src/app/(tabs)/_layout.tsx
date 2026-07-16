@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Home, Book, TrendingUp } from 'lucide-react-native';
+import { Home, Book } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
@@ -34,13 +34,6 @@ export default function TabsLayout() {
         options={{
           title: 'Từ Vựng',
           tabBarIcon: ({ color, size }) => <Book size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="stats"
-        options={{
-          title: 'Thống Kê',
-          tabBarIcon: ({ color, size }) => <TrendingUp size={size} color={color} />,
         }}
       />
     </Tabs>

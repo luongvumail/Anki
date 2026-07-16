@@ -13,7 +13,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
-import { ChevronLeft, User, Key, Bell, Trash2, ShieldAlert } from 'lucide-react-native';
+import { ChevronLeft, User, Bell, Trash2, ShieldAlert } from 'lucide-react-native';
 import { supabase } from '../services/supabase';
 import { useAppStore } from '../services/store';
 import { useHaptics } from '../hooks/useHaptics';
@@ -25,14 +25,11 @@ export default function SettingsScreen() {
   const { lightHaptic, successHaptic, warningHaptic } = useHaptics();
 
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [reminderHour, setReminderHour] = useState(20);
 
   const [loadingProfile, setLoadingProfile] = useState(false);
-  const [loadingPassword, setLoadingPassword] = useState(false);
 
   useEffect(() => {
     // Load notification settings on mount
@@ -72,42 +69,6 @@ export default function SettingsScreen() {
       Alert.alert('Lỗi', e.message || 'Không thể cập nhật hồ sơ.');
     } finally {
       setLoadingProfile(false);
-    }
-  };
-
-  const handleUpdatePassword = async () => {
-    if (!password) {
-      Alert.alert('Chú ý', 'Vui lòng nhập mật khẩu mới.');
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert('Chú ý', 'Mật khẩu phải dài từ 6 ký tự trở lên.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert('Chú ý', 'Mật khẩu xác nhận không khớp.');
-      return;
-    }
-
-    setLoadingPassword(true);
-    lightHaptic();
-
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-      });
-
-      if (error) throw error;
-
-      setPassword('');
-      setConfirmPassword('');
-      successHaptic();
-      Alert.alert('Thành công', 'Mật khẩu của bạn đã được thay đổi.');
-    } catch (e: any) {
-      warningHaptic();
-      Alert.alert('Lỗi', e.message || 'Không thể đổi mật khẩu.');
-    } finally {
-      setLoadingPassword(false);
     }
   };
 
@@ -256,52 +217,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Section 2: Security */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Key size={18} color="#0A84FF" />
-            <Text style={styles.sectionTitle}>Bảo mật & Đổi mật khẩu</Text>
-          </View>
-          <View style={styles.sectionBody}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Mật khẩu mới</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholder="Nhập mật khẩu mới"
-                placeholderTextColor="#6E6E73"
-                autoCapitalize="none"
-              />
-            </View>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Xác nhận mật khẩu mới</Text>
-              <TextInput
-                style={styles.input}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                placeholder="Nhập lại mật khẩu mới"
-                placeholderTextColor="#6E6E73"
-                autoCapitalize="none"
-              />
-            </View>
-            <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: '#0A84FF' }]}
-              onPress={handleUpdatePassword}
-              disabled={loadingPassword}
-            >
-              {loadingPassword ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Đổi mật khẩu</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Section 3: Notifications */}
+        {/* Section 2: Notifications */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Bell size={18} color="#FFD60A" />
@@ -347,7 +263,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Section 4: Data Reset & Actions */}
+        {/* Section 3: Data Reset & Actions */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ShieldAlert size={18} color="#FF453A" />

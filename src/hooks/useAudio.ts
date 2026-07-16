@@ -189,7 +189,8 @@ async function normalizeLocalAudioUri(uri: string, fallbackText?: string): Promi
       }
     } catch (error) {
       console.warn('Failed to download/cache remote audio on-the-fly:', error);
-      return uri;
+      // Re-throw so playAudio's catch block triggers TTS fallback immediately
+      throw error;
     }
   }
 }

@@ -94,7 +94,7 @@ export default function Flashcard3D({
     }
   };
 
-  // Drag Gesture — swipes only commit after card is flipped (user has seen the answer)
+  // Drag Gesture — swipe to submit grade immediately (no need to flip first)
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])
     .activeOffsetY([-10, 10])
@@ -103,12 +103,6 @@ export default function Flashcard3D({
       translateY.value = event.translationY;
     })
     .onEnd((event) => {
-      if (!isFlipped) {
-        // Card not yet flipped — snap back without submitting grade
-        translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
-        translateY.value = withSpring(0, { damping: 20, stiffness: 120 });
-        return;
-      }
       if (event.translationX > swipeThreshold) {
         // Swipe Right: Easy
         runOnJS(successHaptic)();
@@ -289,9 +283,6 @@ export default function Flashcard3D({
                   </GestureDetector>
                 )}
               </View>
-
-              {/* Prominent Sino-Vietnamese root in big, bold uppercase letters */}
-              <Text style={styles.backHanViet}>{han_viet.toUpperCase()}</Text>
 
               {/* Purely Vietnamese meaning below it */}
               <Text style={styles.backDefinition}>{definition_vi}</Text>
@@ -534,13 +525,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 214, 10, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backHanViet: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 2,
-    textAlign: 'center',
   },
   backDefinition: {
     fontSize: 18,

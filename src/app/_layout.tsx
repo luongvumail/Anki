@@ -25,7 +25,7 @@ let dbInitialized = false;
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { userId, setUserId } = useAppStore();
+  const { userId, pendingRecovery, setUserId } = useAppStore();
   const [authLoading, setAuthLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -120,7 +120,7 @@ export default function TabLayout() {
     );
   }
 
-  if (!userId) {
+  if (!userId || pendingRecovery) {
     return (
       <AppRoot>
         <Stack screenOptions={{ headerShown: false }}>

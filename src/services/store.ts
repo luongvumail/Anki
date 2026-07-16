@@ -21,8 +21,10 @@ interface AppState {
   online: boolean;
   isLoading: boolean;
   isSubmittingReview: boolean;
+  pendingRecovery: boolean;
 
   setUserId: (id: string | null) => void;
+  setPendingRecovery: (val: boolean) => void;
   loadQueue: () => Promise<void>;
   submitReview: (grade: 'easy' | 'hard' | 'forgot') => Promise<void>;
   syncProgress: () => Promise<void>;
@@ -45,8 +47,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   online: true,
   isLoading: false,
   isSubmittingReview: false,
+  pendingRecovery: false,
 
   setUserId: (id) => set({ userId: id }),
+  setPendingRecovery: (val) => set({ pendingRecovery: val }),
 
   fetchProfile: async () => {
     const { userId } = get();

@@ -27,6 +27,13 @@ export default function SignUpScreen() {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      warningHaptic();
+      Alert.alert('Chú ý', 'Email không hợp lệ.');
+      return;
+    }
+
     if (password !== confirmPassword) {
       warningHaptic();
       Alert.alert('Chú ý', 'Mật khẩu xác nhận không khớp.');
@@ -64,9 +71,10 @@ export default function SignUpScreen() {
         `Vui lòng kiểm tra email ${email.trim()} và click vào link xác thực để kích hoạt tài khoản.`,
         [{ text: 'OK', onPress: () => router.back() }],
       );
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể đăng ký tài khoản.';
       warningHaptic();
-      Alert.alert('Đăng ký thất bại', error.message || 'Không thể đăng ký tài khoản.');
+      Alert.alert('Đăng ký thất bại', message);
     } finally {
       setLoading(false);
     }

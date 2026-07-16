@@ -1,6 +1,8 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
+import { Alert } from 'react-native';
 import { supabase } from './supabase';
+import { useAppStore } from './store';
 
 /**
  * Parse a Supabase auth callback URL and set the session.
@@ -22,6 +24,13 @@ export async function handleAuthDeepLink(url: string): Promise<void> {
     const type = params.get('type');
 
     if (accessToken && refreshToken) {
+      // Flag recovery flow BEFORE setSession so the auth gate keeps the (auth)
+      // Stack mounted — otherwise onAuthStateChange sets userId and the main
+      // app renders, unmounting the (auth) Stack before we can navigate.
+      if (type === 'recovery') {
+        useAppStore.getState().setPendingRecovery(true);
+      }
+
       const { error } = await supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
@@ -38,6 +47,10 @@ export async function handleAuthDeepLink(url: string): Promise<void> {
     }
   } catch (error) {
     console.error('Auth deep link handling failed:', error);
+    Alert.alert(
+      'Xác thực thất bại',
+      'Không thể xác thực liên kết từ email. Vui lòng thử lại hoặc yêu cầu gửi lại email.',
+    );
   }
 }
 

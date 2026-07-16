@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../../services/supabase';
+import { useAppStore } from '../../services/store';
 import { useHaptics } from '../../hooks/useHaptics';
 
 export default function UpdatePasswordScreen() {
@@ -47,12 +48,14 @@ export default function UpdatePasswordScreen() {
       if (error) throw error;
 
       successHaptic();
+      useAppStore.getState().setPendingRecovery(false);
       Alert.alert('Thành công', 'Mật khẩu đã được cập nhật.', [
         { text: 'OK', onPress: () => router.replace('/') },
       ]);
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể cập nhật mật khẩu.';
       warningHaptic();
-      Alert.alert('Thất bại', error.message || 'Không thể cập nhật mật khẩu.');
+      Alert.alert('Thất bại', message);
     } finally {
       setLoading(false);
     }

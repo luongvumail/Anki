@@ -44,9 +44,10 @@ export default function LoginScreen() {
 
       successHaptic();
       // Navigation handled by onAuthStateChange in _layout.tsx
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Email hoặc mật khẩu không đúng.';
       warningHaptic();
-      Alert.alert('Đăng nhập thất bại', error.message || 'Email hoặc mật khẩu không đúng.');
+      Alert.alert('Đăng nhập thất bại', message);
     } finally {
       setLoading(false);
     }

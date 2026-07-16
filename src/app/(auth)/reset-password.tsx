@@ -41,9 +41,11 @@ export default function ResetPasswordScreen() {
         `Link đặt lại mật khẩu đã được gửi đến ${email.trim()}. Vui lòng kiểm tra hộp thư.`,
         [{ text: 'OK', onPress: () => router.back() }],
       );
-    } catch (error: any) {
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Không thể gửi email đặt lại mật khẩu.';
       warningHaptic();
-      Alert.alert('Thất bại', error.message || 'Không thể gửi email đặt lại mật khẩu.');
+      Alert.alert('Thất bại', message);
     } finally {
       setLoading(false);
     }

@@ -10,26 +10,19 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
+import { router } from 'expo-router';
 import { supabase } from '../../services/supabase';
 import { useHaptics } from '../../hooks/useHaptics';
-
-// Required for iOS to complete the auth session after redirect
-WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const { lightHaptic, successHaptic, warningHaptic } = useHaptics();
 
-  const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ email và mật khẩu');
+  const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert('Chú ý', 'Vui lòng nhập email và mật khẩu.');
       return;
     }
 
@@ -37,126 +30,23 @@ export default function LoginScreen() {
     lightHaptic();
 
     try {
-      if (isSignUp) {
-        // Sign Up flow
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              display_name: displayName || email.split('@')[0],
-            },
-          },
-        });
-
-        if (error) throw error;
-
-        successHaptic();
-        Alert.alert(
-          'Đăng ký thành công',
-          'Tài khoản của bạn đã được đăng ký. Bạn có thể sử dụng tài khoản để bắt đầu học tập!',
-        );
-      } else {
-        // Login flow
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-        successHaptic();
-      }
-    } catch (error: any) {
-      warningHaptic();
-      Alert.alert('Thất bại', error.message || 'Có lỗi xảy ra trong quá trình xác thực');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    const normalizedEmail = email.trim();
-    if (!normalizedEmail) {
-      Alert.alert('Nhập email', 'Nhập email tài khoản để nhận liên kết đặt lại mật khẩu.');
-      return;
-    }
-
-    setLoading(true);
-    lightHaptic();
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-        redirectTo: Linking.createURL('/'),
-      });
-      if (error) throw error;
-      successHaptic();
-      Alert.alert(
-        'Kiểm tra email',
-        'Nếu email này có tài khoản, chúng tôi đã gửi liên kết đặt lại mật khẩu.',
-      );
-    } catch (error: any) {
-      warningHaptic();
-      Alert.alert('Không thể gửi email', error.message || 'Vui lòng thử lại sau.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * OAuth Sign-in via Google or Apple using Supabase + expo-web-browser.
-   *
-   * Setup required in Supabase Dashboard:
-   *   - Authentication → Providers → Enable Google / Apple
-   *   - Authentication → URL Configuration → Add redirect URL: anki://
-   *
-   * Apple Sign-In also requires Apple Developer setup (Services ID + Key).
-   */
-  const handleOAuthLogin = async (provider: 'google' | 'apple') => {
-    setLoading(true);
-    lightHaptic();
-
-    try {
-      // The redirect URI must be registered in Supabase Dashboard
-      const redirectTo = Linking.createURL('/');
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true, // We handle the browser ourselves
-        },
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
       });
 
-      if (error || !data.url) throw error ?? new Error('OAuth URL not returned');
-
-      // Open the provider's sign-in page in an in-app browser session
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-
-      if (result.type === 'success' && result.url) {
-        // Parse access_token and refresh_token from the redirect URL fragment
-        const url = new URL(result.url);
-        const params = new URLSearchParams(url.hash.substring(1));
-        const access_token = params.get('access_token');
-        const refresh_token = params.get('refresh_token');
-
-        if (access_token && refresh_token) {
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token,
-            refresh_token,
-          });
-          if (sessionError) throw sessionError;
-          successHaptic();
-        } else {
-          // Fallback: re-check session (some providers use query params instead of hash)
-          await supabase.auth.getSession();
+      if (error) {
+        if (error.message.includes('Email not confirmed')) {
+          throw new Error('Vui lòng xác thực email trước khi đăng nhập. Kiểm tra hộp thư của bạn.');
         }
+        throw error;
       }
-      // result.type === 'cancel' means user closed the browser — no action needed
+
+      successHaptic();
+      // Navigation handled by onAuthStateChange in _layout.tsx
     } catch (error: any) {
       warningHaptic();
-      Alert.alert(
-        'Thất bại',
-        error.message || `Không thể đăng nhập bằng ${provider === 'google' ? 'Google' : 'Apple'}.`,
-      );
+      Alert.alert('Đăng nhập thất bại', error.message || 'Email hoặc mật khẩu không đúng.');
     } finally {
       setLoading(false);
     }
@@ -175,102 +65,59 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
-          {isSignUp && (
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Tên hiển thị</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nhập tên của bạn"
-                placeholderTextColor="#6E6E73"
-                value={displayName}
-                onChangeText={setDisplayName}
-                autoCapitalize="words"
-              />
-            </View>
-          )}
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#6E6E73"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!loading}
+          />
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="example@email.com"
-              placeholderTextColor="#6E6E73"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Mật khẩu"
+            placeholderTextColor="#6E6E73"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            editable={!loading}
+          />
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Mật khẩu</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••"
-              placeholderTextColor="#6E6E73"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <TouchableOpacity style={styles.primaryButton} onPress={handleAuth} disabled={loading}>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleLogin} disabled={loading}>
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.primaryButtonText}>
-                {isSignUp ? 'Đăng ký tài khoản' : 'Đăng nhập'}
-              </Text>
+              <Text style={styles.primaryButtonText}>Đăng nhập</Text>
             )}
           </TouchableOpacity>
 
-          {!isSignUp && (
-            <TouchableOpacity
-              style={styles.forgotPasswordButton}
-              onPress={handleForgotPassword}
-              disabled={loading}
-            >
-              <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
-            </TouchableOpacity>
-          )}
-
           <TouchableOpacity
-            style={styles.switchButton}
+            style={styles.linkButton}
             onPress={() => {
               lightHaptic();
-              setIsSignUp(!isSignUp);
+              router.push('/(auth)/reset-password');
             }}
-          >
-            <Text style={styles.switchButtonText}>
-              {isSignUp ? 'Đã có tài khoản? Đăng nhập ngay' : 'Chưa có tài khoản? Đăng ký tại đây'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>hoặc đăng nhập bằng</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        <View style={styles.socialContainer}>
-          <TouchableOpacity
-            style={[styles.socialButton, styles.googleButton]}
-            onPress={() => handleOAuthLogin('google')}
             disabled={loading}
           >
-            <Text style={styles.socialButtonText}>Google</Text>
+            <Text style={styles.linkText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
 
+          <View style={styles.divider} />
+
           <TouchableOpacity
-            style={[styles.socialButton, styles.appleButton]}
-            onPress={() => handleOAuthLogin('apple')}
+            style={styles.secondaryButton}
+            onPress={() => {
+              lightHaptic();
+              router.push('/(auth)/signup');
+            }}
             disabled={loading}
           >
-            <Text style={[styles.socialButtonText, { color: '#FFFFFF' }]}>Apple</Text>
+            <Text style={styles.secondaryButtonText}>Chưa có tài khoản? Đăng ký</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -323,25 +170,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   form: {
-    gap: 16,
-  },
-  inputContainer: {
-    gap: 6,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#E5E5EA',
+    gap: 12,
   },
   input: {
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    height: 48,
-    borderRadius: 12,
+    height: 50,
+    borderRadius: 14,
     paddingHorizontal: 16,
     fontSize: 15,
     color: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   primaryButton: {
     backgroundColor: '#FF2D55',
@@ -349,74 +188,38 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#FF2D55',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
+    marginTop: 4,
   },
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
-  forgotPasswordButton: {
-    alignSelf: 'center',
-    paddingVertical: 12,
-  },
-  forgotPasswordText: {
-    color: '#FFD60A',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  switchButton: {
+  linkButton: {
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
-  switchButtonText: {
-    fontSize: 13,
-    color: '#0A84FF',
+  linkText: {
+    fontSize: 14,
+    color: '#FF2D55',
     fontWeight: '600',
   },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-    gap: 10,
-  },
-  dividerLine: {
-    flex: 1,
+  divider: {
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: 4,
   },
-  dividerText: {
-    fontSize: 12,
-    color: '#8E8E93',
-    fontWeight: '500',
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  socialButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
+  secondaryButton: {
+    height: 50,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-  },
-  googleButton: {
     borderColor: 'rgba(255, 255, 255, 0.12)',
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
-  appleButton: {
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-  },
-  socialButtonText: {
-    fontSize: 14,
+  secondaryButtonText: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
   },

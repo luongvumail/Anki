@@ -141,6 +141,7 @@ export default function SettingsScreen() {
               );
 
               // 2. Clear progress on Supabase progress table for this user
+              const { userId: currentUserId } = useAppStore.getState();
               const { error } = await supabase
                 .from('user_progress')
                 .update({
@@ -150,7 +151,7 @@ export default function SettingsScreen() {
                   repetitions: 0,
                   next_review_at: new Date().toISOString(),
                 })
-                .eq('user_id', userId);
+                .eq('user_id', currentUserId);
 
               if (error) throw error;
 

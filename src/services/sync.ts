@@ -33,16 +33,38 @@ export interface ProgressRecord {
 export interface QueueItem {
   vocabulary: VocabularyRecord;
   progress: ProgressRecord;
+  /**
+   * Number of times this card has been re-enqueued in the current session
+   * after a "Forgot" swipe. Caps re-learning loops to avoid an unbounded queue.
+   */
+  forgotCount?: number;
 }
 
 // ---------------------------------------------------------------------------
 // Network Helper
 // ---------------------------------------------------------------------------
 
-// Helper to determine if device is connected to the internet
+// Cached network state with 5-second TTL to avoid redundant NetInfo.fetch() calls
+// (e.g., on every card swipe during a review session).
+let cachedOnline: boolean | null = null;
+let lastNetCheck = 0;
+const NET_CHECK_TTL_MS = 5000;
+
 export async function isOnline(): Promise<boolean> {
+  const now = Date.now();
+  if (cachedOnline !== null && now - lastNetCheck < NET_CHECK_TTL_MS) {
+    return cachedOnline;
+  }
   const state = await NetInfo.fetch();
-  return !!state.isConnected && !!state.isInternetReachable;
+  cachedOnline = !!state.isConnected && !!state.isInternetReachable;
+  lastNetCheck = now;
+  return cachedOnline;
+}
+
+/** @internal Exported for testing only — resets the cached connectivity state. */
+export function __resetIsOnlineCache(): void {
+  cachedOnline = null;
+  lastNetCheck = 0;
 }
 
 /**
@@ -260,21 +282,21 @@ export async function fetchDailyQueue(userId: string): Promise<{
     // 1. Sync any pending offline changes first
     await syncLocalChanges();
 
-    // 2. Fetch User Progress from Supabase
+    // 2. Fetch due User Progress from Supabase (server-side filtered + limited)
+    const nowISO = new Date().toISOString();
     const { data: progressRecords, error: progErr } = await supabase
       .from('user_progress')
       .select('*, vocabulary(*, vocabulary_radicals(radicals(*)))')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .lte('next_review_at', nowISO)
+      .limit(25);
 
     if (progErr) throw progErr;
 
     const studiedVocabIds = progressRecords?.map((r) => r.vocabulary_id) || [];
 
-    // 3. Fetch due progress cards (limited to 25 to prevent review queue overload)
-    const nowISO = new Date().toISOString();
-    const allDueRecords =
-      progressRecords?.filter((r) => new Date(r.next_review_at) <= new Date(nowISO)) || [];
-    const dueRecords = allDueRecords.slice(0, 25);
+    // 3. All fetched records are due (server-side filtered) — no client-side filtering needed
+    const dueRecords = progressRecords || [];
 
     // 4. Fetch up to 5 NEW vocabulary words (not yet studied)
     let newVocabQuery = supabase
@@ -283,6 +305,8 @@ export async function fetchDailyQueue(userId: string): Promise<{
       .limit(5);
 
     if (studiedVocabIds.length > 0) {
+      // IMPORTANT: Never remove this guard — an empty () clause produces invalid SQL
+      // and causes a Supabase 400 error. The filter is only safe when there are IDs.
       newVocabQuery = newVocabQuery.not('id', 'in', `(${studiedVocabIds.join(',')})`);
     }
 

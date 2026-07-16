@@ -29,6 +29,12 @@ interface AppState {
   fetchProfile: () => Promise<void>;
 }
 
+// Max times a "Forgot" card is re-introduced at the end of the queue within a
+// single session. Prevents the queue from growing unbounded when a user keeps
+// forgetting the same card (which would otherwise append a fresh copy on every
+// swipe and stall the session — see B1/B4).
+const MAX_FORGOT_REINTRO = 1;
+
 export const useAppStore = create<AppState>((set, get) => ({
   userId: null,
   profile: null,
@@ -133,21 +139,33 @@ export const useAppStore = create<AppState>((set, get) => ({
       const updatedQueue = [...queue];
 
       if (grade === 'forgot') {
-        // Swipe left (Forgot): Push this card to the end of the queue for re-learning this session
-        const forgotItem = {
-          ...currentItem,
-          progress: updatedProgress, // Use updated progress metrics
-        };
+        // Swipe left (Forgot): Push this card to the end of the queue for re-learning this session.
+        // Limit re-introductions to MAX_FORGOT_REINTRO to prevent unbounded queue growth.
+        const forgotCount = (currentItem.forgotCount ?? 0) + 1;
 
-        // Remove from current index, and push to the end
-        updatedQueue.splice(currentIndex, 1);
-        updatedQueue.push(forgotItem);
+        if (forgotCount > MAX_FORGOT_REINTRO) {
+          // Card has been re-enqueued too many times — mark as completed for this session
+          set((state) => ({
+            completedCount: state.completedCount + 1,
+            currentIndex: state.currentIndex + 1,
+          }));
+        } else {
+          const forgotItem = {
+            ...currentItem,
+            forgotCount,
+            progress: updatedProgress, // Use updated progress metrics
+          };
 
-        set({
-          queue: updatedQueue,
-          // We do not increment completed count or index, because the queue size did not reduce
-          // and the current card was swapped. The next card moves to currentIndex automatically.
-        });
+          // Remove from current index, and push to the end
+          updatedQueue.splice(currentIndex, 1);
+          updatedQueue.push(forgotItem);
+
+          set({
+            queue: updatedQueue,
+            // We do not increment completed count or index, because the queue size did not reduce
+            // and the current card was swapped. The next card moves to currentIndex automatically.
+          });
+        }
       } else {
         // Swipe Right (Easy) or Swipe Up (Hard): Card is completed in this session
         set((state) => ({

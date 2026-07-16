@@ -78,7 +78,7 @@ export default function VocabularyScreen() {
 
   const handleBack = () => {
     lightHaptic();
-    router.replace('/');
+    router.back();
   };
 
   const handleDeleteWord = (item: VocabItem) => {

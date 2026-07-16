@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  ActivityIndicator,
+} from 'react-native';
 import { router } from 'expo-router';
 import { useAppStore } from '../services/store';
 import Flashcard3D from '../components/Flashcard3D';
@@ -7,7 +15,8 @@ import { ChevronLeft } from 'lucide-react-native';
 import { useHaptics } from '../hooks/useHaptics';
 
 export default function FlashcardScreen() {
-  const { queue, currentIndex, totalInQueue, completedCount, submitReview } = useAppStore();
+  const { queue, currentIndex, totalInQueue, completedCount, submitReview, isLoading } =
+    useAppStore();
   const { lightHaptic } = useHaptics();
   const [swipeCount, setSwipeCount] = useState(0);
 
@@ -23,7 +32,7 @@ export default function FlashcardScreen() {
 
   const handleBack = () => {
     lightHaptic();
-    router.replace('/');
+    router.back();
   };
 
   const handleSwipeComplete = (grade: 'easy' | 'hard' | 'forgot') => {
@@ -47,6 +56,17 @@ export default function FlashcardScreen() {
         <Text style={styles.successSubtitle}>
           Học tập bền bỉ là chìa khóa của thành công. Hẹn gặp lại bạn vào ngày mai!
         </Text>
+      </SafeAreaView>
+    );
+  }
+
+  // Loading state while queue is being fetched
+  if (isLoading && !currentItem && totalInQueue === 0) {
+    return (
+      <SafeAreaView style={[styles.container, styles.centerAlign]}>
+        <StatusBar barStyle="light-content" />
+        <ActivityIndicator size="large" color="#FF2D55" />
+        <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
       </SafeAreaView>
     );
   }
@@ -211,6 +231,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
+  },
+  loadingText: {
+    fontSize: 15,
+    color: '#AEAEB2',
+    marginTop: 16,
+    textAlign: 'center',
   },
   successEmoji: {
     fontSize: 72,

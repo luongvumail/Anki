@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, StatusBar } from 'react-native';
 import { ShieldAlert, RotateCcw } from 'lucide-react-native';
+import { useAppStore } from '../services/store';
 
 interface Props {
   children: ReactNode;
@@ -10,17 +11,21 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  resetCount: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
+    resetCount: 0,
   };
+
+  private static readonly MAX_RESETS = 3;
 
   public static getDerivedStateFromError(error: Error): State {
     // Update state so the next render will show the fallback UI.
-    return { hasError: true, error };
+    return { hasError: true, error, resetCount: 0 };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -28,7 +33,26 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    const { resetCount } = this.state;
+    if (resetCount >= ErrorBoundary.MAX_RESETS) {
+      // Prevent infinite retry loops — stop showing the retry button
+      return;
+    }
+
+    // Reset Zustand store to initial state to clear problematic state
+    useAppStore.setState({
+      userId: null,
+      profile: null,
+      queue: [],
+      currentIndex: 0,
+      totalInQueue: 0,
+      completedCount: 0,
+      online: true,
+      isLoading: false,
+      isSubmittingReview: false,
+    });
+
+    this.setState({ hasError: false, error: null, resetCount: resetCount + 1 });
   };
 
   public render() {

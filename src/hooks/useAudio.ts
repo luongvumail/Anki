@@ -5,14 +5,19 @@ import * as Speech from 'expo-speech';
 
 export function useAudio() {
   const soundRef = useRef<Audio.Sound | null>(null);
+  const isPlayingRef = useRef(false);
 
   const playAudio = async (url: string | null | undefined, fallbackText?: string) => {
-    if (!url) {
-      speakFallback(fallbackText);
-      return;
-    }
+    // Guard against rapid consecutive calls (race condition)
+    if (isPlayingRef.current) return;
+    isPlayingRef.current = true;
 
     try {
+      if (!url) {
+        speakFallback(fallbackText);
+        return;
+      }
+
       // Unload previous sound if it exists
       if (soundRef.current) {
         const soundToUnload = soundRef.current;
@@ -38,16 +43,22 @@ export function useAudio() {
       console.warn('Failed to load or play audio:', error);
 
       // Clean up corrupt/unsupported local files so they will be re-downloaded next time
-      try {
-        const playableUri = await normalizeLocalAudioUri(url, fallbackText).catch(() => null);
-        if (playableUri && playableUri.startsWith('file:')) {
-          await FileSystem.deleteAsync(playableUri, { idempotent: true });
+      // Note: playableUri is NOT re-fetched here — the first normalizeLocalAudioUri result
+      // is gone due to the catch scope, but we rebuild the local URI for cleanup only.
+      const cleanupUri = url?.startsWith('file:')
+        ? `${FileSystem.documentDirectory}${url.split('/').pop()}`
+        : null;
+      if (cleanupUri) {
+        try {
+          await FileSystem.deleteAsync(cleanupUri, { idempotent: true });
+        } catch {
+          // Best-effort cleanup
         }
-      } catch (cleanupError) {
-        console.warn('Failed to clean up corrupt audio file:', cleanupError);
       }
 
       speakFallback(fallbackText);
+    } finally {
+      isPlayingRef.current = false;
     }
   };
 

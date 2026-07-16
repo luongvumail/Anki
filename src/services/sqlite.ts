@@ -35,7 +35,7 @@ export function initLocalDB() {
 
       CREATE TABLE IF NOT EXISTS sync_queue (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        action TEXT NOT NULL, -- 'INSERT' | 'UPDATE' | 'UPSERT'
+        action TEXT NOT NULL, -- 'INSERT' | 'UPDATE' | 'UPSERT' | 'DELETE'
         table_name TEXT NOT NULL, -- 'user_progress'
         payload TEXT NOT NULL, -- JSON stringified record
         created_at TEXT NOT NULL
@@ -48,6 +48,15 @@ export function initLocalDB() {
         created_at TEXT NOT NULL
       );
     `);
+
+    // Index on review_logs.created_at for dashboard stats query performance
+    try {
+      db.execSync(
+        `CREATE INDEX IF NOT EXISTS idx_review_logs_created_at ON review_logs(created_at)`,
+      );
+    } catch {
+      // Index may already exist — safe to ignore
+    }
 
     // Migration: add example columns to existing local DB installations.
     // SQLite doesn't support ADD COLUMN IF NOT EXISTS, so we try/catch each.
@@ -155,10 +164,7 @@ export const localProgress = {
   },
 
   getDueProgress: (nowStr: string) => {
-    return db.getAllSync(
-      `SELECT * FROM local_progress WHERE datetime(next_review_at) <= datetime(?)`,
-      [nowStr],
-    );
+    return db.getAllSync(`SELECT * FROM local_progress WHERE next_review_at <= ?`, [nowStr]);
   },
 
   getById: (vocabularyId: string) => {

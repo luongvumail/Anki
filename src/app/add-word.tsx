@@ -201,6 +201,9 @@ export default function AIAddWordScreen() {
             text: 'OK',
             onPress: () => {
               loadQueue().catch((e) => console.error('Background loadQueue failed:', e));
+              // Fire-and-forget: loadQueue will update the Zustand store in the background.
+              // The dashboard screen re-renders when the store updates, so there's no
+              // need to await here — router.back() can fire immediately.
               setSearchText('');
               setResult(null);
               setEditedResult(null);

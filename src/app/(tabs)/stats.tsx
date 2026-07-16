@@ -68,7 +68,7 @@ export default function StatisticsScreen() {
 
   const handleBack = () => {
     lightHaptic();
-    router.replace('/');
+    router.back();
   };
 
   const getRecentDays = () => {

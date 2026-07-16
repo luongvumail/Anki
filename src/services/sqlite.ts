@@ -198,6 +198,40 @@ export const localProgress = {
     };
   },
 
+  getDueTodayCount: (endOfToday: string) => {
+    const row = db.getFirstSync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM local_progress WHERE next_review_at <= ?`,
+      [endOfToday],
+    );
+    return row?.count || 0;
+  },
+
+  getOverdueCount: (startOfToday: string) => {
+    const row = db.getFirstSync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM local_progress WHERE next_review_at < ?`,
+      [startOfToday],
+    );
+    return row?.count || 0;
+  },
+
+  getTodayReviewCount: (todayDate: string) => {
+    const row = db.getFirstSync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM review_logs WHERE date(created_at) = ?`,
+      [todayDate],
+    );
+    return row?.count || 0;
+  },
+
+  getHistory30Days: () => {
+    return db.getAllSync<{ study_date: string; count: number }>(
+      `SELECT date(created_at) as study_date, COUNT(*) as count
+       FROM review_logs
+       GROUP BY study_date
+       ORDER BY study_date DESC
+       LIMIT 30`,
+    );
+  },
+
   clearAll: () => {
     db.runSync('DELETE FROM local_progress');
     db.runSync('DELETE FROM local_vocabulary');

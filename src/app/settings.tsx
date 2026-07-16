@@ -103,6 +103,9 @@ export default function SettingsScreen() {
 
               // 2. Clear progress on Supabase progress table for this user
               const { userId: currentUserId } = useAppStore.getState();
+              if (!currentUserId) {
+                throw new Error('Không tìm thấy thông tin tài khoản.');
+              }
               const { error } = await supabase
                 .from('user_progress')
                 .update({
@@ -141,6 +144,9 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              if (!userId) {
+                throw new Error('Không tìm thấy thông tin tài khoản.');
+              }
               // 1. Delete all progress and vocab from Supabase
               const { error: err1 } = await supabase
                 .from('user_progress')

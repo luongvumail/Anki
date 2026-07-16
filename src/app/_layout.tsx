@@ -67,8 +67,12 @@ export default function TabLayout() {
     // Listen for auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setUserId(session?.user?.id || null);
+      if (event === 'SIGNED_OUT') {
+        // Navigate to root so the auth gate in this layout shows the login screen
+        router.replace('/');
+      }
     });
 
     // Check if onboarding completed

@@ -9,6 +9,8 @@ interface ProgressCircleProps {
   progress: number; // Value between 0 and 1
   size?: number;
   strokeWidth?: number;
+  color?: string; // Fill color for the progress arc
+  trackColor?: string; // Color for the background track
   label?: string;
   subLabel?: string;
 }
@@ -17,6 +19,8 @@ export default function ProgressCircle({
   progress,
   size = 220,
   strokeWidth = 16,
+  color,
+  trackColor = 'rgba(255, 255, 255, 0.1)',
   label,
   subLabel,
 }: ProgressCircleProps) {
@@ -40,20 +44,22 @@ export default function ProgressCircle({
   return (
     <View style={[styles.container, { width: size, height: size }]}>
       <Svg width={size} height={size} style={styles.svg}>
-        <Defs>
-          <LinearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#8A2387" />
-            <Stop offset="50%" stopColor="#E94057" />
-            <Stop offset="100%" stopColor="#F27121" />
-          </LinearGradient>
-        </Defs>
+        {!color && (
+          <Defs>
+            <LinearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <Stop offset="0%" stopColor="#8A2387" />
+              <Stop offset="50%" stopColor="#E94057" />
+              <Stop offset="100%" stopColor="#F27121" />
+            </LinearGradient>
+          </Defs>
+        )}
 
         {/* Background Track Circle */}
         <Circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="rgba(255, 255, 255, 0.1)"
+          stroke={trackColor}
           strokeWidth={strokeWidth}
           fill="transparent"
         />
@@ -63,7 +69,7 @@ export default function ProgressCircle({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="url(#progressGrad)"
+          stroke={color || 'url(#progressGrad)'}
           strokeWidth={strokeWidth}
           strokeDasharray={circumference}
           animatedProps={animatedProps}

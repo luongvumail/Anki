@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.hanviet.flashcard"
+      "bundleIdentifier": "com.luongvu.hanviet"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0a0a0f"
       },
-      "package": "com.hanviet.flashcard",
+      "package": "com.luongvu.hanviet",
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -31,14 +31,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#7c3aed"
-        }
-      ]
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true

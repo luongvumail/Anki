@@ -8,9 +8,13 @@ import { Colors, Typography, Spacing, Radii } from '../../constants/theme';
 const { width } = Dimensions.get('window');
 
 export default function StatsScreen() {
-  const { decks, fetchDecks } = useStore();
+  const { decks, fetchDecks, userId } = useStore();
 
-  useEffect(() => { fetchDecks(); }, []);
+  useEffect(() => {
+    if (userId) {
+      fetchDecks();
+    }
+  }, [userId]);
 
   const totalCards = decks.reduce((s, d) => s + (d.cardCount || 0), 0);
   const totalDue = decks.reduce((s, d) => s + (d.dueCount || 0), 0);

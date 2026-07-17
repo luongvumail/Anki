@@ -111,7 +111,8 @@ export const useStore = create<AppState>((set, get) => ({
 
   decks: [],
   fetchDecks: async () => {
-    const uid = getUserId();
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
     set({ isLoading: true });
     try {
       const snap = await getDocs(decksRef(uid));
@@ -147,7 +148,8 @@ export const useStore = create<AppState>((set, get) => ({
 
   cards: {},
   fetchCards: async (deckId) => {
-    const uid = getUserId();
+    const uid = auth.currentUser?.uid;
+    if (!uid) return [];
     set({ isLoading: true });
     try {
       const snap = await getDocs(cardsRef(uid, deckId));

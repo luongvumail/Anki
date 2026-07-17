@@ -10,7 +10,7 @@ import { isDue } from '../../lib/srs';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../../constants/theme';
 
 export default function DashboardScreen() {
-  const { decks, fetchDecks, isLoading } = useStore();
+  const { decks, fetchDecks, isLoading, userId } = useStore();
   const [refreshing, setRefreshing] = useState(false);
   const user = auth.currentUser;
 
@@ -21,7 +21,11 @@ export default function DashboardScreen() {
   const totalDue = decks.reduce((sum, d) => sum + (d.dueCount || 0), 0);
   const totalCards = decks.reduce((sum, d) => sum + (d.cardCount || 0), 0);
 
-  useEffect(() => { fetchDecks(); }, []);
+  useEffect(() => {
+    if (userId) {
+      fetchDecks();
+    }
+  }, [userId]);
 
   const onRefresh = async () => {
     setRefreshing(true);

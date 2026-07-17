@@ -11,7 +11,7 @@ const DECK_COLORS = ['#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec
 const DECK_ICONS = ['📚', '🀄', '🐉', '🎋', '🏮', '🌸', '⛩️', '🍜', '🎎', '🐼'];
 
 export default function DecksScreen() {
-  const { decks, fetchDecks, createDeck, deleteDeck, isLoading } = useStore();
+  const { decks, fetchDecks, createDeck, deleteDeck, isLoading, userId } = useStore();
   const [showCreate, setShowCreate] = useState(false);
   const [deckName, setDeckName] = useState('');
   const [deckDesc, setDeckDesc] = useState('');
@@ -19,7 +19,11 @@ export default function DecksScreen() {
   const [selectedIcon, setSelectedIcon] = useState(DECK_ICONS[0]);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => { fetchDecks(); }, []);
+  useEffect(() => {
+    if (userId) {
+      fetchDecks();
+    }
+  }, [userId]);
 
   const handleCreate = async () => {
     if (!deckName.trim()) { Alert.alert('Lỗi', 'Vui lòng nhập tên bộ thẻ'); return; }

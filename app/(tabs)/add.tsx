@@ -9,16 +9,59 @@ import { DEFAULT_SRS_STATE } from '../../lib/srs';
 import { Colors, Typography, Spacing, Radii } from '../../constants/theme';
 
 export default function AddCardScreen() {
-  const { decks, addCard } = useStore();
+  const { decks, addCard, findExistingCard, fetchCards } = useStore();
   const [input, setInput] = useState('');
   const [selectedDeckId, setSelectedDeckId] = useState('');
   const [loading, setLoading] = useState(false);
   const [cardData, setCardData] = useState<CardData | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const handleGenerate = async () => {
+  React.useEffect(() => {
+    if (selectedDeckId) {
+      fetchCards(selectedDeckId);
+    }
+  }, [selectedDeckId]);
+
+  const handleGenerate = async (forceAI = false) => {
     if (!input.trim()) { Alert.alert('Lỗi', 'Vui lòng nhập từ cần học'); return; }
     if (!selectedDeckId) { Alert.alert('Lỗi', 'Vui lòng chọn bộ thẻ'); return; }
+
+    // Check for duplicate card before calling Gemini AI
+    if (!forceAI) {
+      const existing = findExistingCard(input.trim(), selectedDeckId);
+      if (existing) {
+        Alert.alert(
+          '⚠️ Từ này đã tồn tại!',
+          `Từ "${existing.character}" (${existing.pinyin}) - ${existing.translation} đã có sẵn trong bộ thẻ này.\n\nBạn muốn làm gì?`,
+          [
+            { text: 'Huỷ', style: 'cancel' },
+            {
+              text: 'Dùng thẻ có sẵn',
+              onPress: () => {
+                setCardData({
+                  character: existing.character,
+                  traditional: existing.traditional,
+                  pinyin: existing.pinyin,
+                  hanviet: existing.hanviet,
+                  translation: existing.translation,
+                  examples: existing.examples || [],
+                  radical: existing.radical,
+                  strokeCount: existing.strokeCount,
+                  hskLevel: existing.hskLevel,
+                  tags: existing.tags,
+                });
+              },
+            },
+            {
+              text: 'Tạo lại bằng AI',
+              onPress: () => handleGenerate(true),
+            },
+          ]
+        );
+        return;
+      }
+    }
+
     setLoading(true);
     setCardData(null);
     try {

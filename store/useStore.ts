@@ -67,6 +67,7 @@ interface AppState {
   updateCard: (cardId: string, deckId: string, updates: Partial<Card>) => Promise<void>;
   deleteCard: (cardId: string, deckId: string) => Promise<void>;
   gradeCard: (card: Card, grade: SRSGrade) => Promise<void>;
+  findExistingCard: (character: string, deckId?: string) => Card | undefined;
 
   // Study session
   session: StudySession | null;
@@ -222,6 +223,24 @@ export const useStore = create<AppState>((set, get) => ({
   gradeCard: async (card, grade) => {
     const newSRS = calculateSRS(grade, card.srs);
     await get().updateCard(card.id, card.deckId, { srs: newSRS });
+  },
+
+  findExistingCard: (character, deckId) => {
+    const q = character.trim().toLowerCase();
+    if (!q) return undefined;
+    const cardsState = get().cards;
+    if (deckId && cardsState[deckId]) {
+      return cardsState[deckId].find(
+        c => c.character.trim().toLowerCase() === q || c.pinyin.trim().toLowerCase() === q
+      );
+    }
+    for (const dId of Object.keys(cardsState)) {
+      const match = cardsState[dId].find(
+        c => c.character.trim().toLowerCase() === q || c.pinyin.trim().toLowerCase() === q
+      );
+      if (match) return match;
+    }
+    return undefined;
   },
 
   session: null,

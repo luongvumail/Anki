@@ -39,6 +39,7 @@ export default function AuthScreen() {
         : e.code === 'auth/weak-password' ? 'Mật khẩu cần ít nhất 6 ký tự'
         : e.code === 'auth/operation-not-allowed' ? 'Tính năng Email/Password chưa được bật trên Firebase Console'
         : e.code === 'auth/invalid-api-key' ? 'API Key Firebase không hợp lệ trong file .env'
+        : e.code === 'auth/configuration-not-found' ? 'Dịch vụ Authentication chưa được khởi tạo trên Firebase Console. Vui lòng bấm "Get Started" trong mục Authentication.'
         : `Lỗi (${e.code || 'unknown'}): ${e.message || 'Vui lòng kiểm tra lại cấu hình'}`;
       Alert.alert('Lỗi đăng nhập/đăng ký', msg);
     } finally {

@@ -15,7 +15,7 @@ async function generateWithFallback(prompt: string): Promise<string> {
         model: modelName,
         generationConfig: {
           responseMimeType: 'application/json',
-          maxOutputTokens: 256,
+          maxOutputTokens: 512,
           temperature: 0.1,
         },
       });

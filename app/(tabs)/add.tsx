@@ -12,6 +12,7 @@ export default function AddCardScreen() {
   const { decks, addCard, findExistingCard, fetchCards } = useStore();
   const [input, setInput] = useState('');
   const [selectedDeckId, setSelectedDeckId] = useState('');
+  const [deckPickerOpen, setDeckPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cardData, setCardData] = useState<CardData | null>(null);
   const [saving, setSaving] = useState(false);
@@ -109,22 +110,53 @@ export default function AddCardScreen() {
         <Text style={styles.title}>Thêm từ mới</Text>
         <Text style={styles.subtitle}>Nhập chữ Hán hoặc pinyin, AI sẽ tự điền thông tin</Text>
 
-        {/* Deck selector */}
+        {/* Deck selector — dropdown picker */}
         <Text style={styles.label}>Chọn bộ thẻ</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.deckSelector}>
-          {decks.map(deck => (
+        {decks.length === 0 ? (
+          <View style={styles.noDeckBox}>
+            <Text style={styles.noDeckText}>⚠️ Chưa có bộ thẻ. Tạo bộ thẻ trước trong tab "Bộ thẻ"</Text>
+          </View>
+        ) : (
+          <View style={styles.deckPickerWrapper}>
             <TouchableOpacity
-              key={deck.id}
-              style={[styles.deckChip, selectedDeckId === deck.id && { backgroundColor: deck.color, borderColor: deck.color }]}
-              onPress={() => setSelectedDeckId(deck.id)}
+              style={[styles.deckPickerBtn, selectedDeckId && { borderColor: decks.find(d => d.id === selectedDeckId)?.color + '80' || Colors.border.default }]}
+              onPress={() => setDeckPickerOpen(o => !o)}
+              activeOpacity={0.8}
             >
-              <Text style={styles.deckChipText}>{deck.icon} {deck.name}</Text>
+              {selectedDeckId ? (() => {
+                const selected = decks.find(d => d.id === selectedDeckId);
+                return (
+                  <>
+                    <View style={[styles.deckPickerDot, { backgroundColor: selected?.color }]} />
+                    <Text style={styles.deckPickerValue}>{selected?.icon} {selected?.name}</Text>
+                  </>
+                );
+              })() : (
+                <Text style={styles.deckPickerPlaceholder}>📚 Nhấn để chọn bộ thẻ...</Text>
+              )}
+              <Text style={styles.deckPickerChevron}>{deckPickerOpen ? '▲' : '▼'}</Text>
             </TouchableOpacity>
-          ))}
-          {decks.length === 0 && (
-            <Text style={styles.noDeckText}>Tạo bộ thẻ trước trong tab "Bộ thẻ"</Text>
-          )}
-        </ScrollView>
+
+            {deckPickerOpen && (
+              <View style={styles.deckPickerList}>
+                {decks.map(deck => (
+                  <TouchableOpacity
+                    key={deck.id}
+                    style={[
+                      styles.deckPickerItem,
+                      selectedDeckId === deck.id && { backgroundColor: deck.color + '20' },
+                    ]}
+                    onPress={() => { setSelectedDeckId(deck.id); setDeckPickerOpen(false); }}
+                  >
+                    <View style={[styles.deckPickerItemDot, { backgroundColor: deck.color }]} />
+                    <Text style={styles.deckPickerItemText}>{deck.icon} {deck.name}</Text>
+                    {selectedDeckId === deck.id && <Text style={{ color: deck.color }}>✓</Text>}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Input */}
         <Text style={styles.label}>Từ cần học</Text>
@@ -230,14 +262,31 @@ const styles = StyleSheet.create({
   title: { fontSize: Typography.text.xxxl, fontWeight: Typography.weight.bold, color: Colors.text.primary },
   subtitle: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginTop: Spacing.xs, marginBottom: Spacing.xxl },
   label: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginBottom: Spacing.sm, fontWeight: Typography.weight.medium },
-  deckSelector: { marginBottom: Spacing.xl },
-  deckChip: {
-    borderRadius: Radii.full, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg,
+  noDeckBox: { backgroundColor: Colors.bg.elevated, borderRadius: Radii.md, padding: Spacing.md, marginBottom: Spacing.xl },
+  noDeckText: { color: Colors.text.muted, fontSize: Typography.text.sm },
+  deckPickerWrapper: { marginBottom: Spacing.xl, zIndex: 100 },
+  deckPickerBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: Colors.bg.card, borderRadius: Radii.md,
     borderWidth: 1, borderColor: Colors.border.default,
-    backgroundColor: Colors.bg.card, marginRight: Spacing.sm,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, minHeight: 52,
   },
-  deckChipText: { color: Colors.text.primary, fontSize: Typography.text.sm },
-  noDeckText: { color: Colors.text.muted, fontSize: Typography.text.sm, alignSelf: 'center' },
+  deckPickerDot: { width: 8, height: 8, borderRadius: 4, marginRight: Spacing.sm },
+  deckPickerValue: { flex: 1, fontSize: Typography.text.md, color: Colors.text.primary, fontWeight: Typography.weight.medium },
+  deckPickerPlaceholder: { flex: 1, fontSize: Typography.text.md, color: Colors.text.muted },
+  deckPickerChevron: { color: Colors.text.muted, fontSize: Typography.text.sm },
+  deckPickerList: {
+    backgroundColor: Colors.bg.card, borderRadius: Radii.md,
+    borderWidth: 1, borderColor: Colors.border.default,
+    marginTop: 4, overflow: 'hidden',
+  },
+  deckPickerItem: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    borderBottomWidth: 1, borderBottomColor: Colors.border.subtle,
+  },
+  deckPickerItemDot: { width: 8, height: 8, borderRadius: 4, marginRight: Spacing.sm },
+  deckPickerItemText: { flex: 1, fontSize: Typography.text.md, color: Colors.text.primary },
   inputRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
   input: {
     backgroundColor: Colors.bg.secondary, borderRadius: Radii.md,

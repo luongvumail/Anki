@@ -1,17 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
-} from 'react-native';
-import { useStore } from '../../store/useStore';
-import { generateCardData, CardData } from '../../lib/gemini';
-import { DEFAULT_SRS_STATE } from '../../lib/srs';
-import { Colors, Typography, Spacing, Radii } from '../../constants/theme';
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useStore } from "../../store/useStore";
+import { generateCardData, CardData } from "../../lib/gemini";
+import { DEFAULT_SRS_STATE } from "../../lib/srs";
+import {
+  Colors,
+  Typography,
+  Spacing,
+  Radii,
+  VECTOR_DECK_ICONS,
+  triggerHaptic,
+} from "../../constants/theme";
 
 export default function AddCardScreen() {
-  const { decks, addCard, updateCard, findExistingCard, fetchCards } = useStore();
-  const [input, setInput] = useState('');
-  const [selectedDeckId, setSelectedDeckId] = useState('');
+  const insets = useSafeAreaInsets();
+  const { decks, addCard, updateCard, findExistingCard, fetchCards } =
+    useStore();
+  const [input, setInput] = useState("");
+  const [selectedDeckId, setSelectedDeckId] = useState("");
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cardData, setCardData] = useState<CardData | null>(null);
@@ -25,23 +44,32 @@ export default function AddCardScreen() {
   }, [selectedDeckId]);
 
   const handleGenerate = async (forceAI = false) => {
-    if (!input.trim()) { Alert.alert('Lỗi', 'Vui lòng nhập từ cần học'); return; }
-    if (!selectedDeckId) { Alert.alert('Lỗi', 'Vui lòng chọn bộ thẻ'); return; }
+    if (!input.trim()) {
+      triggerHaptic("warning");
+      Alert.alert("Thông báo", "Vui lòng nhập từ cần học");
+      return;
+    }
+    if (!selectedDeckId) {
+      triggerHaptic("warning");
+      Alert.alert("Thông báo", "Vui lòng chọn bộ thẻ lưu trữ trước");
+      return;
+    }
 
-    // Always refresh card list for the selected deck before checking duplicates
     if (!forceAI) {
       await fetchCards(selectedDeckId);
       const existing = findExistingCard(input.trim(), selectedDeckId);
       if (existing) {
+        triggerHaptic("warning");
         setExistingCardId(existing.id);
         Alert.alert(
-          '⚠️ Từ này đã tồn tại!',
-          `Từ "${existing.character}" (${existing.pinyin})\n${existing.translation}\n\nBạn muốn làm gì?`,
+          "Từ vựng đã có sẵn!",
+          `Từ "${existing.character}" (${existing.pinyin})\nNghĩa: ${existing.translation}\n\nBạn muốn làm gì?`,
           [
-            { text: 'Huỷ', style: 'cancel' },
+            { text: "Hủy", style: "cancel" },
             {
-              text: 'Dùng thẻ có sẵn',
+              text: "Dùng thẻ cũ",
               onPress: () => {
+                triggerHaptic("light");
                 setCardData({
                   character: existing.character,
                   traditional: existing.traditional,
@@ -57,28 +85,34 @@ export default function AddCardScreen() {
               },
             },
             {
-              text: 'Tạo lại & Ghi đè',
+              text: "Tạo lại & Ghi đè",
               onPress: () => handleGenerate(true),
             },
-          ]
+          ],
         );
         return;
       }
     } else {
-      // If forcing AI re-generation, check if existing card ID exists to replace it
       const existing = findExistingCard(input.trim(), selectedDeckId);
       if (existing) {
         setExistingCardId(existing.id);
       }
     }
 
+    triggerHaptic("medium");
     setLoading(true);
     setCardData(null);
     try {
       const data = await generateCardData(input.trim());
+      triggerHaptic("success");
       setCardData(data);
     } catch (e: any) {
-      Alert.alert('Lỗi AI', 'Không thể tạo thông tin từ. Kiểm tra API key Gemini và kết nối mạng.\n\n' + e.message);
+      triggerHaptic("error");
+      Alert.alert(
+        "Lỗi AI",
+        "Không thể tạo thông tin từ. Vui lòng kiểm tra kết nối mạng hoặc API Key.\n\n" +
+          e.message,
+      );
     } finally {
       setLoading(false);
     }
@@ -87,12 +121,13 @@ export default function AddCardScreen() {
   const handleSave = async () => {
     if (!cardData || !selectedDeckId) return;
     setSaving(true);
+    triggerHaptic("medium");
     try {
-      // Check if this card already exists in the deck to replace/update it
-      const targetExistingId = existingCardId || findExistingCard(cardData.character, selectedDeckId)?.id;
+      const targetExistingId =
+        existingCardId ||
+        findExistingCard(cardData.character, selectedDeckId)?.id;
 
       if (targetExistingId) {
-        // Replace / Overwrite existing card
         await updateCard(targetExistingId, selectedDeckId, {
           character: cardData.character,
           traditional: cardData.traditional,
@@ -105,9 +140,12 @@ export default function AddCardScreen() {
           hskLevel: cardData.hskLevel,
           tags: cardData.tags || [],
         });
-        Alert.alert('✅ Đã cập nhật (Ghi đè)', `Thẻ "${cardData.character}" đã được cập nhật thông tin mới thành công!`);
+        triggerHaptic("success");
+        Alert.alert(
+          "Đã cập nhật",
+          `Đã cập nhật từ vựng "${cardData.character}" thành công!`,
+        );
       } else {
-        // Create new card
         await addCard({
           deckId: selectedDeckId,
           character: cardData.character,
@@ -122,66 +160,134 @@ export default function AddCardScreen() {
           tags: cardData.tags || [],
           srs: DEFAULT_SRS_STATE,
         });
-        Alert.alert('✅ Đã lưu', `Thêm "${cardData.character}" vào bộ thẻ thành công!`);
+        triggerHaptic("success");
+        Alert.alert(
+          "Đã lưu thẻ",
+          `Đã thêm từ "${cardData.character}" vào bộ thẻ!`,
+        );
       }
 
-      setInput('');
+      setInput("");
       setCardData(null);
       setExistingCardId(null);
     } catch (e: any) {
-      Alert.alert('Lỗi', e.message);
+      triggerHaptic("error");
+      Alert.alert("Lỗi", e.message);
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Thêm từ mới</Text>
-        <Text style={styles.subtitle}>Nhập chữ Hán hoặc pinyin, AI sẽ tự điền thông tin</Text>
+  const renderVectorIcon = (
+    iconName: string,
+    size = 16,
+    color = Colors.accent.blue,
+  ) => {
+    const validIcons = VECTOR_DECK_ICONS;
+    const icon = validIcons.includes(iconName)
+      ? (iconName as any)
+      : "book-outline";
+    return (
+      <Ionicons
+        name={icon}
+        size={size}
+        color={color}
+        style={{ marginRight: 6 }}
+      />
+    );
+  };
 
-        {/* Deck selector — dropdown picker */}
-        <Text style={styles.label}>Chọn bộ thẻ</Text>
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: Math.max(insets.top + 16, 54),
+            paddingBottom: Math.max(insets.bottom + 90, 110),
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* iOS Header */}
+        <View style={styles.header}>
+          <Text style={styles.subhead}>TỰ ĐỘNG PHÂN TÍCH TỪ VỰNG</Text>
+          <Text style={styles.largeTitle}>Thêm từ AI</Text>
+        </View>
+
+        {/* Section 1: Deck Selection */}
+        <Text style={styles.sectionTitle}>BỘ THẺ LƯU TRỮ</Text>
         {decks.length === 0 ? (
-          <View style={styles.noDeckBox}>
-            <Text style={styles.noDeckText}>⚠️ Chưa có bộ thẻ. Tạo bộ thẻ trước trong tab "Bộ thẻ"</Text>
+          <View style={styles.warningBox}>
+            <Text style={styles.warningText}>
+              Chưa có bộ thẻ. Hãy tạo bộ thẻ trước trong tab "Bộ thẻ".
+            </Text>
           </View>
         ) : (
-          <View style={styles.deckPickerWrapper}>
+          <View style={styles.insetGroup}>
             <TouchableOpacity
-              style={[styles.deckPickerBtn, selectedDeckId && { borderColor: decks.find(d => d.id === selectedDeckId)?.color + '80' || Colors.border.default }]}
-              onPress={() => setDeckPickerOpen(o => !o)}
-              activeOpacity={0.8}
+              style={styles.pickerCell}
+              onPress={() => {
+                triggerHaptic("selection");
+                setDeckPickerOpen((o) => !o);
+              }}
+              activeOpacity={0.7}
             >
-              {selectedDeckId ? (() => {
-                const selected = decks.find(d => d.id === selectedDeckId);
-                return (
-                  <>
-                    <View style={[styles.deckPickerDot, { backgroundColor: selected?.color }]} />
-                    <Text style={styles.deckPickerValue}>{selected?.icon} {selected?.name}</Text>
-                  </>
-                );
-              })() : (
-                <Text style={styles.deckPickerPlaceholder}>📚 Nhấn để chọn bộ thẻ...</Text>
-              )}
-              <Text style={styles.deckPickerChevron}>{deckPickerOpen ? '▲' : '▼'}</Text>
+              <Text style={styles.cellLabel}>Bộ thẻ</Text>
+              <View style={styles.pickerRight}>
+                {selectedDeckId ? (
+                  (() => {
+                    const sel = decks.find((d) => d.id === selectedDeckId);
+                    return (
+                      <View style={styles.pickerSelectedRow}>
+                        {renderVectorIcon(
+                          sel?.icon || "",
+                          16,
+                          Colors.accent.blue,
+                        )}
+                        <Text style={styles.pickerValue}>{sel?.name}</Text>
+                      </View>
+                    );
+                  })()
+                ) : (
+                  <Text style={styles.pickerPlaceholder}>Chọn bộ thẻ...</Text>
+                )}
+                <Ionicons
+                  name={deckPickerOpen ? "chevron-up" : "chevron-forward"}
+                  size={16}
+                  color={Colors.accent.gray3}
+                  style={{ marginLeft: 6 }}
+                />
+              </View>
             </TouchableOpacity>
 
             {deckPickerOpen && (
-              <View style={styles.deckPickerList}>
-                {decks.map(deck => (
+              <View style={styles.pickerList}>
+                {decks.map((deck, idx) => (
                   <TouchableOpacity
                     key={deck.id}
-                    style={[
-                      styles.deckPickerItem,
-                      selectedDeckId === deck.id && { backgroundColor: deck.color + '20' },
-                    ]}
-                    onPress={() => { setSelectedDeckId(deck.id); setDeckPickerOpen(false); }}
+                    style={[styles.pickerItem, idx > 0 && styles.cellBorderTop]}
+                    onPress={() => {
+                      triggerHaptic("selection");
+                      setSelectedDeckId(deck.id);
+                      setDeckPickerOpen(false);
+                    }}
                   >
-                    <View style={[styles.deckPickerItemDot, { backgroundColor: deck.color }]} />
-                    <Text style={styles.deckPickerItemText}>{deck.icon} {deck.name}</Text>
-                    {selectedDeckId === deck.id && <Text style={{ color: deck.color }}>✓</Text>}
+                    <View style={styles.pickerSelectedRow}>
+                      {renderVectorIcon(deck.icon, 16, Colors.accent.blue)}
+                      <Text style={styles.pickerItemText}>{deck.name}</Text>
+                    </View>
+                    {selectedDeckId === deck.id && (
+                      <Ionicons
+                        name="checkmark"
+                        size={18}
+                        color={Colors.accent.blue}
+                      />
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -189,176 +295,413 @@ export default function AddCardScreen() {
           </View>
         )}
 
-        {/* Input */}
-        <Text style={styles.label}>Từ cần học</Text>
-        <View style={styles.inputRow}>
-          <TextInput
-            style={[styles.input, { flex: 1 }]}
-            placeholder="VD: 学习, xuéxí, 汉语..."
-            placeholderTextColor={Colors.text.muted}
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={() => handleGenerate()}
-            returnKeyType="search"
-          />
-          <TouchableOpacity
-            style={[styles.genBtn, loading && styles.genBtnDisabled]}
-            onPress={() => handleGenerate()}
-            disabled={loading || !input.trim() || !selectedDeckId}
-          >
-            {loading
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={styles.genBtnText}>✨ AI</Text>}
-          </TouchableOpacity>
+        {/* Section 2: Input */}
+        <Text style={styles.sectionTitle}>TỪ CẦN TẠO THẺ</Text>
+        <View style={styles.insetGroup}>
+          <View style={styles.inputCell}>
+            <TextInput
+              style={styles.input}
+              placeholder="VD: 学习, xuéxí, 汉语, học tập..."
+              placeholderTextColor={Colors.text.tertiary}
+              value={input}
+              onChangeText={setInput}
+              onSubmitEditing={() => handleGenerate()}
+              returnKeyType="search"
+            />
+            <TouchableOpacity
+              style={[
+                styles.genBtn,
+                (loading || !input.trim() || !selectedDeckId) &&
+                  styles.genBtnDisabled,
+              ]}
+              onPress={() => handleGenerate()}
+              disabled={loading || !input.trim() || !selectedDeckId}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.genBtnText}>Tạo AI</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* AI Result Preview */}
+        {/* Loading Indicator */}
         {loading && (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator color={Colors.accent.purple} size="large" />
-            <Text style={styles.loadingText}>Gemini đang phân tích từ "{input}"...</Text>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator color={Colors.accent.gray} size="small" />
+            <Text style={styles.loadingText}>
+              AI đang phân tích âm Hán Việt & ví dụ cho "{input}"...
+            </Text>
           </View>
         )}
 
+        {/* Preview Card */}
         {cardData && (
-          <View style={styles.preview}>
-            <View style={styles.previewHeader}>
-              <Text style={styles.previewTitle}>Xem trước thẻ</Text>
-            </View>
-
-            {/* Quick Action Bar at the top */}
-            <View style={styles.actionRowTop}>
-              <TouchableOpacity style={styles.regenerateBtn} onPress={() => handleGenerate(true)}>
-                <Text style={styles.regenerateBtnText}>↻ Tạo lại</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-                onPress={handleSave}
-                disabled={saving}
-              >
-                {saving
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={styles.saveBtnText}>💾 Lưu thẻ ngay</Text>}
+          <>
+            <View style={styles.previewHeaderRow}>
+              <Text style={styles.sectionTitle}>XEM TRƯỚC THẺ BÀI</Text>
+              <TouchableOpacity onPress={() => handleGenerate(true)}>
+                <Text style={styles.reGenLink}>Tạo lại ↻</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Front of card */}
-            <View style={styles.cardFront}>
-              <Text style={styles.character}>{cardData.character}</Text>
-              {cardData.traditional && cardData.traditional !== cardData.character && (
-                <Text style={styles.traditional}>{cardData.traditional} (phồn thể)</Text>
-              )}
-            </View>
+            <View style={styles.previewCard}>
+              {/* Hanzi Header */}
+              <View style={styles.previewTop}>
+                {cardData.hskLevel ? (
+                  <View style={styles.hskBadge}>
+                    <Text style={styles.hskText}>HSK {cardData.hskLevel}</Text>
+                  </View>
+                ) : null}
+                <Text style={styles.characterBig}>{cardData.character}</Text>
+                {cardData.traditional &&
+                  cardData.traditional !== cardData.character && (
+                    <Text style={styles.traditional}>
+                      {cardData.traditional} (phồn thể)
+                    </Text>
+                  )}
+              </View>
 
-            {/* Back info */}
-            <View style={styles.cardBack}>
-              <Row label="Pinyin" value={cardData.pinyin} valueStyle={styles.pinyin} />
-              <Row label="Hán Việt" value={cardData.hanviet} valueStyle={styles.hanviet} />
-              <Row label="Nghĩa" value={cardData.translation} />
-              {cardData.radical ? <Row label="Bộ thủ" value={cardData.radical} /> : null}
-              {cardData.hskLevel ? <Row label="HSK" value={`Cấp ${cardData.hskLevel}`} /> : null}
+              {/* Data Rows */}
+              <View style={styles.previewRows}>
+                <InfoRow
+                  label="Pinyin"
+                  value={cardData.pinyin}
+                  color={Colors.accent.blue}
+                />
+                <InfoRow label="Hán Việt" value={cardData.hanviet} />
+                <InfoRow label="Nghĩa TV" value={cardData.translation} />
+                {cardData.radical ? (
+                  <InfoRow label="Bộ thủ" value={cardData.radical} />
+                ) : null}
+                {cardData.strokeCount ? (
+                  <InfoRow
+                    label="Số nét"
+                    value={`${cardData.strokeCount} nét`}
+                  />
+                ) : null}
+              </View>
 
+              {/* Examples */}
               {cardData.examples && cardData.examples.length > 0 && (
-                <View style={styles.examples}>
-                  <Text style={styles.examplesTitle}>Câu ví dụ</Text>
+                <View style={styles.exampleSection}>
+                  <Text style={styles.exampleHeaderTitle}>CÂU VÍ DỤ</Text>
                   {cardData.examples.map((ex, i) => (
                     <View key={i} style={styles.exampleItem}>
-                      <Text style={styles.exampleCn}>{ex.chinese}</Text>
-                      <Text style={styles.examplePy}>{ex.pinyin}</Text>
-                      <Text style={styles.exampleVi}>{ex.vietnamese}</Text>
+                      <Text style={styles.exCn}>{ex.chinese}</Text>
+                      <Text style={styles.exPy}>{ex.pinyin}</Text>
+                      <Text style={styles.exVi}>{ex.vietnamese}</Text>
                     </View>
                   ))}
                 </View>
               )}
+
+              {/* Save Button - Perfectly Centered Text */}
+              <TouchableOpacity
+                style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+                onPress={handleSave}
+                disabled={saving}
+                activeOpacity={0.8}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.saveBtnText}>Lưu vào bộ thẻ</Text>
+                )}
+              </TouchableOpacity>
             </View>
-          </View>
+          </>
         )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-function Row({ label, value, valueStyle }: { label: string; value: string; valueStyle?: any }) {
+function InfoRow({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+}) {
   return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}:</Text>
-      <Text style={[styles.rowValue, valueStyle]}>{value}</Text>
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text
+        style={[
+          styles.infoValue,
+          color ? { color, fontWeight: Typography.weight.semibold } : {},
+        ]}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg.primary },
-  content: { padding: Spacing.xl, paddingTop: 60, paddingBottom: 60 },
-  title: { fontSize: Typography.text.xxxl, fontWeight: Typography.weight.bold, color: Colors.text.primary },
-  subtitle: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginTop: Spacing.xs, marginBottom: Spacing.xxl },
-  label: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginBottom: Spacing.sm, fontWeight: Typography.weight.medium },
-  noDeckBox: { backgroundColor: Colors.bg.elevated, borderRadius: Radii.md, padding: Spacing.md, marginBottom: Spacing.xl },
-  noDeckText: { color: Colors.text.muted, fontSize: Typography.text.sm },
-  deckPickerWrapper: { marginBottom: Spacing.xl, zIndex: 100 },
-  deckPickerBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.bg.card, borderRadius: Radii.md,
-    borderWidth: 1, borderColor: Colors.border.default,
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, minHeight: 52,
+  content: { paddingHorizontal: Spacing.pageMargin },
+
+  header: { marginBottom: Spacing.lg },
+  subhead: {
+    fontSize: Typography.text.caption1.fontSize,
+    lineHeight: Typography.text.caption1.lineHeight,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.text.secondary,
+    letterSpacing: -0.08,
+    marginBottom: 2,
   },
-  deckPickerDot: { width: 8, height: 8, borderRadius: 4, marginRight: Spacing.sm },
-  deckPickerValue: { flex: 1, fontSize: Typography.text.md, color: Colors.text.primary, fontWeight: Typography.weight.medium },
-  deckPickerPlaceholder: { flex: 1, fontSize: Typography.text.md, color: Colors.text.muted },
-  deckPickerChevron: { color: Colors.text.muted, fontSize: Typography.text.sm },
-  deckPickerList: {
-    backgroundColor: Colors.bg.card, borderRadius: Radii.md,
-    borderWidth: 1, borderColor: Colors.border.default,
-    marginTop: 4, overflow: 'hidden',
+  largeTitle: {
+    fontSize: Typography.text.largeTitle.fontSize,
+    lineHeight: Typography.text.largeTitle.lineHeight,
+    fontWeight: Typography.weight.bold,
+    color: Colors.text.primary,
+    letterSpacing: 0.37,
   },
-  deckPickerItem: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
-    borderBottomWidth: 1, borderBottomColor: Colors.border.subtle,
+
+  sectionTitle: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: -0.08,
+    marginBottom: Spacing.sectionBottom,
+    marginTop: Spacing.sectionTop,
+    marginLeft: 4,
   },
-  deckPickerItemDot: { width: 8, height: 8, borderRadius: 4, marginRight: Spacing.sm },
-  deckPickerItemText: { flex: 1, fontSize: Typography.text.md, color: Colors.text.primary },
-  inputRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
+  warningBox: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    padding: Spacing.cellHorizontal,
+    marginBottom: Spacing.lg,
+  },
+  warningText: {
+    color: Colors.text.secondary,
+    fontSize: Typography.text.footnote.fontSize,
+  },
+
+  // Inset Group
+  insetGroup: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    overflow: "hidden",
+  },
+
+  pickerCell: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.cellHorizontal,
+    paddingVertical: Spacing.cellVertical,
+    minHeight: Spacing.cellMinHeight,
+  },
+  cellLabel: {
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.text.primary,
+    fontWeight: Typography.weight.medium,
+  },
+  pickerRight: { flexDirection: "row", alignItems: "center" },
+  pickerSelectedRow: { flexDirection: "row", alignItems: "center" },
+  pickerValue: {
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.text.primary,
+    fontWeight: Typography.weight.medium,
+  },
+  pickerPlaceholder: {
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.text.secondary,
+  },
+
+  pickerList: {
+    borderTopWidth: 0.5,
+    borderTopColor: Colors.border.separator,
+    backgroundColor: Colors.bg.tertiary,
+  },
+  pickerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.cellHorizontal,
+    paddingVertical: Spacing.cellVertical,
+  },
+  cellBorderTop: {
+    borderTopWidth: 0.5,
+    borderTopColor: Colors.border.separator,
+  },
+  pickerItemText: {
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.text.primary,
+  },
+
+  // Input Cell
+  inputCell: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    minHeight: 48,
+  },
   input: {
-    backgroundColor: Colors.bg.secondary, borderRadius: Radii.md,
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
-    color: Colors.text.primary, fontSize: Typography.text.lg,
-    borderWidth: 1, borderColor: Colors.border.default,
+    flex: 1,
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.text.primary,
+    paddingHorizontal: 8,
   },
   genBtn: {
-    backgroundColor: Colors.accent.purple, borderRadius: Radii.md,
-    paddingHorizontal: Spacing.lg, justifyContent: 'center', alignItems: 'center', minWidth: 70,
+    backgroundColor: Colors.accent.blue,
+    borderRadius: Radii.card,
+    paddingHorizontal: 16,
+    height: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   genBtnDisabled: { opacity: 0.5 },
-  genBtnText: { color: '#fff', fontWeight: Typography.weight.semibold },
-  loadingBox: { alignItems: 'center', paddingVertical: Spacing.xxl },
-  loadingText: { color: Colors.text.secondary, marginTop: Spacing.md, textAlign: 'center' },
-
-  preview: { backgroundColor: Colors.bg.card, borderRadius: Radii.xl, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border.subtle },
-  previewHeader: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
-  previewTitle: { fontSize: Typography.text.xs, color: Colors.text.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  actionRowTop: { flexDirection: 'row', gap: Spacing.sm, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.border.subtle },
-  cardFront: { alignItems: 'center', paddingVertical: Spacing.xl, backgroundColor: Colors.bg.elevated },
-  character: { fontSize: Typography.hanzi.lg, color: Colors.text.primary, fontWeight: Typography.weight.bold },
-  traditional: { fontSize: Typography.text.md, color: Colors.text.secondary, marginTop: 2 },
-  cardBack: { padding: Spacing.lg },
-  row: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.sm },
-  rowLabel: { fontSize: Typography.text.sm, color: Colors.text.muted, width: 72 },
-  rowValue: { flex: 1, fontSize: Typography.text.md, color: Colors.text.primary },
-  pinyin: { color: Colors.accent.purpleLight, fontWeight: Typography.weight.medium },
-  hanviet: { color: Colors.accent.gold, fontWeight: Typography.weight.medium },
-  examples: { marginTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border.subtle, paddingTop: Spacing.md },
-  examplesTitle: { fontSize: Typography.text.xs, color: Colors.text.muted, marginBottom: Spacing.sm },
-  exampleItem: { marginBottom: Spacing.sm, backgroundColor: Colors.bg.secondary, borderRadius: Radii.md, padding: Spacing.md },
-  exampleCn: { fontSize: Typography.text.md, color: Colors.text.primary, fontWeight: Typography.weight.medium },
-  examplePy: { fontSize: Typography.text.xs, color: Colors.accent.purpleLight, marginTop: 2 },
-  exampleVi: { fontSize: Typography.text.xs, color: Colors.text.secondary, marginTop: 2 },
-  regenerateBtn: {
-    flex: 1, borderRadius: Radii.md, padding: Spacing.md, alignItems: 'center',
-    borderWidth: 1, borderColor: Colors.border.default,
+  genBtnText: {
+    color: "#FFFFFF",
+    fontWeight: Typography.weight.semibold,
+    fontSize: Typography.text.footnote.fontSize,
+    textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
   },
-  regenerateBtnText: { color: Colors.text.secondary },
-  saveBtn: { flex: 2, backgroundColor: Colors.accent.purple, borderRadius: Radii.md, padding: Spacing.md, alignItems: 'center' },
+
+  loadingCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    padding: Spacing.cellHorizontal,
+    marginTop: Spacing.lg,
+  },
+  loadingText: {
+    flex: 1,
+    fontSize: Typography.text.footnote.fontSize,
+    color: Colors.text.secondary,
+  },
+
+  // Preview Card
+  previewHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: Spacing.sectionTop,
+    marginBottom: Spacing.sectionBottom,
+    paddingHorizontal: 4,
+  },
+  reGenLink: {
+    fontSize: Typography.text.footnote.fontSize,
+    color: Colors.accent.blue,
+  },
+  previewCard: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    padding: Spacing.cellHorizontal,
+  },
+  previewTop: {
+    alignItems: "center",
+    paddingVertical: Spacing.lg,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border.separator,
+    marginBottom: Spacing.md,
+  },
+  hskBadge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    backgroundColor: Colors.accent.gray5,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  hskText: {
+    fontSize: Typography.text.caption2.fontSize,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weight.medium,
+  },
+  characterBig: {
+    fontSize: Typography.hanzi.lg,
+    fontWeight: Typography.weight.bold,
+    color: Colors.text.primary,
+  },
+  traditional: {
+    fontSize: Typography.text.footnote.fontSize,
+    color: Colors.text.secondary,
+    marginTop: 4,
+  },
+
+  previewRows: {
+    gap: 8,
+    marginBottom: Spacing.lg,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  infoLabel: {
+    width: 80,
+    fontSize: Typography.text.subhead.fontSize,
+    color: Colors.text.secondary,
+  },
+  infoValue: {
+    flex: 1,
+    fontSize: Typography.text.subhead.fontSize,
+    color: Colors.text.primary,
+  },
+
+  exampleSection: {
+    borderTopWidth: 0.5,
+    borderTopColor: Colors.border.separator,
+    paddingTop: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  exampleHeaderTitle: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weight.semibold,
+    marginBottom: Spacing.xs,
+  },
+  exampleItem: {
+    backgroundColor: Colors.bg.tertiary,
+    borderRadius: 10,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  exCn: {
+    fontSize: Typography.text.body.fontSize,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.text.primary,
+  },
+  exPy: {
+    fontSize: Typography.text.footnote.fontSize,
+    color: Colors.accent.blue,
+    marginTop: 2,
+  },
+  exVi: {
+    fontSize: Typography.text.footnote.fontSize,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
+
+  saveBtn: {
+    backgroundColor: Colors.accent.blue,
+    borderRadius: Radii.card,
+    height: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: '#fff', fontWeight: Typography.weight.semibold },
+  saveBtnText: {
+    color: "#FFFFFF",
+    fontSize: Typography.text.body.fontSize,
+    fontWeight: Typography.weight.semibold,
+    textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
+  },
 });

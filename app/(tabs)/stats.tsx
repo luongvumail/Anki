@@ -2,14 +2,16 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Dimensions, ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useStore, Card } from '../../store/useStore';
-import { Colors, Typography, Spacing, Radii, Shadows } from '../../constants/theme';
+import { Colors, Typography, Spacing, Radii, VECTOR_DECK_ICONS } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
 
 interface DayActivity {
-  dateStr: string; // YYYY-MM-DD
-  dayName: string; // T2, T3...
+  dateStr: string;
+  dayName: string;
   count: number;
   isToday: boolean;
 }
@@ -33,6 +35,7 @@ function getLast7Days(): DayActivity[] {
 }
 
 export default function StatsScreen() {
+  const insets = useSafeAreaInsets();
   const { decks, cards, fetchDecks, fetchCards, userId } = useStore();
   const [loadingCards, setLoadingCards] = useState(true);
 
@@ -41,7 +44,6 @@ export default function StatsScreen() {
       if (!userId) return;
       setLoadingCards(true);
       await fetchDecks();
-      // Fetch cards for all decks to compute accurate real-time stats
       const currentDecks = useStore.getState().decks;
       for (const d of currentDecks) {
         await fetchCards(d.id);
@@ -51,11 +53,9 @@ export default function StatsScreen() {
     loadAllData();
   }, [userId]);
 
-  // Flatten all cards across all decks
   const allCards: Card[] = Object.values(cards).flat();
 
   const totalCards = allCards.length;
-  // Mastered = Cards reviewed 2+ times with interval > 1 day
   const totalMastered = allCards.filter(c => c.srs && c.srs.repetitions >= 2).length;
   const totalLearning = allCards.filter(c => c.srs && c.srs.repetitions === 1).length;
   const totalNew = allCards.filter(c => !c.srs || c.srs.repetitions === 0).length;
@@ -63,7 +63,6 @@ export default function StatsScreen() {
 
   const masteryRate = totalCards > 0 ? Math.round((totalMastered / totalCards) * 100) : 0;
 
-  // Compute 7-day activity map
   const last7Days = getLast7Days();
   const reviewCountsByDate: Record<string, number> = {};
 
@@ -78,14 +77,12 @@ export default function StatsScreen() {
     day.count = reviewCountsByDate[day.dateStr] || 0;
   });
 
-  // Calculate real consecutive streak days
   let streakDays = 0;
   const todayStr = new Date().toISOString().split('T')[0];
   const hasReviewedToday = (reviewCountsByDate[todayStr] || 0) > 0;
 
   let checkDate = new Date();
   if (!hasReviewedToday) {
-    // If not reviewed today yet, start checking from yesterday to see current streak
     checkDate.setDate(checkDate.getDate() - 1);
   }
 
@@ -99,39 +96,57 @@ export default function StatsScreen() {
     }
   }
 
+  const renderVectorIcon = (iconName: string, size = 18, color = Colors.accent.blue) => {
+    const validIcons = VECTOR_DECK_ICONS;
+    const icon = validIcons.includes(iconName) ? (iconName as any) : 'book-outline';
+    return <Ionicons name={icon} size={size} color={color} />;
+  };
+
   if (loadingCards) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.accent.purple} />
-        <Text style={styles.loadingText}>Đang tính toán thống kê thực tế...</Text>
+        <ActivityIndicator size="small" color={Colors.accent.gray} />
+        <Text style={styles.loadingText}>Đang cập nhật thống kê trí nhớ...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      {/* Title Header */}
-      <Text style={styles.title}>Thống Kê Học Tập</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: Math.max(insets.top + 16, 54), paddingBottom: Math.max(insets.bottom + 90, 110) },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.largeTitle}>Thống kê</Text>
+      </View>
 
       {/* Hero Mastery Card */}
       <View style={styles.heroCard}>
         <View style={styles.heroLeft}>
-          <Text style={styles.heroBadge}>🎯 Tỷ lệ thuộc bài thực tế</Text>
+          <Text style={styles.heroSectionTitle}>TỶ LỆ THUỘC BÀI DÀI HẠN</Text>
           <Text style={styles.heroPercentage}>{masteryRate}%</Text>
-          <Text style={styles.heroSub}>{totalMastered} / {totalCards} từ vựng đã thuộc dài hạn</Text>
+          <Text style={styles.heroSub}>{totalMastered} / {totalCards} từ vựng đã thuộc vĩnh viễn</Text>
         </View>
-        <View style={styles.heroGaugeCircle}>
-          <Text style={styles.heroEmoji}>{masteryRate > 70 ? '🏆' : masteryRate > 30 ? '🔥' : '🌱'}</Text>
+        <View style={styles.heroIconBox}>
+          <Ionicons name="checkmark-circle-outline" size={32} color={Colors.accent.blue} />
         </View>
       </View>
 
-      {/* 7-Day Real Study Heatmap */}
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>🔥 Chuỗi Chăm Chỉ 7 Ngày</Text>
-          <Text style={styles.streakCount}>
-            {streakDays > 0 ? `${streakDays} ngày liên tục` : 'Chưa có chuỗi (Học ngay)'}
-          </Text>
+      {/* 7-Day Activity Heatmap */}
+      <Text style={styles.sectionHeaderTitle}>CHUỖI HỌC TẬP 7 NGÀY</Text>
+      <View style={styles.insetCard}>
+        <View style={styles.streakHeaderRow}>
+          <Text style={styles.streakLabel}>Hoạt động gần đây</Text>
+          <View style={styles.streakBadge}>
+            <Text style={styles.streakBadgeText}>
+              {streakDays > 0 ? `${streakDays} ngày liên tục` : 'Chưa có chuỗi'}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.heatmapRow}>
@@ -142,98 +157,94 @@ export default function StatsScreen() {
               day.count >= 1 ? 1 : 0;
 
             const activeColor =
-              level === 3 ? Colors.accent.green :
-              level === 2 ? '#34d399' :
-              level === 1 ? '#059669' : Colors.bg.elevated;
+              level > 0 ? Colors.accent.blue : Colors.accent.gray5;
 
             return (
               <View key={day.dateStr} style={styles.heatmapCol}>
                 <View style={[styles.heatmapSquare, { backgroundColor: activeColor }, day.isToday && styles.todaySquare]}>
-                  {day.count > 0 && <Text style={styles.heatmapCheck}>✓</Text>}
+                  {day.count > 0 ? <Ionicons name="checkmark" size={12} color="#FFFFFF" /> : null}
                 </View>
                 <Text style={[styles.heatmapDayText, day.isToday && styles.todayText]}>{day.dayName}</Text>
-                <Text style={styles.heatmapCountText}>{day.count > 0 ? `${day.count}t` : '-'}</Text>
+                <Text style={styles.heatmapCountText}>{day.count > 0 ? `${day.count}` : '-'}</Text>
               </View>
             );
           })}
         </View>
       </View>
 
-      {/* Real Metrics Grid */}
+      {/* 2x2 Metric Grid Cards */}
+      <Text style={styles.sectionHeaderTitle}>TỔNG QUAN THÔNG SỐ</Text>
       <View style={styles.grid}>
-        <MetricCard label="Tổng từ vựng" value={totalCards} icon="🃏" color={Colors.accent.purple} />
-        <MetricCard label="Cần ôn hôm nay" value={totalDue} icon="⏰" color={Colors.accent.gold} />
-        <MetricCard label="Đã thuộc" value={totalMastered} icon="✅" color={Colors.accent.green} />
-        <MetricCard label="Đang học" value={totalLearning + totalNew} icon="📖" color={Colors.accent.blue} />
+        <MetricCard label="Tổng từ vựng" value={totalCards} icon="library-outline" />
+        <MetricCard label="Cần ôn hôm nay" value={totalDue} icon="time-outline" />
+        <MetricCard label="Thuộc dài hạn" value={totalMastered} icon="checkmark-circle-outline" />
+        <MetricCard label="Đang học mới" value={totalLearning + totalNew} icon="book-outline" />
       </View>
 
-      {/* Per-deck real progress breakdown */}
-      <Text style={styles.sectionTitleHeader}>Phân Bổ Theo Bộ Thẻ</Text>
-      {decks.map(deck => {
-        const deckCards = cards[deck.id] || [];
-        const count = deckCards.length;
-        const due = deck.dueCount || 0;
-        const done = deckCards.filter(c => c.srs && c.srs.repetitions >= 2).length;
-        const deckMastery = count > 0 ? Math.round((done / count) * 100) : 0;
+      {/* Per-deck progress breakdown */}
+      <Text style={styles.sectionHeaderTitle}>PHÂN BỔ THEO BỘ THẺ</Text>
+      {decks.length === 0 ? (
+        <View style={styles.insetCard}>
+          <Text style={styles.emptyText}>Tạo bộ thẻ để theo dõi thống kê học tập.</Text>
+        </View>
+      ) : (
+        <View style={styles.decksInsetGroup}>
+          {decks.map((deck, idx) => {
+            const deckCards = cards[deck.id] || [];
+            const count = deckCards.length;
+            const due = deck.dueCount || 0;
+            const done = deckCards.filter(c => c.srs && c.srs.repetitions >= 2).length;
+            const deckMastery = count > 0 ? Math.round((done / count) * 100) : 0;
 
-        return (
-          <View key={deck.id} style={styles.deckCard}>
-            <View style={styles.deckHeader}>
-              <Text style={styles.deckIcon}>{deck.icon}</Text>
-              <View style={styles.deckMeta}>
-                <Text style={styles.deckName}>{deck.name}</Text>
-                <Text style={styles.deckSub}>{count} thẻ • {due} cần ôn hôm nay</Text>
-              </View>
-              <Text style={[styles.deckPct, { color: deck.color }]}>{deckMastery}%</Text>
-            </View>
+            return (
+              <React.Fragment key={deck.id}>
+                {idx > 0 && <View style={styles.cellDividerIndented} />}
+                <View style={styles.deckCell}>
+                  <View style={styles.deckIconTile}>
+                    {renderVectorIcon(deck.icon, 18, Colors.accent.blue)}
+                  </View>
 
-            {/* Custom Progress Bar */}
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${deckMastery}%`, backgroundColor: deck.color }]} />
-            </View>
+                  <View style={styles.deckMeta}>
+                    <View style={styles.deckNameRow}>
+                      <Text style={styles.deckName}>{deck.name}</Text>
+                      <Text style={styles.deckPctText}>{deckMastery}%</Text>
+                    </View>
 
-            <View style={styles.deckPillsRow}>
-              <View style={styles.deckPill}>
-                <View style={[styles.pillDot, { backgroundColor: Colors.accent.blue }]} />
-                <Text style={styles.pillText}>Mới: {deckCards.filter(c => !c.srs || c.srs.repetitions === 0).length}</Text>
-              </View>
-              <View style={styles.deckPill}>
-                <View style={[styles.pillDot, { backgroundColor: Colors.accent.gold }]} />
-                <Text style={styles.pillText}>Cần ôn: {due}</Text>
-              </View>
-              <View style={styles.deckPill}>
-                <View style={[styles.pillDot, { backgroundColor: Colors.accent.green }]} />
-                <Text style={styles.pillText}>Đã thuộc: {done}</Text>
-              </View>
-            </View>
-          </View>
-        );
-      })}
+                    <View style={styles.progressTrack}>
+                      <View style={[styles.progressFill, { width: `${deckMastery}%` }]} />
+                    </View>
 
-      {decks.length === 0 && (
-        <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>📊</Text>
-          <Text style={styles.emptyText}>Tạo bộ thẻ và bắt đầu học để xem thống kê chi tiết</Text>
+                    <Text style={styles.deckSubText}>
+                      {count} thẻ  •  {due} cần ôn hôm nay
+                    </Text>
+                  </View>
+                </View>
+              </React.Fragment>
+            );
+          })}
         </View>
       )}
 
       {/* SRS Tip */}
-      <View style={styles.tipCard}>
-        <Text style={styles.tipTitle}>🧠 Nguyên lý trí nhớ ngắn hạn Anki</Text>
+      <View style={[styles.insetCard, { marginTop: Spacing.lg }]}>
+        <View style={styles.tipHeader}>
+          <Ionicons name="information-circle-outline" size={18} color={Colors.text.secondary} />
+          <Text style={styles.tipTitle}>Thuật toán Spaced Repetition (SM-2)</Text>
+        </View>
         <Text style={styles.tipBody}>
-          Thuật toán Anki SM-2 ghi nhận lịch sử học thực tế của bạn. Ôn tập đúng hẹn giúp từ vựng được tự động chuyển từ trí nhớ ngắn hạn sang trí nhớ dài hạn vĩnh viễn!
+          Hệ thống tự động tính toán khoảng thời gian xem lại dựa trên mức độ ghi nhớ của bạn, giúp duy trì trí nhớ dài hạn vĩnh viễn.
         </Text>
       </View>
     </ScrollView>
   );
 }
 
-function MetricCard({ label, value, icon, color }: { label: string; value: number; icon: string; color: string }) {
+function MetricCard({ label, value, icon }: { label: string; value: number; icon: any }) {
   return (
-    <View style={[styles.metricCard, { borderColor: color + '30' }]}>
-      <View style={styles.metricHeader}>
-        <Text style={styles.metricIcon}>{icon}</Text>
-        <Text style={[styles.metricValue, { color }]}>{value}</Text>
+    <View style={styles.metricCard}>
+      <View style={styles.metricTop}>
+        <Ionicons name={icon} size={18} color={Colors.text.secondary} />
+        <Text style={styles.metricValue}>{value}</Text>
       </View>
       <Text style={styles.metricLabel}>{label}</Text>
     </View>
@@ -243,113 +254,179 @@ function MetricCard({ label, value, icon, color }: { label: string; value: numbe
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg.primary },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg.primary },
-  loadingText: { color: Colors.text.secondary, marginTop: Spacing.md },
-  content: { padding: Spacing.xl, paddingTop: 56, paddingBottom: 80 },
-  title: { fontSize: Typography.text.xxxl, fontWeight: Typography.weight.bold, color: Colors.text.primary, marginBottom: Spacing.xl },
+  loadingText: { color: Colors.text.secondary, marginTop: Spacing.md, fontSize: Typography.text.footnote.fontSize },
+  content: { paddingHorizontal: Spacing.pageMargin },
+
+  header: { marginBottom: Spacing.md },
+  largeTitle: {
+    fontSize: Typography.text.largeTitle.fontSize,
+    lineHeight: Typography.text.largeTitle.lineHeight,
+    fontWeight: Typography.weight.bold,
+    color: Colors.text.primary,
+    letterSpacing: 0.37,
+  },
+
+  sectionHeaderTitle: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: -0.08,
+    marginBottom: Spacing.sectionBottom,
+    marginTop: Spacing.sectionTop,
+    marginLeft: 4,
+  },
 
   // Hero Card
   heroCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.accent.purpleDim,
-    borderRadius: Radii.xl,
-    padding: Spacing.xl,
-    marginBottom: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.accent.purple + '50',
-    ...Shadows.card,
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    padding: Spacing.cellHorizontal,
   },
   heroLeft: { flex: 1 },
-  heroBadge: { fontSize: Typography.text.xs, color: Colors.accent.purpleLight, textTransform: 'uppercase', fontWeight: Typography.weight.semibold, letterSpacing: 0.5 },
-  heroPercentage: { fontSize: 42, fontWeight: Typography.weight.heavy, color: Colors.text.primary, marginVertical: 4 },
-  heroSub: { fontSize: Typography.text.xs, color: Colors.text.secondary },
-  heroGaugeCircle: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: Colors.bg.card,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: Colors.accent.purple,
+  heroSectionTitle: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: -0.08,
   },
-  heroEmoji: { fontSize: 30 },
+  heroPercentage: {
+    fontSize: 36,
+    lineHeight: 42,
+    fontWeight: Typography.weight.bold,
+    color: Colors.text.primary,
+    marginVertical: 2,
+  },
+  heroSub: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary },
+  heroIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.accent.gray5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  // Heatmap Card
-  sectionCard: {
-    backgroundColor: Colors.bg.card,
-    borderRadius: Radii.xl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.border.subtle,
+  // Heatmap Inset Card
+  insetCard: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    padding: Spacing.cellHorizontal,
   },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
-  sectionTitle: { fontSize: Typography.text.md, fontWeight: Typography.weight.bold, color: Colors.text.primary },
-  streakCount: { fontSize: Typography.text.xs, color: Colors.accent.green, fontWeight: Typography.weight.semibold },
+  streakHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  streakLabel: {
+    fontSize: Typography.text.body.fontSize,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.text.primary,
+  },
+  streakBadge: {
+    backgroundColor: Colors.accent.gray5,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  streakBadgeText: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weight.medium,
+  },
 
   heatmapRow: { flexDirection: 'row', justifyContent: 'space-between' },
   heatmapCol: { alignItems: 'center' },
   heatmapSquare: {
-    width: 36, height: 36, borderRadius: Radii.md,
-    alignItems: 'center', justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 4,
   },
-  todaySquare: { borderWidth: 2, borderColor: Colors.accent.purple },
-  heatmapCheck: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  heatmapDayText: { fontSize: Typography.text.xs, color: Colors.text.muted },
-  todayText: { color: Colors.accent.purpleLight, fontWeight: Typography.weight.bold },
-  heatmapCountText: { fontSize: 10, color: Colors.text.muted, marginTop: 2 },
+  todaySquare: { borderWidth: 2, borderColor: Colors.accent.blue },
+  heatmapDayText: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary },
+  todayText: { color: Colors.accent.blue, fontWeight: Typography.weight.bold },
+  heatmapCountText: { fontSize: 10, color: Colors.text.tertiary, marginTop: 2 },
 
-  // Grid Metrics
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.xl },
+  // Grid
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   metricCard: {
-    width: (width - Spacing.xl * 2 - Spacing.sm) / 2,
-    backgroundColor: Colors.bg.card,
-    borderRadius: Radii.lg,
-    padding: Spacing.lg,
-    borderWidth: 1,
+    width: (width - Spacing.pageMargin * 2 - 12) / 2,
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    padding: Spacing.cellHorizontal,
   },
-  metricHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  metricIcon: { fontSize: 24 },
-  metricValue: { fontSize: Typography.text.xxl, fontWeight: Typography.weight.bold },
-  metricLabel: { fontSize: Typography.text.xs, color: Colors.text.muted, marginTop: Spacing.sm },
+  metricTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  metricValue: { fontSize: Typography.text.title2.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary },
+  metricLabel: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: Spacing.sm },
 
-  // Deck List Breakdown
-  sectionTitleHeader: { fontSize: Typography.text.lg, fontWeight: Typography.weight.bold, color: Colors.text.primary, marginBottom: Spacing.md },
-  deckCard: {
-    backgroundColor: Colors.bg.card,
-    borderRadius: Radii.xl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border.subtle,
+  // Decks Inset Group
+  decksInsetGroup: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    overflow: 'hidden',
   },
-  deckHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
-  deckIcon: { fontSize: 26, marginRight: Spacing.md },
+  deckCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.cellHorizontal,
+    paddingVertical: Spacing.cellVertical,
+    minHeight: Spacing.cellMinHeight,
+  },
+  cellDividerIndented: {
+    height: 0.5,
+    backgroundColor: Colors.border.separator,
+    marginLeft: 56,
+  },
+  deckIconTile: {
+    width: 32,
+    height: 32,
+    borderRadius: Radii.icon,
+    backgroundColor: Colors.accent.gray5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
   deckMeta: { flex: 1 },
-  deckName: { fontSize: Typography.text.md, fontWeight: Typography.weight.semibold, color: Colors.text.primary },
-  deckSub: { fontSize: Typography.text.xs, color: Colors.text.muted, marginTop: 2 },
-  deckPct: { fontSize: Typography.text.lg, fontWeight: Typography.weight.bold },
-
-  progressBarBg: { height: 8, backgroundColor: Colors.bg.elevated, borderRadius: 4, overflow: 'hidden', marginBottom: Spacing.md },
-  progressBarFill: { height: '100%', borderRadius: 4 },
-
-  deckPillsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: Spacing.xs },
-  deckPill: { flexDirection: 'row', alignItems: 'center' },
-  pillDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
-  pillText: { fontSize: Typography.text.xs, color: Colors.text.secondary },
-
-  empty: { alignItems: 'center', paddingTop: 40, paddingBottom: 40 },
-  emptyIcon: { fontSize: 48, marginBottom: Spacing.md },
-  emptyText: { fontSize: Typography.text.md, color: Colors.text.secondary, textAlign: 'center' },
-
-  // Tip Card
-  tipCard: {
-    backgroundColor: Colors.bg.card,
-    borderRadius: Radii.xl,
-    padding: Spacing.lg,
-    marginTop: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
+  deckNameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  tipTitle: { fontSize: Typography.text.sm, fontWeight: Typography.weight.bold, color: Colors.accent.purpleLight, marginBottom: Spacing.xs },
-  tipBody: { fontSize: Typography.text.xs, color: Colors.text.secondary, lineHeight: 18 },
+  deckName: {
+    fontSize: Typography.text.body.fontSize,
+    lineHeight: Typography.text.body.lineHeight,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.text.primary,
+  },
+  deckPctText: {
+    fontSize: Typography.text.footnote.fontSize,
+    fontWeight: Typography.weight.bold,
+    color: Colors.accent.blue,
+  },
+  progressTrack: {
+    height: 4,
+    backgroundColor: Colors.accent.gray5,
+    borderRadius: 2,
+    marginTop: 4,
+    overflow: 'hidden',
+  },
+  progressFill: { height: '100%', backgroundColor: Colors.accent.blue, borderRadius: 2 },
+  deckSubText: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    marginTop: 4,
+  },
+
+  emptyText: { color: Colors.text.secondary, fontSize: Typography.text.subhead.fontSize },
+
+  // Tip
+  tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  tipTitle: { fontSize: Typography.text.footnote.fontSize, fontWeight: Typography.weight.semibold, color: Colors.text.primary },
+  tipBody: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, lineHeight: 18 },
 });

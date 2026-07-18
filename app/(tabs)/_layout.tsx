@@ -1,37 +1,8 @@
+import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/theme';
-
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
-
-function TabIcon({
-  name,
-  focused,
-  isAdd = false,
-}: {
-  name: IoniconsName;
-  focused: boolean;
-  isAdd?: boolean;
-}) {
-  if (isAdd) {
-    return (
-      <View style={[styles.addBtn, focused && styles.addBtnActive]}>
-        <Ionicons name={name} size={28} color="#fff" />
-      </View>
-    );
-  }
-  return (
-    <View style={styles.iconWrap}>
-      <Ionicons
-        name={name}
-        size={24}
-        color={focused ? Colors.accent.purpleLight : Colors.text.muted}
-      />
-      {focused && <View style={styles.activeDot} />}
-    </View>
-  );
-}
+import { Colors, triggerHaptic } from '../../constants/theme';
 
 export default function TabLayout() {
   return (
@@ -39,8 +10,8 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: Colors.accent.purpleLight,
-        tabBarInactiveTintColor: Colors.text.muted,
+        tabBarActiveTintColor: Colors.accent.blue,
+        tabBarInactiveTintColor: Colors.accent.gray,
         tabBarLabelStyle: styles.tabLabel,
         tabBarItemStyle: styles.tabItem,
       }}
@@ -49,36 +20,48 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Hôm nay',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name={focused ? 'today' : 'today-outline'} focused={focused} />
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons name={focused ? 'today' : 'today-outline'} size={24} color={color} />
           ),
+        }}
+        listeners={{
+          tabPress: () => triggerHaptic('selection'),
         }}
       />
       <Tabs.Screen
         name="decks"
         options={{
           title: 'Bộ thẻ',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name={focused ? 'library' : 'library-outline'} focused={focused} />
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons name={focused ? 'library' : 'library-outline'} size={24} color={color} />
           ),
+        }}
+        listeners={{
+          tabPress: () => triggerHaptic('selection'),
         }}
       />
       <Tabs.Screen
         name="add"
         options={{
-          title: '',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="add" focused={focused} isAdd />
+          title: 'Thêm từ',
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons name={focused ? 'add-circle' : 'add-circle-outline'} size={25} color={color} />
           ),
+        }}
+        listeners={{
+          tabPress: () => triggerHaptic('selection'),
         }}
       />
       <Tabs.Screen
         name="stats"
         options={{
           title: 'Thống kê',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name={focused ? 'bar-chart' : 'bar-chart-outline'} focused={focused} />
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={24} color={color} />
           ),
+        }}
+        listeners={{
+          tabPress: () => triggerHaptic('selection'),
         }}
       />
     </Tabs>
@@ -88,50 +71,23 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: Colors.bg.secondary,
-    borderTopColor: Colors.border.subtle,
-    borderTopWidth: 1,
+    borderTopColor: Colors.border.separator,
+    borderTopWidth: 0.5,
     height: Platform.OS === 'ios' ? 84 : 64,
     paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-    paddingTop: 8,
+    paddingTop: 6,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   tabItem: {
     paddingTop: 2,
   },
   tabLabel: {
     fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    fontWeight: '500',
+    letterSpacing: -0.1,
     marginTop: 2,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 36,
-  },
-  activeDot: {
-    position: 'absolute',
-    bottom: -2,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.accent.purpleLight,
-  },
-  addBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.accent.purple,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    shadowColor: Colors.accent.purple,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  addBtnActive: {
-    backgroundColor: Colors.accent.purpleMid,
   },
 });

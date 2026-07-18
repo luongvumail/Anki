@@ -3,38 +3,40 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   Modal, TextInput, Alert, ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useStore } from '../../store/useStore';
-import { Colors, Typography, Spacing, Radii, Shadows } from '../../constants/theme';
-
-const DECK_COLORS = ['#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#06b6d4'];
-const DECK_ICONS = ['📚', '🀄', '🐉', '🎋', '🏮', '🌸', '⛩️', '🍜', '🎎', '🐼'];
+import { Colors, Typography, Spacing, Radii, VECTOR_DECK_ICONS, triggerHaptic } from '../../constants/theme';
 
 export default function DecksScreen() {
+  const insets = useSafeAreaInsets();
   const { decks, fetchDecks, createDeck, deleteDeck, isLoading, userId } = useStore();
   const [showCreate, setShowCreate] = useState(false);
   const [deckName, setDeckName] = useState('');
   const [deckDesc, setDeckDesc] = useState('');
-  const [selectedColor, setSelectedColor] = useState(DECK_COLORS[0]);
-  const [selectedIcon, setSelectedIcon] = useState(DECK_ICONS[0]);
+  const [selectedIcon, setSelectedIcon] = useState(VECTOR_DECK_ICONS[0]);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    if (userId) {
-      fetchDecks();
-    }
+    if (userId) fetchDecks();
   }, [userId]);
 
   const handleCreate = async () => {
-    if (!deckName.trim()) { Alert.alert('Lỗi', 'Vui lòng nhập tên bộ thẻ'); return; }
+    if (!deckName.trim()) {
+      triggerHaptic('warning');
+      Alert.alert('Thông báo', 'Vui lòng nhập tên bộ thẻ');
+      return;
+    }
     setCreating(true);
+    triggerHaptic('medium');
     try {
-      await createDeck({ name: deckName.trim(), description: deckDesc.trim(), color: selectedColor, icon: selectedIcon });
+      await createDeck({ name: deckName.trim(), description: deckDesc.trim(), color: '#0A84FF', icon: selectedIcon });
+      triggerHaptic('success');
       setShowCreate(false);
       setDeckName(''); setDeckDesc('');
     } catch (e: any) {
+      triggerHaptic('error');
       Alert.alert('Lỗi', e.message);
     } finally {
       setCreating(false);
@@ -42,150 +44,188 @@ export default function DecksScreen() {
   };
 
   const handleDeleteDeck = (deck: any) => {
-    Alert.alert('Xoá bộ thẻ', `Bạn có chắc muốn xoá "${deck.name}"? Tất cả thẻ sẽ bị xoá.`, [
-      { text: 'Huỷ', style: 'cancel' },
-      { text: 'Xoá', style: 'destructive', onPress: () => deleteDeck(deck.id) },
+    triggerHaptic('warning');
+    Alert.alert('Xoá bộ thẻ', `Bạn có chắc chắn muốn xoá bộ thẻ "${deck.name}"?`, [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xoá bộ thẻ',
+        style: 'destructive',
+        onPress: () => {
+          triggerHaptic('error');
+          deleteDeck(deck.id);
+        },
+      },
     ]);
+  };
+
+  const renderVectorIcon = (iconName: string, size = 18, color = Colors.accent.blue) => {
+    const validIcons = VECTOR_DECK_ICONS;
+    const icon = validIcons.includes(iconName) ? (iconName as any) : 'book-outline';
+    return <Ionicons name={icon} size={size} color={color} />;
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      {/* iOS Header Bar */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 16, 54) }]}>
         <View>
-          <Text style={styles.title}>Bộ thẻ</Text>
-          <Text style={styles.subtitle}>{decks.length > 0 ? `${decks.length} bộ thẻ` : 'Chưa có bộ thẻ nào'}</Text>
+          <Text style={styles.largeTitle}>Bộ thẻ</Text>
+          <Text style={styles.subhead}>{decks.length} bộ thẻ lưu trữ</Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
-          <Ionicons name="add" size={18} color="#fff" />
-          <Text style={styles.addBtnText}>Tạo mới</Text>
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() => {
+            triggerHaptic('selection');
+            setShowCreate(true);
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={26} color={Colors.accent.blue} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-        {isLoading && <ActivityIndicator color={Colors.accent.purple} style={{ marginTop: 40 }} />}
+      <ScrollView
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {isLoading && <ActivityIndicator color={Colors.accent.gray} style={{ marginTop: 30 }} />}
+
         {decks.length === 0 && !isLoading && (
-          <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>🀄</Text>
+          <View style={styles.emptyCard}>
+            <Ionicons name="folder-open-outline" size={40} color={Colors.accent.gray} style={{ marginBottom: Spacing.sm }} />
             <Text style={styles.emptyTitle}>Chưa có bộ thẻ</Text>
-            <Text style={styles.emptyText}>Tạo bộ thẻ đầu tiên để bắt đầu hành trình học tập của bạn</Text>
-            <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowCreate(true)}>
-              <Ionicons name="add" size={16} color="#fff" />
-              <Text style={styles.emptyBtnText}>Tạo bộ thẻ đầu tiên</Text>
+            <Text style={styles.emptySub}>Tạo bộ thẻ để phân loại từ vựng Tiếng Trung</Text>
+            <TouchableOpacity
+              style={styles.emptyBtn}
+              onPress={() => {
+                triggerHaptic('medium');
+                setShowCreate(true);
+              }}
+            >
+              <Text style={styles.emptyBtnText}>+ Tạo bộ thẻ mới</Text>
             </TouchableOpacity>
           </View>
         )}
-        {decks.map(deck => {
-          const total = deck.cardCount || 0;
-          const due = deck.dueCount || 0;
-          const masteryPct = total > 0 ? Math.round(((total - due) / total) * 100) : 0;
-          return (
-            <TouchableOpacity
-              key={deck.id}
-              style={styles.deckCard}
-              onPress={() => router.push(`/deck/${deck.id}`)}
-              onLongPress={() => handleDeleteDeck(deck)}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={[deck.color + '18', 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.deckGradient}
-              >
-                <View style={styles.deckTop}>
-                  <View style={[styles.deckIconCircle, { backgroundColor: deck.color + '22' }]}>
-                    <Text style={styles.deckIconText}>{deck.icon}</Text>
-                  </View>
-                  <View style={styles.deckMeta}>
-                    <Text style={styles.deckName}>{deck.name}</Text>
-                    {deck.description ? <Text style={styles.deckDesc}>{deck.description}</Text> : null}
-                  </View>
+
+        {decks.length > 0 && (
+          <View style={styles.insetGroup}>
+            {decks.map((deck, idx) => {
+              const total = deck.cardCount || 0;
+              const due = deck.dueCount || 0;
+              const masteryPct = total > 0 ? Math.round(((total - due) / total) * 100) : 0;
+
+              return (
+                <React.Fragment key={deck.id}>
+                  {idx > 0 && <View style={styles.cellDividerIndented} />}
                   <TouchableOpacity
-                    style={[styles.studyBtn, { backgroundColor: deck.color }]}
-                    onPress={() => router.push(`/study/${deck.id}`)}
+                    style={styles.deckCell}
+                    onPress={() => {
+                      triggerHaptic('light');
+                      router.push(`/deck/${deck.id}`);
+                    }}
+                    onLongPress={() => handleDeleteDeck(deck)}
+                    activeOpacity={0.7}
                   >
-                    <Ionicons name="play" size={14} color="#fff" />
-                    <Text style={styles.studyBtnText}>Học</Text>
+                    <View style={styles.deckIconTile}>
+                      {renderVectorIcon(deck.icon, 18, Colors.accent.blue)}
+                    </View>
+
+                    <View style={styles.deckMeta}>
+                      <View style={styles.deckNameRow}>
+                        <Text style={styles.deckName}>{deck.name}</Text>
+                        {due > 0 ? (
+                          <View style={styles.dueBadge}>
+                            <Text style={styles.dueBadgeText}>{due} ôn</Text>
+                          </View>
+                        ) : null}
+                      </View>
+
+                      {deck.description ? (
+                        <Text style={styles.deckDesc} numberOfLines={1}>{deck.description}</Text>
+                      ) : null}
+
+                      {/* Progress Track */}
+                      <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: `${masteryPct}%` }]} />
+                      </View>
+
+                      <Text style={styles.deckStatsText}>
+                        {total} từ vựng  •  {masteryPct}% thuộc
+                      </Text>
+                    </View>
+
+                    <Ionicons name="chevron-forward" size={16} color={Colors.accent.gray3} style={{ marginLeft: 8 }} />
                   </TouchableOpacity>
-                </View>
-
-                {/* Progress bar */}
-                <View style={styles.progressBg}>
-                  <View style={[styles.progressFill, { width: `${masteryPct}%`, backgroundColor: deck.color }]} />
-                </View>
-
-                <View style={styles.counts}>
-                  <CountChip label="Mới" value={deck.newCount || 0} color={Colors.accent.blue} />
-                  <CountChip label="Cần ôn" value={due} color={Colors.accent.gold} />
-                  <CountChip label="Đã thuộc" value={total - due} color={Colors.accent.green} />
-                  <Text style={[styles.masteryText, { color: deck.color }]}>{masteryPct}%</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          );
-        })}
+                </React.Fragment>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
 
-      {/* Create Deck Modal */}
-      <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modal}>
+      {/* iOS Page Sheet Modal */}
+      <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCreate(false)}>
+        <View style={styles.modalContainer}>
+          {/* Header Bar */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Tạo bộ thẻ mới</Text>
-            <TouchableOpacity onPress={() => setShowCreate(false)}>
-              <Text style={styles.closeBtn}>✕</Text>
+            <TouchableOpacity onPress={() => setShowCreate(false)} style={styles.headerLeftBtn}>
+              <Text style={styles.cancelBtnText}>Hủy</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Bộ thẻ mới</Text>
+            <TouchableOpacity onPress={handleCreate} disabled={creating} style={styles.headerRightBtn}>
+              {creating ? (
+                <ActivityIndicator size="small" color={Colors.accent.blue} />
+              ) : (
+                <Text style={styles.doneBtnText}>Tạo</Text>
+              )}
             </TouchableOpacity>
           </View>
 
-          <ScrollView>
-            <Text style={styles.fieldLabel}>Tên bộ thẻ *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="VD: HSK 1, Từ vựng công việc..."
-              placeholderTextColor={Colors.text.muted}
-              value={deckName}
-              onChangeText={setDeckName}
-            />
-
-            <Text style={styles.fieldLabel}>Mô tả (tuỳ chọn)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Mô tả ngắn về bộ thẻ..."
-              placeholderTextColor={Colors.text.muted}
-              value={deckDesc}
-              onChangeText={setDeckDesc}
-            />
-
-            <Text style={styles.fieldLabel}>Màu sắc</Text>
-            <View style={styles.colorRow}>
-              {DECK_COLORS.map(c => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.colorDot, { backgroundColor: c }, selectedColor === c && styles.colorDotActive]}
-                  onPress={() => setSelectedColor(c)}
+          <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <Text style={styles.sectionHeaderTitle}>THÔNG TIN BỘ THẺ</Text>
+            <View style={styles.modalInsetGroup}>
+              <View style={styles.modalRow}>
+                <Text style={styles.fieldLabel}>Tên bộ thẻ</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder="VD: HSK 1, Giao tiếp..."
+                  placeholderTextColor={Colors.text.tertiary}
+                  value={deckName}
+                  onChangeText={setDeckName}
                 />
-              ))}
+              </View>
+              <View style={[styles.modalRow, styles.cellBorderTop]}>
+                <Text style={styles.fieldLabel}>Mô tả</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder="Mô tả ngắn (tuỳ chọn)"
+                  placeholderTextColor={Colors.text.tertiary}
+                  value={deckDesc}
+                  onChangeText={setDeckDesc}
+                />
+              </View>
             </View>
 
-            <Text style={styles.fieldLabel}>Biểu tượng</Text>
-            <View style={styles.iconGrid}>
-              {DECK_ICONS.map(ic => (
-                <TouchableOpacity
-                  key={ic}
-                  style={[styles.iconOption, selectedIcon === ic && styles.iconOptionActive]}
-                  onPress={() => setSelectedIcon(ic)}
-                >
-                  <Text style={styles.iconOptionText}>{ic}</Text>
-                </TouchableOpacity>
-              ))}
+            <Text style={styles.sectionHeaderTitle}>BIỂU TƯỢNG ICON VECTOR</Text>
+            <View style={styles.modalInsetGroupPadding}>
+              <View style={styles.iconGrid}>
+                {VECTOR_DECK_ICONS.map(icName => (
+                  <TouchableOpacity
+                    key={icName}
+                    style={[styles.iconOption, selectedIcon === icName && styles.iconOptionActive]}
+                    onPress={() => {
+                      triggerHaptic('selection');
+                      setSelectedIcon(icName);
+                    }}
+                  >
+                    {renderVectorIcon(icName, 22, selectedIcon === icName ? Colors.accent.blue : Colors.text.secondary)}
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-
-            <TouchableOpacity
-              style={[styles.createBtn, creating && styles.createBtnDisabled]}
-              onPress={handleCreate}
-              disabled={creating}
-            >
-              {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.createBtnText}>Tạo bộ thẻ</Text>}
-            </TouchableOpacity>
           </ScrollView>
         </View>
       </Modal>
@@ -193,76 +233,224 @@ export default function DecksScreen() {
   );
 }
 
-function CountChip({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <View style={[styles.chip, { borderColor: color + '50' }]}>
-      <Text style={[styles.chipValue, { color }]}>{value}</Text>
-      <Text style={styles.chipLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg.primary },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingTop: 60, paddingBottom: Spacing.md },
-  title: { fontSize: Typography.text.xxxl, fontWeight: Typography.weight.bold, color: Colors.text.primary },
-  subtitle: { fontSize: Typography.text.sm, color: Colors.text.muted, marginTop: 2 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.accent.purple, borderRadius: Radii.full, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg, ...Shadows.card },
-  addBtnText: { color: '#fff', fontWeight: Typography.weight.semibold, fontSize: Typography.text.sm },
-  list: { padding: Spacing.xl, paddingTop: Spacing.md, paddingBottom: 100 },
-
-  empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: Spacing.xl },
-  emptyIcon: { fontSize: 64, marginBottom: Spacing.lg },
-  emptyTitle: { fontSize: Typography.text.xl, fontWeight: Typography.weight.bold, color: Colors.text.primary, marginBottom: Spacing.xs },
-  emptyText: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginTop: Spacing.xs, textAlign: 'center', lineHeight: 20, marginBottom: Spacing.xl },
-  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.accent.purple, borderRadius: Radii.full, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl },
-  emptyBtnText: { color: '#fff', fontWeight: Typography.weight.bold, fontSize: Typography.text.md },
-
-  deckCard: {
-    borderRadius: Radii.xl, marginBottom: Spacing.lg,
-    overflow: 'hidden', borderWidth: 1, borderColor: Colors.border.default,
-    backgroundColor: Colors.bg.card,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    paddingHorizontal: Spacing.pageMargin,
+    paddingBottom: Spacing.md,
   },
-  deckGradient: { padding: Spacing.lg },
-  deckTop: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md, gap: Spacing.md },
-  deckIconCircle: { width: 52, height: 52, borderRadius: Radii.md, alignItems: 'center', justifyContent: 'center' },
-  deckIconText: { fontSize: 28 },
+  largeTitle: {
+    fontSize: Typography.text.largeTitle.fontSize,
+    lineHeight: Typography.text.largeTitle.lineHeight,
+    fontWeight: Typography.weight.bold,
+    color: Colors.text.primary,
+    letterSpacing: 0.37,
+  },
+  subhead: {
+    fontSize: Typography.text.subhead.fontSize,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
+  addBtn: {
+    padding: Spacing.xs,
+  },
+  list: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.sm },
+
+  insetGroup: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    overflow: 'hidden',
+  },
+  deckCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.cellHorizontal,
+    paddingVertical: Spacing.cellVertical,
+    minHeight: Spacing.cellMinHeight,
+  },
+  cellDividerIndented: {
+    height: 0.5,
+    backgroundColor: Colors.border.separator,
+    marginLeft: 56,
+  },
+  deckIconTile: {
+    width: 32,
+    height: 32,
+    borderRadius: Radii.icon,
+    backgroundColor: Colors.accent.gray5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
   deckMeta: { flex: 1 },
-  deckName: { fontSize: Typography.text.lg, fontWeight: Typography.weight.bold, color: Colors.text.primary },
-  deckDesc: { fontSize: Typography.text.xs, color: Colors.text.muted, marginTop: 2 },
-  progressBg: { height: 4, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, marginBottom: Spacing.md, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 2 },
-  counts: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
-  chip: { borderRadius: Radii.xs, borderWidth: 1, paddingVertical: 3, paddingHorizontal: Spacing.sm, alignItems: 'center' },
-  chipValue: { fontSize: Typography.text.sm, fontWeight: Typography.weight.bold },
-  chipLabel: { fontSize: 10, color: Colors.text.muted },
-  masteryText: { marginLeft: 'auto', fontSize: Typography.text.sm, fontWeight: Typography.weight.bold },
-  studyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: Radii.md, paddingVertical: Spacing.xs, paddingHorizontal: Spacing.md },
-  studyBtnText: { color: '#fff', fontWeight: Typography.weight.semibold, fontSize: Typography.text.xs },
+  deckNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginRight: 4,
+  },
+  deckName: {
+    fontSize: Typography.text.body.fontSize,
+    lineHeight: Typography.text.body.lineHeight,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.text.primary,
+  },
+  deckDesc: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
+  progressTrack: {
+    height: 4,
+    backgroundColor: Colors.accent.gray5,
+    borderRadius: 2,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.accent.blue,
+    borderRadius: 2,
+  },
+  deckStatsText: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    marginTop: 4,
+  },
+  dueBadge: {
+    backgroundColor: Colors.accent.gray5,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  dueBadgeText: {
+    fontSize: Typography.text.caption2.fontSize,
+    color: Colors.text.primary,
+    fontWeight: Typography.weight.medium,
+  },
 
-  modal: { flex: 1, backgroundColor: Colors.bg.primary, padding: Spacing.xl },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xxl, paddingTop: Spacing.lg },
-  modalTitle: { fontSize: Typography.text.xxl, fontWeight: Typography.weight.bold, color: Colors.text.primary },
-  closeBtn: { fontSize: 20, color: Colors.text.muted, padding: Spacing.sm },
-  fieldLabel: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginBottom: Spacing.xs, fontWeight: Typography.weight.medium, marginTop: Spacing.lg },
-  input: {
-    backgroundColor: Colors.bg.elevated, borderRadius: Radii.md,
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
-    color: Colors.text.primary, fontSize: Typography.text.md,
-    borderWidth: 1, borderColor: Colors.border.default,
+  emptyCard: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    padding: Spacing.xl,
+    alignItems: 'center',
   },
-  colorRow: { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap', marginTop: Spacing.sm },
-  colorDot: { width: 40, height: 40, borderRadius: 20 },
-  colorDotActive: { borderWidth: 3, borderColor: '#fff', transform: [{ scale: 1.1 }] },
-  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.sm },
+  emptyTitle: {
+    fontSize: Typography.text.headline.fontSize,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.text.primary,
+  },
+  emptySub: {
+    fontSize: Typography.text.subhead.fontSize,
+    color: Colors.text.secondary,
+    marginTop: 4,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+  },
+  emptyBtn: {
+    backgroundColor: Colors.accent.blue,
+    paddingHorizontal: Spacing.xl,
+    height: 44,
+    borderRadius: Radii.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyBtnText: {
+    color: '#FFFFFF',
+    fontWeight: Typography.weight.semibold,
+    fontSize: Typography.text.subhead.fontSize,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
+
+  // Modal
+  modalContainer: { flex: 1, backgroundColor: Colors.bg.primary },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border.separator,
+    backgroundColor: Colors.bg.secondary,
+  },
+  modalTitle: {
+    fontSize: Typography.text.headline.fontSize,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.text.primary,
+  },
+  headerLeftBtn: { padding: Spacing.xs },
+  headerRightBtn: { padding: Spacing.xs },
+  cancelBtnText: {
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.accent.blue,
+  },
+  doneBtnText: {
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.accent.blue,
+    fontWeight: Typography.weight.bold,
+  },
+
+  modalContent: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.md, paddingBottom: 40 },
+  sectionHeaderTitle: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: -0.08,
+    marginBottom: Spacing.sectionBottom,
+    marginTop: Spacing.sectionTop,
+    marginLeft: 4,
+  },
+  modalInsetGroup: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    overflow: 'hidden',
+  },
+  modalInsetGroupPadding: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    padding: Spacing.lg,
+  },
+  modalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.cellHorizontal,
+    paddingVertical: Spacing.cellVertical,
+    minHeight: Spacing.cellMinHeight,
+  },
+  cellBorderTop: {
+    borderTopWidth: 0.5,
+    borderTopColor: Colors.border.separator,
+  },
+  fieldLabel: {
+    width: 90,
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.text.primary,
+    fontWeight: Typography.weight.medium,
+  },
+  fieldInput: {
+    flex: 1,
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.text.primary,
+  },
+
+  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   iconOption: {
-    width: 56, height: 56, borderRadius: Radii.md,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.bg.elevated, borderWidth: 1, borderColor: Colors.border.subtle,
+    width: 44,
+    height: 44,
+    borderRadius: Radii.icon,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.bg.tertiary,
   },
-  iconOptionActive: { borderColor: Colors.accent.purple, backgroundColor: Colors.accent.purpleDim },
-  iconOptionText: { fontSize: 30 },
-  createBtn: { backgroundColor: Colors.accent.purple, borderRadius: Radii.lg, padding: Spacing.lg, alignItems: 'center', marginTop: Spacing.xxl, marginBottom: 40, ...Shadows.card },
-  createBtnDisabled: { opacity: 0.6 },
-  createBtnText: { color: '#fff', fontWeight: Typography.weight.bold, fontSize: Typography.text.md },
+  iconOptionActive: {
+    borderWidth: 2,
+    borderColor: Colors.accent.blue,
+    backgroundColor: Colors.accent.blueDim,
+  },
 });

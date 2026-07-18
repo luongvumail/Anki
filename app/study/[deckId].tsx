@@ -3,18 +3,21 @@ import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
   Dimensions, ActivityIndicator, ScrollView, PanResponder,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { useStore } from '../../store/useStore';
 import { SRS_GRADES, getIntervalLabel } from '../../lib/srs';
-import { Colors, Typography, Spacing, Radii, Shadows } from '../../constants/theme';
+import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
 
 const { width, height } = Dimensions.get('window');
-const CARD_WIDTH = width - Spacing.xl * 2;
+const CARD_WIDTH = width - Spacing.pageMargin * 2;
 const CARD_HEIGHT = height * 0.52;
 const SWIPE_THRESHOLD = 90;
 
 export default function StudyScreen() {
+  const insets = useSafeAreaInsets();
   const { deckId } = useLocalSearchParams<{ deckId: string }>();
   const { session, startSession, endSession, gradeCard, decks } = useStore();
 
@@ -35,9 +38,9 @@ export default function StudyScreen() {
     return () => { Speech.stop(); };
   }, [deckId]);
 
-  // Flip card 3D rotation
   const flipCard = () => {
     if (flipped) return;
+    triggerHaptic('light');
     Animated.spring(flipAnim, {
       toValue: 1,
       useNativeDriver: true,
@@ -56,23 +59,25 @@ export default function StudyScreen() {
 
   const handleGrade = async (grade: number, direction: 'left' | 'right' | 'up' | 'down') => {
     if (!currentCard || !session) return;
+
+    if (grade === SRS_GRADES.AGAIN) triggerHaptic('error');
+    else if (grade === SRS_GRADES.HARD) triggerHaptic('warning');
+    else triggerHaptic('success');
+
     await gradeCard(currentCard, grade as any);
 
-    // Animate card off screen in swipe direction
-    const targetX = direction === 'left' ? -width * 1.2 : direction === 'right' ? width * 1.2 : 0;
-    const targetY = direction === 'up' ? -height * 1.2 : direction === 'down' ? height * 1.2 : 0;
+    const targetX = direction === 'left' ? -width * 1.3 : direction === 'right' ? width * 1.3 : 0;
+    const targetY = direction === 'up' ? -height * 1.3 : direction === 'down' ? height * 1.3 : 0;
 
     Animated.timing(pan, {
       toValue: { x: targetX, y: targetY },
-      duration: 220,
+      duration: 200,
       useNativeDriver: true,
     }).start(() => {
-      // Advance to next card in session queue
       resetCardPosition();
       useStore.setState(s => {
         if (!s.session) return { session: null };
         const updatedQueue = [...s.session.queue];
-        // Anki Active Recall principle: Failed cards (AGAIN) are re-queued at the end of the session
         if (grade === SRS_GRADES.AGAIN) {
           updatedQueue.push(currentCard);
         }
@@ -89,7 +94,6 @@ export default function StudyScreen() {
     });
   };
 
-  // PanResponder for 4-directional drag & drop gesture
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -115,26 +119,22 @@ export default function StudyScreen() {
         const absX = Math.abs(dx);
         const absY = Math.abs(dy);
 
-        // Tap detected (minimal movement) -> flip card
         if (absX < 12 && absY < 12) {
           flipCard();
           Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
           return;
         }
 
-        // Swipe gestures (mapped to 3 SRS levels)
         if (absX > absY && absX > SWIPE_THRESHOLD) {
-          if (dx < 0) handleGrade(SRS_GRADES.AGAIN, 'left');   // 👈 Left = Quên (Again)
-          else handleGrade(SRS_GRADES.GOOD, 'right');          // 👉 Right = Đã nhớ (Good)
+          if (dx < 0) handleGrade(SRS_GRADES.AGAIN, 'left');
+          else handleGrade(SRS_GRADES.GOOD, 'right');
         } else if (absY > absX && absY > SWIPE_THRESHOLD) {
-          if (dy < 0) handleGrade(SRS_GRADES.HARD, 'up');       // 👆 Up = Khó (Hard)
+          if (dy < 0) handleGrade(SRS_GRADES.HARD, 'up');
           else {
-            // Spring back if swiping down
             setActiveSwipeDirection(null);
             Animated.spring(pan, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: true }).start();
           }
         } else {
-          // Spring back to center
           setActiveSwipeDirection(null);
           Animated.spring(pan, {
             toValue: { x: 0, y: 0 },
@@ -148,6 +148,7 @@ export default function StudyScreen() {
 
   const speakWord = () => {
     if (!currentCard) return;
+    triggerHaptic('selection');
     setSpeaking(true);
     Speech.speak(currentCard.character, {
       language: 'zh-CN',
@@ -157,7 +158,6 @@ export default function StudyScreen() {
     });
   };
 
-  // Interpolations for smooth 3D flip transform
   const frontInterpolate = flipAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '180deg'],
@@ -174,7 +174,7 @@ export default function StudyScreen() {
       {
         rotate: pan.x.interpolate({
           inputRange: [-width, 0, width],
-          outputRange: ['-15deg', '0deg', '15deg'],
+          outputRange: ['-12deg', '0deg', '12deg'],
         }),
       },
     ],
@@ -183,8 +183,8 @@ export default function StudyScreen() {
   if (!session) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={Colors.accent.purple} />
-        <Text style={styles.loadingText}>Đang tải bài ôn...</Text>
+        <ActivityIndicator size="small" color={Colors.accent.gray} />
+        <Text style={styles.loadingText}>Đang chuẩn bị bộ thẻ ôn tập...</Text>
       </View>
     );
   }
@@ -193,18 +193,40 @@ export default function StudyScreen() {
     const accuracy = session.reviewedCount > 0
       ? Math.round((session.correctCount / session.reviewedCount) * 100)
       : 0;
+
     return (
-      <View style={styles.doneScreen}>
-        <Text style={styles.doneEmoji}>🎉</Text>
-        <Text style={styles.doneTitle}>Hoàn thành!</Text>
-        <Text style={styles.doneSub}>Bạn đã ôn xong tất cả thẻ hôm nay</Text>
-        <View style={styles.doneStats}>
-          <DoneStat label="Đã ôn" value={`${session.reviewedCount}`} color={Colors.accent.purple} />
-          <DoneStat label="Chính xác" value={`${accuracy}%`} color={Colors.accent.green} />
-          <DoneStat label="Cần học lại" value={`${session.reviewedCount - session.correctCount}`} color={Colors.accent.red} />
+      <View style={[styles.doneScreen, { paddingTop: Math.max(insets.top + 20, 50), paddingBottom: Math.max(insets.bottom + 20, 30) }]}>
+        <View style={styles.doneIconBox}>
+          <Ionicons name="checkmark-circle-outline" size={64} color={Colors.accent.blue} />
         </View>
-        <TouchableOpacity style={styles.doneBtn} onPress={() => { endSession(); router.back(); }}>
-          <Text style={styles.doneBtnText}>Quay về</Text>
+        <Text style={styles.doneTitle}>Hoàn thành ôn tập</Text>
+        <Text style={styles.doneSub}>Bạn đã ôn hết tất cả các thẻ trong bộ hôm nay</Text>
+
+        <View style={styles.doneInsetGroup}>
+          <View style={styles.doneRow}>
+            <Text style={styles.doneRowLabel}>Thẻ đã ôn</Text>
+            <Text style={styles.doneRowValue}>{session.reviewedCount} thẻ</Text>
+          </View>
+          <View style={[styles.doneRow, styles.cellBorderTop]}>
+            <Text style={styles.doneRowLabel}>Tỷ lệ chính xác</Text>
+            <Text style={styles.doneRowValue}>{accuracy}%</Text>
+          </View>
+          <View style={[styles.doneRow, styles.cellBorderTop]}>
+            <Text style={styles.doneRowLabel}>Thẻ cần học lại</Text>
+            <Text style={styles.doneRowValue}>{session.reviewedCount - session.correctCount}</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.doneBtn}
+          onPress={() => {
+            triggerHaptic('medium');
+            endSession();
+            router.back();
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.doneBtnText}>Xong</Text>
         </TouchableOpacity>
       </View>
     );
@@ -214,27 +236,38 @@ export default function StudyScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => { endSession(); router.back(); }} style={styles.closeBtn}>
-          <Text style={styles.closeBtnText}>✕</Text>
+      {/* iOS Header Bar */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 48) }]}>
+        <TouchableOpacity
+          onPress={() => {
+            triggerHaptic('light');
+            endSession();
+            router.back();
+          }}
+          style={styles.headerLeftBtn}
+        >
+          <Text style={styles.doneTextBtn}>Xong</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>{deck?.name || 'Ôn tập'}</Text>
           <Text style={styles.headerSub}>{session.currentIndex + 1} / {session.queue.length}</Text>
         </View>
-        <View style={{ width: 44 }} />
+        <TouchableOpacity onPress={speakWord} style={styles.headerRightBtn}>
+          <Ionicons name={speaking ? "volume-high" : "volume-medium-outline"} size={22} color={Colors.accent.blue} />
+        </TouchableOpacity>
       </View>
 
-      {/* Progress bar */}
-      <View style={styles.progressBg}>
+      {/* Progress Bar */}
+      <View style={styles.progressTrack}>
         <Animated.View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
 
-      {/* Gesture hints guide */}
-      <Text style={styles.gestureHintText}>
-        👈 Trái: Quên • 👆 Trên: Khó • 👉 Phải: Đã nhớ
-      </Text>
+      {/* Gesture hints */}
+      <View style={styles.gestureHintRow}>
+        <Text style={styles.gestureHintText}>
+          👈 Quên • 👆 Khó • 👉 Đã nhớ
+        </Text>
+      </View>
 
       {/* Flashcard Area */}
       <View style={styles.cardArea}>
@@ -244,18 +277,18 @@ export default function StudyScreen() {
         >
           {/* Swipe indicator overlay badges */}
           {activeSwipeDirection === 'left' && (
-            <View style={[styles.swipeBadge, { backgroundColor: Colors.srs.again, left: 20, top: 20 }]}>
-              <Text style={styles.swipeBadgeText}>👈 QUÊN</Text>
+            <View style={[styles.swipeBadge, { backgroundColor: Colors.accent.gray4, left: 20, top: 20 }]}>
+              <Text style={styles.swipeBadgeText}>QUÊN</Text>
             </View>
           )}
           {activeSwipeDirection === 'right' && (
-            <View style={[styles.swipeBadge, { backgroundColor: Colors.srs.good, right: 20, top: 20 }]}>
-              <Text style={styles.swipeBadgeText}>👉 ĐÃ NHỚ</Text>
+            <View style={[styles.swipeBadge, { backgroundColor: Colors.accent.blue, right: 20, top: 20 }]}>
+              <Text style={styles.swipeBadgeText}>ĐÃ NHỚ</Text>
             </View>
           )}
           {activeSwipeDirection === 'up' && (
-            <View style={[styles.swipeBadge, { backgroundColor: Colors.srs.hard, top: 20, alignSelf: 'center' }]}>
-              <Text style={styles.swipeBadgeText}>👆 KHÓ</Text>
+            <View style={[styles.swipeBadge, { backgroundColor: Colors.accent.gray4, top: 20, alignSelf: 'center' }]}>
+              <Text style={styles.swipeBadgeText}>KHÓ</Text>
             </View>
           )}
 
@@ -269,19 +302,24 @@ export default function StudyScreen() {
             ]}
           >
             <View style={styles.cardFrontContent}>
-              {currentCard.hskLevel && (
+              {currentCard.hskLevel ? (
                 <View style={styles.hskBadge}>
-                  <Text style={styles.hskBadgeText}>HSK {currentCard.hskLevel}</Text>
+                  <Text style={styles.hskText}>HSK {currentCard.hskLevel}</Text>
                 </View>
-              )}
+              ) : null}
+
               <Text style={styles.characterBig}>{currentCard.character}</Text>
+
               {currentCard.traditional && currentCard.traditional !== currentCard.character && (
                 <Text style={styles.traditional}>{currentCard.traditional}</Text>
               )}
-              <TouchableOpacity style={styles.speakBtn} onPress={speakWord}>
-                <Text style={styles.speakIcon}>{speaking ? '🔊' : '🔉'}</Text>
+
+              <TouchableOpacity style={styles.speakBtn} onPress={speakWord} activeOpacity={0.8}>
+                <Ionicons name={speaking ? "volume-high" : "volume-medium"} size={18} color={Colors.accent.blue} />
+                <Text style={styles.speakBtnText}>{speaking ? 'Đang phát âm...' : 'Phát âm'}</Text>
               </TouchableOpacity>
-              <Text style={styles.tapHint}>Chạm để lật thẻ • Vuốt để chấm điểm</Text>
+
+              <Text style={styles.tapHint}>Chạm vào thẻ để lật đáp án</Text>
             </View>
           </Animated.View>
 
@@ -309,18 +347,19 @@ export default function StudyScreen() {
                 </View>
               )}
 
-              <TouchableOpacity style={styles.speakBtnSmall} onPress={speakWord}>
-                <Text style={styles.speakIcon}>{speaking ? '🔊' : '🔉'} Phát âm</Text>
+              <TouchableOpacity style={styles.speakBtnSmall} onPress={speakWord} activeOpacity={0.8}>
+                <Ionicons name={speaking ? "volume-high" : "volume-medium-outline"} size={16} color={Colors.text.secondary} />
+                <Text style={styles.speakBtnSmallText}>Nghe lại</Text>
               </TouchableOpacity>
             </ScrollView>
           </Animated.View>
         </Animated.View>
       </View>
 
-      {/* SRS Buttons (Backup for accessibility) */}
+      {/* SRS Action Buttons */}
       {flipped ? (
-        <View style={styles.srsArea}>
-          <Text style={styles.srsLabel}>Vuốt thẻ hoặc chọn mức độ:</Text>
+        <View style={[styles.srsArea, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
+          <Text style={styles.srsLabel}>Chọn mức độ ghi nhớ:</Text>
           <View style={styles.srsRow}>
             <SRSButton
               label="Quên (👈)"
@@ -343,9 +382,9 @@ export default function StudyScreen() {
           </View>
         </View>
       ) : (
-        <View style={styles.tapArea}>
-          <TouchableOpacity style={styles.revealBtn} onPress={flipCard} activeOpacity={0.85}>
-            <Text style={styles.revealBtnText}>Hiện đáp án (hoặc Chạm vào thẻ)</Text>
+        <View style={[styles.tapArea, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
+          <TouchableOpacity style={styles.revealBtn} onPress={flipCard} activeOpacity={0.8}>
+            <Text style={styles.revealBtnText}>Hiện đáp án (hoặc Chạm thẻ)</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -355,38 +394,40 @@ export default function StudyScreen() {
 
 function SRSButton({ label, sub, color, onPress }: { label: string; sub: string; color: string; onPress: () => void }) {
   return (
-    <TouchableOpacity style={[styles.srsBtn, { borderColor: color + '60', backgroundColor: color + '15' }]} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity
+      style={[styles.srsBtn, { borderColor: color + '50', backgroundColor: Colors.bg.secondary }]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
       <Text style={[styles.srsBtnLabel, { color }]}>{label}</Text>
       <Text style={styles.srsBtnSub}>{sub}</Text>
     </TouchableOpacity>
   );
 }
 
-function DoneStat({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <View style={styles.doneStat}>
-      <Text style={[styles.doneStatValue, { color }]}>{value}</Text>
-      <Text style={styles.doneStatLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg.primary },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg.primary },
-  loadingText: { color: Colors.text.secondary, marginTop: Spacing.md },
+  loadingText: { color: Colors.text.secondary, marginTop: Spacing.md, fontSize: Typography.text.footnote.fontSize },
 
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingTop: 56, paddingBottom: Spacing.xs },
-  closeBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  closeBtnText: { color: Colors.text.muted, fontSize: 18 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.pageMargin,
+    paddingBottom: Spacing.xs,
+  },
+  headerLeftBtn: { padding: Spacing.xs },
+  doneTextBtn: { fontSize: Typography.text.body.fontSize, color: Colors.accent.blue, fontWeight: Typography.weight.semibold },
+  headerRightBtn: { padding: Spacing.xs },
   headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: Typography.text.md, fontWeight: Typography.weight.semibold, color: Colors.text.primary },
-  headerSub: { fontSize: Typography.text.sm, color: Colors.text.muted, marginTop: 2 },
+  headerTitle: { fontSize: Typography.text.headline.fontSize, fontWeight: Typography.weight.semibold, color: Colors.text.primary },
+  headerSub: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary, marginTop: 1 },
 
-  progressBg: { height: 4, backgroundColor: Colors.bg.elevated, marginHorizontal: Spacing.xl, borderRadius: 2 },
-  progressFill: { height: '100%', backgroundColor: Colors.accent.purple, borderRadius: 2 },
+  progressTrack: { height: 3, backgroundColor: Colors.bg.secondary, marginHorizontal: Spacing.pageMargin, borderRadius: 1.5, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: Colors.accent.blue, borderRadius: 1.5 },
 
-  gestureHintText: { fontSize: Typography.text.xs, color: Colors.text.muted, textAlign: 'center', marginTop: Spacing.sm },
+  gestureHintRow: { alignItems: 'center', marginTop: Spacing.sm },
+  gestureHintText: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary },
 
   cardArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   cardWrapper: {
@@ -401,82 +442,172 @@ const styles = StyleSheet.create({
     height: CARD_HEIGHT,
     borderRadius: Radii.xl,
     backfaceVisibility: 'hidden',
-    ...Shadows.card,
   },
   cardFront: {
-    backgroundColor: Colors.bg.card,
-    borderWidth: 1, borderColor: Colors.border.subtle,
+    backgroundColor: Colors.bg.secondary,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   cardBack: {
-    backgroundColor: Colors.bg.elevated,
-    borderWidth: 1, borderColor: Colors.accent.purpleDim,
+    backgroundColor: Colors.bg.tertiary,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
 
   swipeBadge: {
     position: 'absolute',
     zIndex: 100,
-    borderRadius: Radii.md,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 6,
+    borderRadius: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
   },
-  swipeBadgeText: { color: '#fff', fontSize: Typography.text.sm, fontWeight: Typography.weight.heavy },
+  swipeBadgeText: { color: '#FFFFFF', fontSize: Typography.text.footnote.fontSize, fontWeight: Typography.weight.bold },
 
   cardFrontContent: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
   hskBadge: {
-    position: 'absolute', top: Spacing.lg, right: Spacing.lg,
-    backgroundColor: Colors.accent.purpleDim, borderRadius: Radii.full,
-    paddingHorizontal: Spacing.md, paddingVertical: 4,
+    position: 'absolute',
+    top: Spacing.lg,
+    right: Spacing.lg,
+    backgroundColor: Colors.accent.gray5,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
-  hskBadgeText: { fontSize: Typography.text.xs, color: Colors.accent.purpleLight, fontWeight: Typography.weight.semibold },
+  hskText: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary, fontWeight: Typography.weight.medium },
   characterBig: {
-    fontSize: Typography.hanzi.xl, color: Colors.text.primary, fontWeight: Typography.weight.bold,
-    textShadowColor: Colors.accent.purple, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 20,
+    fontSize: Typography.hanzi.xl,
+    color: Colors.text.primary,
+    fontWeight: Typography.weight.bold,
   },
-  traditional: { fontSize: Typography.text.xl, color: Colors.text.secondary, marginTop: Spacing.sm },
-  speakBtn: { marginTop: Spacing.xl, padding: Spacing.md },
-  speakBtnSmall: { borderWidth: 1, borderColor: Colors.border.default, borderRadius: Radii.full, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg, alignSelf: 'center', marginTop: Spacing.lg },
-  speakIcon: { fontSize: 24, color: Colors.text.secondary },
-  tapHint: { position: 'absolute', bottom: Spacing.lg, fontSize: Typography.text.xs, color: Colors.text.muted },
+  traditional: { fontSize: Typography.text.title3.fontSize, color: Colors.text.secondary, marginTop: Spacing.sm },
+  speakBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Spacing.xl,
+    backgroundColor: Colors.bg.tertiary,
+    borderRadius: Radii.full,
+    height: 38,
+    paddingHorizontal: Spacing.lg,
+    justifyContent: 'center',
+  },
+  speakBtnText: {
+    color: Colors.accent.blue,
+    fontSize: Typography.text.footnote.fontSize,
+    fontWeight: Typography.weight.semibold,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
+  tapHint: { position: 'absolute', bottom: Spacing.lg, fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary },
 
   cardBackContent: { padding: Spacing.xl, alignItems: 'center' },
   characterSmall: { fontSize: Typography.hanzi.md, color: Colors.text.primary, fontWeight: Typography.weight.bold },
-  pinyin: { fontSize: Typography.text.xl, color: Colors.accent.purpleLight, fontWeight: Typography.weight.medium, marginTop: Spacing.sm },
-  hanviet: { fontSize: Typography.text.lg, color: Colors.accent.gold, marginTop: Spacing.xs },
-  divider: { height: 1, width: '100%', backgroundColor: Colors.border.subtle, marginVertical: Spacing.lg },
-  translation: { fontSize: Typography.text.xl, color: Colors.text.primary, textAlign: 'center', fontWeight: Typography.weight.medium },
-  exampleBox: { backgroundColor: Colors.bg.secondary, borderRadius: Radii.lg, padding: Spacing.lg, marginTop: Spacing.lg, width: '100%' },
-  exampleCn: { fontSize: Typography.text.lg, color: Colors.text.primary },
-  examplePy: { fontSize: Typography.text.sm, color: Colors.accent.purpleLight, marginTop: 4 },
-  exampleVi: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginTop: 2 },
+  pinyin: { fontSize: Typography.text.title2.fontSize, color: Colors.accent.blue, fontWeight: Typography.weight.bold, marginTop: Spacing.xs },
+  hanviet: { fontSize: Typography.text.title3.fontSize, color: Colors.text.primary, marginTop: 2, fontWeight: Typography.weight.semibold },
+  divider: { height: 0.5, width: '100%', backgroundColor: Colors.border.separator, marginVertical: Spacing.lg },
+  translation: { fontSize: Typography.text.title3.fontSize, color: Colors.text.primary, textAlign: 'center', fontWeight: Typography.weight.semibold },
+  exampleBox: { backgroundColor: Colors.bg.secondary, borderRadius: 12, padding: Spacing.md, marginTop: Spacing.lg, width: '100%' },
+  exampleCn: { fontSize: Typography.text.body.fontSize, color: Colors.text.primary, fontWeight: Typography.weight.semibold },
+  examplePy: { fontSize: Typography.text.caption1.fontSize, color: Colors.accent.blue, marginTop: 2 },
+  exampleVi: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: 2 },
 
-  tapArea: { padding: Spacing.xl },
-  revealBtn: {
-    backgroundColor: Colors.bg.elevated, borderRadius: Radii.lg,
-    paddingVertical: Spacing.lg, alignItems: 'center',
-    borderWidth: 1, borderColor: Colors.border.default,
+  speakBtnSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.full,
+    height: 32,
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.lg,
+    justifyContent: 'center',
   },
-  revealBtnText: { color: Colors.text.primary, fontSize: Typography.text.md, fontWeight: Typography.weight.medium },
+  speakBtnSmallText: {
+    color: Colors.text.secondary,
+    fontSize: Typography.text.caption1.fontSize,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
 
-  srsArea: { padding: Spacing.xl, paddingTop: Spacing.xs },
-  srsLabel: { fontSize: Typography.text.xs, color: Colors.text.muted, textAlign: 'center', marginBottom: Spacing.sm },
+  tapArea: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.sm },
+  revealBtn: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  revealBtnText: {
+    color: Colors.text.primary,
+    fontSize: Typography.text.body.fontSize,
+    fontWeight: Typography.weight.semibold,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
+
+  srsArea: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.xs },
+  srsLabel: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, textAlign: 'center', marginBottom: Spacing.xs },
   srsRow: { flexDirection: 'row', gap: Spacing.xs },
   srsBtn: {
-    flex: 1, borderRadius: Radii.md, paddingVertical: Spacing.sm,
-    alignItems: 'center', borderWidth: 1,
+    flex: 1,
+    borderRadius: Radii.card,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
-  srsBtnLabel: { fontSize: Typography.text.xs, fontWeight: Typography.weight.bold },
-  srsBtnSub: { fontSize: 10, color: Colors.text.muted, marginTop: 2 },
+  srsBtnLabel: {
+    fontSize: Typography.text.caption1.fontSize,
+    fontWeight: Typography.weight.bold,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
+  srsBtnSub: { fontSize: 10, color: Colors.text.secondary, marginTop: 2 },
 
   // Done screen
-  doneScreen: { flex: 1, backgroundColor: Colors.bg.primary, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
-  doneEmoji: { fontSize: 72, marginBottom: Spacing.lg },
-  doneTitle: { fontSize: Typography.text.xxxl, fontWeight: Typography.weight.heavy, color: Colors.text.primary },
-  doneSub: { fontSize: Typography.text.md, color: Colors.text.secondary, marginTop: Spacing.sm, textAlign: 'center' },
-  doneStats: { flexDirection: 'row', gap: Spacing.lg, marginTop: Spacing.xxl, marginBottom: Spacing.xxl },
-  doneStat: { alignItems: 'center' },
-  doneStatValue: { fontSize: Typography.text.xxxl, fontWeight: Typography.weight.bold },
-  doneStatLabel: { fontSize: Typography.text.sm, color: Colors.text.muted, marginTop: 4 },
-  doneBtn: { backgroundColor: Colors.accent.purple, borderRadius: Radii.lg, paddingVertical: Spacing.lg, paddingHorizontal: Spacing.xxl },
-  doneBtnText: { color: '#fff', fontSize: Typography.text.md, fontWeight: Typography.weight.semibold },
+  doneScreen: { flex: 1, backgroundColor: Colors.bg.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.pageMargin },
+  doneIconBox: { marginBottom: Spacing.lg },
+  doneTitle: { fontSize: Typography.text.largeTitle.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary },
+  doneSub: { fontSize: Typography.text.body.fontSize, color: Colors.text.secondary, marginTop: Spacing.xs, textAlign: 'center' },
+  doneInsetGroup: {
+    width: '100%',
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    overflow: 'hidden',
+    marginTop: Spacing.xxl,
+    marginBottom: Spacing.xxl,
+  },
+  doneRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.cellHorizontal,
+    paddingVertical: Spacing.cellVertical,
+  },
+  cellBorderTop: {
+    borderTopWidth: 0.5,
+    borderTopColor: Colors.border.separator,
+  },
+  doneRowLabel: { fontSize: Typography.text.body.fontSize, color: Colors.text.primary },
+  doneRowValue: { fontSize: Typography.text.body.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary },
+  doneBtn: {
+    width: '100%',
+    backgroundColor: Colors.accent.blue,
+    borderRadius: Radii.card,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneBtnText: {
+    color: '#FFFFFF',
+    fontSize: Typography.text.body.fontSize,
+    fontWeight: Typography.weight.semibold,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
 });

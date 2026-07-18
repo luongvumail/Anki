@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { useStore, Card } from '../../store/useStore';
+import { useStore } from '../../store/useStore';
 import { isDue } from '../../lib/srs';
-import { Colors, Typography, Spacing, Radii } from '../../constants/theme';
+import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
 
 export default function CardDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { id, deckId } = useLocalSearchParams<{ id: string; deckId: string }>();
   const { cards } = useStore();
   const [speaking, setSpeaking] = useState(false);
@@ -18,6 +21,7 @@ export default function CardDetailScreen() {
 
   const speak = () => {
     if (!card) return;
+    triggerHaptic('selection');
     setSpeaking(true);
     Speech.speak(card.character, {
       language: 'zh-CN', rate: 0.8,
@@ -29,7 +33,7 @@ export default function CardDetailScreen() {
   if (!card) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={Colors.accent.purple} />
+        <ActivityIndicator color={Colors.accent.gray} size="small" />
       </View>
     );
   }
@@ -37,135 +41,171 @@ export default function CardDetailScreen() {
   const due = isDue(card.srs);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: Math.max(insets.top + 10, 48), paddingBottom: Math.max(insets.bottom + 20, 40) },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Back button */}
-      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-        <Text style={styles.backText}>‹ Quay lại</Text>
+      <TouchableOpacity
+        onPress={() => {
+          triggerHaptic('light');
+          router.back();
+        }}
+        style={styles.backBtn}
+      >
+        <Ionicons name="chevron-back" size={24} color={Colors.accent.blue} />
+        <Text style={styles.backText}>Quay lại</Text>
       </TouchableOpacity>
 
-      {/* Card header */}
+      {/* Card Header */}
       <View style={styles.cardHeader}>
         <Text style={styles.characterBig}>{card.character}</Text>
         {card.traditional && card.traditional !== card.character && (
-          <Text style={styles.traditional}>{card.traditional}</Text>
+          <Text style={styles.traditional}>{card.traditional} (phồn thể)</Text>
         )}
-        <TouchableOpacity style={styles.speakBtn} onPress={speak}>
-          <Text style={styles.speakText}>{speaking ? '🔊 Đang phát...' : '🔉 Phát âm'}</Text>
+        <TouchableOpacity style={styles.speakBtn} onPress={speak} activeOpacity={0.8}>
+          <Ionicons name={speaking ? "volume-high" : "volume-medium"} size={18} color={Colors.accent.blue} />
+          <Text style={styles.speakText}>{speaking ? 'Đang phát âm...' : 'Phát âm'}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Info grid */}
-      <View style={styles.infoCard}>
-        <InfoRow label="Pinyin" value={card.pinyin} valueColor={Colors.accent.purpleLight} />
-        <InfoRow label="Hán Việt" value={card.hanviet} valueColor={Colors.accent.gold} />
-        <InfoRow label="Nghĩa" value={card.translation} />
-        {card.radical && <InfoRow label="Bộ thủ" value={card.radical} />}
-        {card.strokeCount ? <InfoRow label="Số nét" value={`${card.strokeCount} nét`} /> : null}
-        {card.hskLevel ? <InfoRow label="HSK" value={`Cấp ${card.hskLevel}`} /> : null}
+      {/* Info Group */}
+      <Text style={styles.sectionHeaderTitle}>THÔNG TIN HÁN TỰ</Text>
+      <View style={styles.insetGroup}>
+        <InfoRow label="Pinyin" value={card.pinyin} valueColor={Colors.accent.blue} />
+        <InfoRow label="Hán Việt" value={card.hanviet} isBorder />
+        <InfoRow label="Nghĩa TV" value={card.translation} isBorder />
+        {card.radical ? <InfoRow label="Bộ thủ" value={card.radical} isBorder /> : null}
+        {card.strokeCount ? <InfoRow label="Số nét" value={`${card.strokeCount} nét`} isBorder /> : null}
+        {card.hskLevel ? <InfoRow label="Cấp HSK" value={`HSK ${card.hskLevel}`} isBorder /> : null}
         {card.tags && card.tags.length > 0 && (
-          <InfoRow label="Loại từ" value={card.tags.join(', ')} />
+          <InfoRow label="Phân loại" value={card.tags.join(', ')} isBorder />
         )}
       </View>
 
-      {/* SRS status */}
-      <View style={styles.srsCard}>
-        <Text style={styles.srsCardTitle}>Trạng thái ôn tập</Text>
-        <View style={styles.srsGrid}>
-          <SRSStat label="Lần ôn" value={`${card.srs.repetitions}`} />
-          <SRSStat label="Khoảng" value={`${card.srs.interval} ngày`} />
-          <SRSStat label="Hệ số" value={`${card.srs.easeFactor}`} />
-          <SRSStat
-            label="Trạng thái"
-            value={due ? 'Cần ôn' : 'Đã thuộc'}
-            color={due ? Colors.accent.gold : Colors.accent.green}
-          />
-        </View>
-        <View style={[styles.dueDateRow, { borderColor: due ? Colors.accent.gold + '40' : Colors.accent.green + '40' }]}>
-          <Text style={styles.dueDateLabel}>Ôn tiếp vào:</Text>
-          <Text style={[styles.dueDateValue, { color: due ? Colors.accent.gold : Colors.accent.green }]}>
-            {new Date(card.srs.dueDate).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </Text>
-        </View>
+      {/* SRS Memory Group */}
+      <Text style={styles.sectionHeaderTitle}>TRẠNG THÁI TRÍ NHỚ (ANKI)</Text>
+      <View style={styles.insetGroup}>
+        <InfoRow label="Lần ôn" value={`${card.srs.repetitions} lần`} />
+        <InfoRow label="Khoảng cách" value={`${card.srs.interval} ngày`} isBorder />
+        <InfoRow label="Hệ số Ease" value={`${card.srs.easeFactor}`} isBorder />
+        <InfoRow
+          label="Trạng thái"
+          value={due ? 'Cần ôn ngay' : 'Đã thuộc'}
+          isBorder
+        />
+        <InfoRow
+          label="Lần ôn tiếp"
+          value={new Date(card.srs.dueDate).toLocaleDateString('vi-VN')}
+          isBorder
+        />
       </View>
 
-      {/* Examples */}
+      {/* Examples Group */}
       {card.examples && card.examples.length > 0 && (
-        <View style={styles.examplesCard}>
-          <Text style={styles.examplesTitle}>Câu ví dụ</Text>
-          {card.examples.map((ex, i) => (
-            <View key={i} style={styles.exampleItem}>
-              <Text style={styles.exNum}>{i + 1}.</Text>
-              <View style={styles.exContent}>
+        <>
+          <Text style={styles.sectionHeaderTitle}>CÂU VÍ DỤ NGUYÊN CẢNH</Text>
+          <View style={styles.examplesInsetGroup}>
+            {card.examples.map((ex, i) => (
+              <View key={i} style={[styles.exampleItem, i > 0 && styles.cellBorderTop]}>
                 <Text style={styles.exCn}>{ex.chinese}</Text>
                 <Text style={styles.exPy}>{ex.pinyin}</Text>
                 <Text style={styles.exVi}>{ex.vietnamese}</Text>
               </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        </>
       )}
     </ScrollView>
   );
 }
 
-function InfoRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+function InfoRow({ label, value, valueColor, isBorder }: { label: string; value: string; valueColor?: string; isBorder?: boolean }) {
   return (
-    <View style={styles.infoRow}>
+    <View style={[styles.infoRow, isBorder && styles.cellBorderTop]}>
       <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={[styles.infoValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>
-    </View>
-  );
-}
-
-function SRSStat({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <View style={styles.srsStat}>
-      <Text style={[styles.srsStatValue, color ? { color } : {}]}>{value}</Text>
-      <Text style={styles.srsStatLabel}>{label}</Text>
+      <Text style={[styles.infoValue, valueColor ? { color: valueColor, fontWeight: Typography.weight.semibold } : {}]}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg.primary },
-  content: { padding: Spacing.xl, paddingTop: 60, paddingBottom: 60 },
+  content: { paddingHorizontal: Spacing.pageMargin },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg.primary },
-  backBtn: { marginBottom: Spacing.xl },
-  backText: { color: Colors.accent.purpleLight, fontSize: Typography.text.md },
+
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: Spacing.md },
+  backText: { color: Colors.accent.blue, fontSize: Typography.text.body.fontSize, fontWeight: Typography.weight.medium },
 
   cardHeader: { alignItems: 'center', marginBottom: Spacing.xl },
   characterBig: {
-    fontSize: Typography.hanzi.xl, color: Colors.text.primary, fontWeight: Typography.weight.bold,
-    textShadowColor: Colors.accent.purple, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 24,
+    fontSize: Typography.hanzi.xl,
+    color: Colors.text.primary,
+    fontWeight: Typography.weight.bold,
   },
-  traditional: { fontSize: Typography.text.xl, color: Colors.text.secondary, marginTop: Spacing.sm },
+  traditional: { fontSize: Typography.text.body.fontSize, color: Colors.text.secondary, marginTop: 4 },
   speakBtn: {
-    marginTop: Spacing.lg, borderWidth: 1, borderColor: Colors.border.default,
-    borderRadius: Radii.full, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Spacing.lg,
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.full,
+    height: 38,
+    paddingHorizontal: Spacing.xl,
+    justifyContent: 'center',
   },
-  speakText: { color: Colors.text.secondary, fontSize: Typography.text.sm },
+  speakText: {
+    color: Colors.accent.blue,
+    fontSize: Typography.text.footnote.fontSize,
+    fontWeight: Typography.weight.semibold,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
 
-  infoCard: { backgroundColor: Colors.bg.card, borderRadius: Radii.xl, marginBottom: Spacing.lg, borderWidth: 1, borderColor: Colors.border.subtle, overflow: 'hidden' },
-  infoRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border.subtle },
-  infoLabel: { width: 80, fontSize: Typography.text.sm, color: Colors.text.muted },
-  infoValue: { flex: 1, fontSize: Typography.text.md, color: Colors.text.primary, fontWeight: Typography.weight.medium },
+  sectionHeaderTitle: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: -0.08,
+    marginBottom: Spacing.sectionBottom,
+    marginTop: Spacing.sectionTop,
+    marginLeft: 4,
+  },
 
-  srsCard: { backgroundColor: Colors.bg.card, borderRadius: Radii.xl, padding: Spacing.lg, marginBottom: Spacing.lg, borderWidth: 1, borderColor: Colors.border.subtle },
-  srsCardTitle: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginBottom: Spacing.lg },
-  srsGrid: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: Spacing.lg },
-  srsStat: { alignItems: 'center' },
-  srsStatValue: { fontSize: Typography.text.lg, fontWeight: Typography.weight.bold, color: Colors.text.primary },
-  srsStatLabel: { fontSize: Typography.text.xs, color: Colors.text.muted, marginTop: 2 },
-  dueDateRow: { borderWidth: 1, borderRadius: Radii.md, padding: Spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dueDateLabel: { fontSize: Typography.text.sm, color: Colors.text.muted },
-  dueDateValue: { fontSize: Typography.text.sm, fontWeight: Typography.weight.medium },
+  insetGroup: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    overflow: 'hidden',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.cellHorizontal,
+    paddingVertical: Spacing.cellVertical,
+    minHeight: Spacing.cellMinHeight,
+  },
+  cellBorderTop: {
+    borderTopWidth: 0.5,
+    borderTopColor: Colors.border.separator,
+  },
+  infoLabel: { width: 100, fontSize: Typography.text.body.fontSize, color: Colors.text.secondary },
+  infoValue: { flex: 1, fontSize: Typography.text.body.fontSize, color: Colors.text.primary },
 
-  examplesCard: { backgroundColor: Colors.bg.card, borderRadius: Radii.xl, padding: Spacing.lg, borderWidth: 1, borderColor: Colors.border.subtle },
-  examplesTitle: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginBottom: Spacing.lg },
-  exampleItem: { flexDirection: 'row', marginBottom: Spacing.lg },
-  exNum: { fontSize: Typography.text.md, color: Colors.text.muted, marginRight: Spacing.md, marginTop: 2 },
-  exContent: { flex: 1 },
-  exCn: { fontSize: Typography.text.lg, color: Colors.text.primary, fontWeight: Typography.weight.medium },
-  exPy: { fontSize: Typography.text.sm, color: Colors.accent.purpleLight, marginTop: 4 },
-  exVi: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginTop: 2 },
+  examplesInsetGroup: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    overflow: 'hidden',
+  },
+  exampleItem: {
+    padding: Spacing.cellHorizontal,
+  },
+  exCn: { fontSize: Typography.text.body.fontSize, color: Colors.text.primary, fontWeight: Typography.weight.semibold },
+  exPy: { fontSize: Typography.text.footnote.fontSize, color: Colors.accent.blue, marginTop: 2 },
+  exVi: { fontSize: Typography.text.footnote.fontSize, color: Colors.text.secondary, marginTop: 2 },
 });

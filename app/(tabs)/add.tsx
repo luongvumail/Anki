@@ -9,12 +9,13 @@ import { DEFAULT_SRS_STATE } from '../../lib/srs';
 import { Colors, Typography, Spacing, Radii } from '../../constants/theme';
 
 export default function AddCardScreen() {
-  const { decks, addCard, findExistingCard, fetchCards } = useStore();
+  const { decks, addCard, updateCard, findExistingCard, fetchCards } = useStore();
   const [input, setInput] = useState('');
   const [selectedDeckId, setSelectedDeckId] = useState('');
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cardData, setCardData] = useState<CardData | null>(null);
+  const [existingCardId, setExistingCardId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
@@ -32,6 +33,7 @@ export default function AddCardScreen() {
       await fetchCards(selectedDeckId);
       const existing = findExistingCard(input.trim(), selectedDeckId);
       if (existing) {
+        setExistingCardId(existing.id);
         Alert.alert(
           '⚠️ Từ này đã tồn tại!',
           `Từ "${existing.character}" (${existing.pinyin})\n${existing.translation}\n\nBạn muốn làm gì?`,
@@ -55,12 +57,18 @@ export default function AddCardScreen() {
               },
             },
             {
-              text: 'Tạo lại bằng AI',
+              text: 'Tạo lại & Ghi đè',
               onPress: () => handleGenerate(true),
             },
           ]
         );
         return;
+      }
+    } else {
+      // If forcing AI re-generation, check if existing card ID exists to replace it
+      const existing = findExistingCard(input.trim(), selectedDeckId);
+      if (existing) {
+        setExistingCardId(existing.id);
       }
     }
 
@@ -80,23 +88,46 @@ export default function AddCardScreen() {
     if (!cardData || !selectedDeckId) return;
     setSaving(true);
     try {
-      await addCard({
-        deckId: selectedDeckId,
-        character: cardData.character,
-        traditional: cardData.traditional,
-        pinyin: cardData.pinyin,
-        hanviet: cardData.hanviet,
-        translation: cardData.translation,
-        examples: cardData.examples || [],
-        radical: cardData.radical,
-        strokeCount: cardData.strokeCount,
-        hskLevel: cardData.hskLevel,
-        tags: cardData.tags || [],
-        srs: DEFAULT_SRS_STATE,
-      });
-      Alert.alert('✅ Đã lưu', `Thêm "${cardData.character}" vào bộ thẻ thành công!`);
+      // Check if this card already exists in the deck to replace/update it
+      const targetExistingId = existingCardId || findExistingCard(cardData.character, selectedDeckId)?.id;
+
+      if (targetExistingId) {
+        // Replace / Overwrite existing card
+        await updateCard(targetExistingId, selectedDeckId, {
+          character: cardData.character,
+          traditional: cardData.traditional,
+          pinyin: cardData.pinyin,
+          hanviet: cardData.hanviet,
+          translation: cardData.translation,
+          examples: cardData.examples || [],
+          radical: cardData.radical,
+          strokeCount: cardData.strokeCount,
+          hskLevel: cardData.hskLevel,
+          tags: cardData.tags || [],
+        });
+        Alert.alert('✅ Đã cập nhật (Ghi đè)', `Thẻ "${cardData.character}" đã được cập nhật thông tin mới thành công!`);
+      } else {
+        // Create new card
+        await addCard({
+          deckId: selectedDeckId,
+          character: cardData.character,
+          traditional: cardData.traditional,
+          pinyin: cardData.pinyin,
+          hanviet: cardData.hanviet,
+          translation: cardData.translation,
+          examples: cardData.examples || [],
+          radical: cardData.radical,
+          strokeCount: cardData.strokeCount,
+          hskLevel: cardData.hskLevel,
+          tags: cardData.tags || [],
+          srs: DEFAULT_SRS_STATE,
+        });
+        Alert.alert('✅ Đã lưu', `Thêm "${cardData.character}" vào bộ thẻ thành công!`);
+      }
+
       setInput('');
       setCardData(null);
+      setExistingCardId(null);
     } catch (e: any) {
       Alert.alert('Lỗi', e.message);
     } finally {

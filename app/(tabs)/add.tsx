@@ -26,13 +26,14 @@ export default function AddCardScreen() {
     if (!input.trim()) { Alert.alert('Lỗi', 'Vui lòng nhập từ cần học'); return; }
     if (!selectedDeckId) { Alert.alert('Lỗi', 'Vui lòng chọn bộ thẻ'); return; }
 
-    // Check for duplicate card before calling Gemini AI
+    // Always refresh card list for the selected deck before checking duplicates
     if (!forceAI) {
+      await fetchCards(selectedDeckId);
       const existing = findExistingCard(input.trim(), selectedDeckId);
       if (existing) {
         Alert.alert(
           '⚠️ Từ này đã tồn tại!',
-          `Từ "${existing.character}" (${existing.pinyin}) - ${existing.translation} đã có sẵn trong bộ thẻ này.\n\nBạn muốn làm gì?`,
+          `Từ "${existing.character}" (${existing.pinyin})\n${existing.translation}\n\nBạn muốn làm gì?`,
           [
             { text: 'Huỷ', style: 'cancel' },
             {

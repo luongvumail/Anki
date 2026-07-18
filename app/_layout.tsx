@@ -5,6 +5,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useStore } from '../store/useStore';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { Colors } from '../constants/theme';
 
 export default function RootLayout() {
   const setUserId = useStore(s => s.setUserId);
@@ -25,10 +26,21 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: Colors.bg.primary },
+        }}
+      >
         <Stack.Screen name="auth" />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="study/[deckId]" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen
+          name="study/[deckId]"
+          options={{
+            presentation: 'fullScreenModal',
+            contentStyle: { backgroundColor: Colors.bg.primary },
+          }}
+        />
         <Stack.Screen name="deck/[id]" />
         <Stack.Screen name="card/[id]" />
       </Stack>

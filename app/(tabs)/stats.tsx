@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Dimensions, ActivityIndicator,
+  View, Text, ScrollView, StyleSheet, Dimensions, ActivityIndicator, Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,15 +42,23 @@ export default function StatsScreen() {
   const { decks, cards, fetchDecks, fetchCards, userId } = useStore();
   const [loadingCards, setLoadingCards] = useState(true);
 
+  // Staggered entrance animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     async function loadAllData() {
       if (!userId) return;
       setLoadingCards(true);
       await fetchDecks();
       const currentDecks = useStore.getState().decks;
-      // Parallel fetch cards for all decks
       await Promise.all(currentDecks.map(d => fetchCards(d.id)));
       setLoadingCards(false);
+
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
     }
     loadAllData();
   }, [userId]);
@@ -101,11 +109,16 @@ export default function StatsScreen() {
   if (loadingCards) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="small" color={Colors.accent.gray} />
+        <ActivityIndicator size="small" color={Colors.accent.indigoLight} />
         <Text style={styles.loadingText}>Đang cập nhật thống kê trí nhớ...</Text>
       </View>
     );
   }
+
+  const translateY = fadeAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [16, 0],
+  });
 
   return (
     <ScrollView
@@ -121,116 +134,118 @@ export default function StatsScreen() {
         <Text style={styles.largeTitle}>Thống kê</Text>
       </View>
 
-      {/* Hero Mastery Card */}
-      <View style={styles.heroCard}>
-        <View style={styles.heroLeft}>
-          <Text style={styles.heroSectionTitle}>TỶ LỆ THUỘC BÀI DÀI HẠN</Text>
-          <Text style={styles.heroPercentage}>{masteryRate}%</Text>
-          <Text style={styles.heroSub}>{totalMastered} / {totalCards} từ vựng đã thuộc vĩnh viễn</Text>
-        </View>
-        <View style={styles.heroIconBox}>
-          <Ionicons name="checkmark-circle-outline" size={32} color={Colors.neon.cyan} />
-        </View>
-      </View>
-
-      {/* 7-Day Activity Heatmap */}
-      <SectionTitle>CHUỖI HỌC TẬP 7 NGÀY</SectionTitle>
-      <View style={styles.insetCard}>
-        <View style={styles.streakHeaderRow}>
-          <Text style={styles.streakLabel}>Hoạt động gần đây</Text>
-          <View style={styles.streakBadge}>
-            <Text style={styles.streakBadgeText}>
-              {streakDays > 0 ? `${streakDays} ngày liên tục` : 'Chưa có chuỗi'}
-            </Text>
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY }] }}>
+        {/* Hero Mastery Card */}
+        <View style={styles.heroCard}>
+          <View style={styles.heroLeft}>
+            <Text style={styles.heroSectionTitle}>TỶ LỆ THUỘC BÀI DÀI HẠN</Text>
+            <Text style={styles.heroPercentage}>{masteryRate}%</Text>
+            <Text style={styles.heroSub}>{totalMastered} / {totalCards} từ vựng đã thuộc vĩnh viễn</Text>
+          </View>
+          <View style={styles.heroIconBox}>
+            <Ionicons name="checkmark-circle-outline" size={32} color={Colors.accent.indigoLight} />
           </View>
         </View>
 
-        <View style={styles.heatmapRow}>
-          {last7Days.map((day) => {
-            const level =
-              day.count >= 8 ? 3 :
-              day.count >= 4 ? 2 :
-              day.count >= 1 ? 1 : 0;
-
-            const activeColor =
-              level > 0 ? Colors.neon.emerald : Colors.bg.tertiary;
-
-            return (
-              <View key={day.dateStr} style={styles.heatmapCol}>
-                <View style={[styles.heatmapSquare, { backgroundColor: activeColor }, day.isToday && styles.todaySquare]}>
-                  {day.count > 0 ? <Ionicons name="checkmark" size={12} color="#0D0E12" /> : null}
-                </View>
-                <Text style={[styles.heatmapDayText, day.isToday && styles.todayText]}>{day.dayName}</Text>
-                <Text style={styles.heatmapCountText}>{day.count > 0 ? `${day.count}` : '-'}</Text>
-              </View>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* 2x2 Metric Grid Cards */}
-      <SectionTitle>TỔNG QUAN THÔNG SỐ</SectionTitle>
-      <View style={styles.grid}>
-        <MetricCard label="Tổng từ vựng" value={totalCards} icon="library-outline" color={Colors.neon.cyan} />
-        <MetricCard label="Cần ôn hôm nay" value={totalDue} icon="time-outline" color={Colors.neon.coral} />
-        <MetricCard label="Thuộc dài hạn" value={totalMastered} icon="checkmark-circle-outline" color={Colors.neon.emerald} />
-        <MetricCard label="Đang học mới" value={totalLearning + totalNew} icon="book-outline" color={Colors.neon.purple} />
-      </View>
-
-      {/* Per-deck progress breakdown */}
-      <SectionTitle>PHÂN BỔ THEO BỘ THẺ</SectionTitle>
-      {decks.length === 0 ? (
+        {/* 7-Day Activity Heatmap */}
+        <SectionTitle>CHUỖI HỌC TẬP 7 NGÀY</SectionTitle>
         <View style={styles.insetCard}>
-          <Text style={styles.emptyText}>Tạo bộ thẻ để theo dõi thống kê học tập.</Text>
-        </View>
-      ) : (
-        <InsetGroup>
-          {decks.map((deck, idx) => {
-            const deckCards = cards[deck.id] || [];
-            const count = deckCards.length;
-            const due = deck.dueCount || 0;
-            const done = deckCards.filter(c => c.srs && c.srs.repetitions >= 2).length;
-            const deckMastery = count > 0 ? Math.round((done / count) * 100) : 0;
+          <View style={styles.streakHeaderRow}>
+            <Text style={styles.streakLabel}>Hoạt động gần đây</Text>
+            <View style={styles.streakBadge}>
+              <Text style={styles.streakBadgeText}>
+                {streakDays > 0 ? `${streakDays} ngày liên tục` : 'Chưa có chuỗi'}
+              </Text>
+            </View>
+          </View>
 
-            return (
-              <React.Fragment key={deck.id}>
-                {idx > 0 && <View style={styles.cellDividerIndented} />}
-                <View style={styles.deckCell}>
-                  <View style={styles.deckIconTile}>
-                    <DeckIcon name={deck.icon} size={18} color={Colors.neon.cyan} />
+          <View style={styles.heatmapRow}>
+            {last7Days.map((day, index) => {
+              const level =
+                day.count >= 8 ? 3 :
+                day.count >= 4 ? 2 :
+                day.count >= 1 ? 1 : 0;
+
+              const activeColor =
+                level > 0 ? Colors.accent.indigoLight : Colors.bg.tertiary;
+
+              return (
+                <View key={day.dateStr} style={styles.heatmapCol}>
+                  <View style={[styles.heatmapSquare, { backgroundColor: activeColor }, day.isToday && styles.todaySquare]}>
+                    {day.count > 0 ? <Ionicons name="checkmark" size={12} color="#08090C" /> : null}
                   </View>
-
-                  <View style={styles.deckMeta}>
-                    <View style={styles.deckNameRow}>
-                      <Text style={styles.deckName}>{deck.name}</Text>
-                      <Text style={styles.deckPctText}>{deckMastery}%</Text>
-                    </View>
-
-                    <View style={styles.progressTrack}>
-                      <View style={[styles.progressFill, { width: `${deckMastery}%` }]} />
-                    </View>
-
-                    <Text style={styles.deckSubText}>
-                      {count} thẻ  •  {due} cần ôn hôm nay
-                    </Text>
-                  </View>
+                  <Text style={[styles.heatmapDayText, day.isToday && styles.todayText]}>{day.dayName}</Text>
+                  <Text style={styles.heatmapCountText}>{day.count > 0 ? `${day.count}` : '-'}</Text>
                 </View>
-              </React.Fragment>
-            );
-          })}
-        </InsetGroup>
-      )}
-
-      {/* SRS Tip */}
-      <View style={[styles.insetCard, { marginTop: Spacing.lg }]}>
-        <View style={styles.tipHeader}>
-          <Ionicons name="information-circle-outline" size={18} color={Colors.neon.cyan} />
-          <Text style={styles.tipTitle}>Thuật toán Spaced Repetition (SM-2)</Text>
+              );
+            })}
+          </View>
         </View>
-        <Text style={styles.tipBody}>
-          Hệ thống tự động tính toán khoảng thời gian xem lại dựa trên mức độ ghi nhớ của bạn, giúp duy trì trí nhớ dài hạn vĩnh viễn.
-        </Text>
-      </View>
+
+        {/* 2x2 Metric Grid Cards */}
+        <SectionTitle>TỔNG QUAN THÔNG SỐ</SectionTitle>
+        <View style={styles.grid}>
+          <MetricCard label="Tổng từ vựng" value={totalCards} icon="library-outline" color={Colors.accent.indigoLight} />
+          <MetricCard label="Cần ôn hôm nay" value={totalDue} icon="time-outline" color={Colors.neon.coral} />
+          <MetricCard label="Thuộc dài hạn" value={totalMastered} icon="checkmark-circle-outline" color={Colors.neon.emerald} />
+          <MetricCard label="Đang học mới" value={totalLearning + totalNew} icon="book-outline" color={Colors.accent.indigoLight} />
+        </View>
+
+        {/* Per-deck progress breakdown */}
+        <SectionTitle>PHÂN BỔ THEO BỘ THẺ</SectionTitle>
+        {decks.length === 0 ? (
+          <View style={styles.insetCard}>
+            <Text style={styles.emptyText}>Tạo bộ thẻ để theo dõi thống kê học tập.</Text>
+          </View>
+        ) : (
+          <InsetGroup>
+            {decks.map((deck, idx) => {
+              const deckCards = cards[deck.id] || [];
+              const count = deckCards.length;
+              const due = deck.dueCount || 0;
+              const done = deckCards.filter(c => c.srs && c.srs.repetitions >= 2).length;
+              const deckMastery = count > 0 ? Math.round((done / count) * 100) : 0;
+
+              return (
+                <React.Fragment key={deck.id}>
+                  {idx > 0 && <View style={styles.cellDividerIndented} />}
+                  <View style={styles.deckCell}>
+                    <View style={styles.deckIconTile}>
+                      <DeckIcon name={deck.icon} size={18} color={Colors.accent.indigoLight} />
+                    </View>
+
+                    <View style={styles.deckMeta}>
+                      <View style={styles.deckNameRow}>
+                        <Text style={styles.deckName}>{deck.name}</Text>
+                        <Text style={styles.deckPctText}>{deckMastery}%</Text>
+                      </View>
+
+                      <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: `${deckMastery}%` }]} />
+                      </View>
+
+                      <Text style={styles.deckSubText}>
+                        {count} thẻ  •  {due} cần ôn hôm nay
+                      </Text>
+                    </View>
+                  </View>
+                </React.Fragment>
+              );
+            })}
+          </InsetGroup>
+        )}
+
+        {/* SRS Tip */}
+        <View style={[styles.insetCard, { marginTop: Spacing.lg }]}>
+          <View style={styles.tipHeader}>
+            <Ionicons name="information-circle-outline" size={18} color={Colors.accent.indigoLight} />
+            <Text style={styles.tipTitle}>Thuật toán Spaced Repetition (SM-2)</Text>
+          </View>
+          <Text style={styles.tipBody}>
+            Hệ thống tự động tính toán khoảng thời gian xem lại dựa trên mức độ ghi nhớ của bạn, giúp duy trì trí nhớ dài hạn vĩnh viễn.
+          </Text>
+        </View>
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -239,7 +254,7 @@ function MetricCard({ label, value, icon, color }: { label: string; value: numbe
   return (
     <View style={styles.metricCard}>
       <View style={styles.metricTop}>
-        <Ionicons name={icon} size={18} color={color || Colors.text.secondary} />
+        <Ionicons name={icon} size={18} color={color || Colors.accent.indigoLight} />
         <Text style={[styles.metricValue, color ? { color } : {}]}>{value}</Text>
       </View>
       <Text style={styles.metricLabel}>{label}</Text>
@@ -269,7 +284,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: Colors.border.default,
   },
   heroLeft: { flex: 1 },
@@ -277,13 +292,13 @@ const styles = StyleSheet.create({
     fontSize: Typography.text.caption1.fontSize,
     color: Colors.text.secondary,
     fontWeight: Typography.weight.semibold,
-    letterSpacing: -0.08,
+    letterSpacing: 1.1,
   },
   heroPercentage: {
     fontSize: 36,
     lineHeight: 42,
     fontWeight: Typography.weight.bold,
-    color: Colors.neon.cyan,
+    color: Colors.accent.indigoLight,
     marginVertical: 2,
   },
   heroSub: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary },
@@ -294,7 +309,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: Colors.border.default,
   },
 
@@ -302,7 +317,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: Colors.border.default,
   },
   streakHeaderRow: {
@@ -321,13 +336,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: Colors.border.default,
   },
   streakBadgeText: {
     fontSize: Typography.text.caption1.fontSize,
-    color: Colors.neon.cyan,
-    fontWeight: Typography.weight.medium,
+    color: Colors.accent.indigoLight,
+    fontWeight: Typography.weight.bold,
   },
 
   heatmapRow: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -340,9 +355,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 4,
   },
-  todaySquare: { borderWidth: 2, borderColor: Colors.neon.cyan },
+  todaySquare: { borderWidth: 2, borderColor: Colors.accent.indigoLight },
   heatmapDayText: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary },
-  todayText: { color: Colors.neon.cyan, fontWeight: Typography.weight.bold },
+  todayText: { color: Colors.accent.indigoLight, fontWeight: Typography.weight.bold },
   heatmapCountText: { fontSize: 10, color: Colors.text.tertiary, marginTop: 2 },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
@@ -351,7 +366,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
-    borderWidth: 0.5,
+    borderWidth: 1,
     borderColor: Colors.border.default,
   },
   metricTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -366,7 +381,7 @@ const styles = StyleSheet.create({
     minHeight: Spacing.cellMinHeight,
   },
   cellDividerIndented: {
-    height: 0.5,
+    height: 1,
     backgroundColor: Colors.border.separator,
     marginLeft: 56,
   },
@@ -375,6 +390,8 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: Radii.icon,
     backgroundColor: Colors.bg.tertiary,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -394,7 +411,7 @@ const styles = StyleSheet.create({
   deckPctText: {
     fontSize: Typography.text.footnote.fontSize,
     fontWeight: Typography.weight.bold,
-    color: Colors.neon.cyan,
+    color: Colors.accent.indigoLight,
   },
   progressTrack: {
     height: 4,
@@ -403,7 +420,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     overflow: 'hidden',
   },
-  progressFill: { height: '100%', backgroundColor: Colors.neon.cyan, borderRadius: 2 },
+  progressFill: { height: '100%', backgroundColor: Colors.accent.indigoLight, borderRadius: 2 },
   deckSubText: {
     fontSize: Typography.text.caption1.fontSize,
     color: Colors.text.secondary,

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import {
-  Modal, View, Text, TouchableOpacity, ScrollView, Switch, TextInput,
-  ActivityIndicator, StyleSheet,
+  View, Text, TouchableOpacity, Modal, StyleSheet,
+  ScrollView, Switch, ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
-import { InsetGroup } from '../ui/InsetGroup';
-import { InsetRow } from '../ui/InsetRow';
-import { SectionTitle } from '../ui/SectionTitle';
+import { FormField } from '../ui/FormField';
 import { WheelTimePicker } from './WheelTimePicker';
+import { SectionTitle } from '../ui/SectionTitle';
 
 interface AccountModalProps {
   visible: boolean;
@@ -20,7 +21,7 @@ interface AccountModalProps {
   onToggleReminder: (value: boolean) => void;
   onHourChange: (hour: number) => void;
   onMinuteChange: (minute: number) => void;
-  onChangePassword: (currentPass: string, newPass: string) => Promise<void>;
+  onChangePassword: (curr: string, next: string) => Promise<void>;
   onSendResetEmail: () => Promise<void>;
   onSignOut: () => void;
 }
@@ -40,152 +41,158 @@ export function AccountModal({
   onSendResetEmail,
   onSignOut,
 }: AccountModalProps) {
+  const insets = useSafeAreaInsets();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [updatingPassword, setUpdatingPassword] = useState(false);
-  const [sendingResetEmail, setSendingResetEmail] = useState(false);
+  const [loadingPass, setLoadingPass] = useState(false);
+  const [loadingReset, setLoadingReset] = useState(false);
 
   const handlePasswordSubmit = async () => {
-    setUpdatingPassword(true);
+    if (!newPassword) return;
+    setLoadingPass(true);
     try {
       await onChangePassword(currentPassword, newPassword);
       setCurrentPassword('');
       setNewPassword('');
+    } catch {
+      // Handled in parent
     } finally {
-      setUpdatingPassword(false);
+      setLoadingPass(false);
     }
   };
 
   const handleResetSubmit = async () => {
-    setSendingResetEmail(true);
+    setLoadingReset(true);
     try {
       await onSendResetEmail();
+    } catch {
+      // Handled in parent
     } finally {
-      setSendingResetEmail(false);
+      setLoadingReset(false);
     }
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalContainer}>
-        {/* Modal Header Bar */}
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={[styles.modalContainer, { paddingTop: Math.max(insets.top + 12, 20) }]}>
+        {/* Header */}
         <View style={styles.modalHeader}>
-          <View style={{ width: 60 }} />
-          <Text style={styles.modalTitle}>ACCOUNT & SETTINGS</Text>
-          <TouchableOpacity onPress={onClose} style={styles.headerRightBtn}>
-            <Text style={styles.doneBtnText}>Done</Text>
+          <Text style={styles.modalTitle}>TÀI KHOẢN & CÀI ĐẶT</Text>
+          <TouchableOpacity
+            onPress={() => {
+              triggerHaptic('light');
+              onClose();
+            }}
+            style={styles.doneBtn}
+          >
+            <Text style={styles.doneBtnText}>Xong</Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.modalScroll, { paddingBottom: Math.max(insets.bottom + 40, 50) }]} showsVerticalScrollIndicator={false}>
           {/* Profile Section */}
-          <SectionTitle>PROFILE</SectionTitle>
-          <InsetGroup>
-            <InsetRow label="Display Name" value={displayName} />
-            <InsetRow label="Email Address" value={email || 'N/A'} isBorder />
-          </InsetGroup>
+          <SectionTitle>THÔNG TIN CÁ NHÂN</SectionTitle>
+          <View style={styles.insetGroup}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Tên hiển thị</Text>
+              <Text style={styles.infoValue}>{displayName}</Text>
+            </View>
+            <View style={[styles.infoRow, styles.cellBorderTop]}>
+              <Text style={styles.infoLabel}>Địa chỉ Email</Text>
+              <Text style={styles.infoValue}>{email || 'Chưa cập nhật'}</Text>
+            </View>
+          </View>
 
           {/* Daily Reminder Section */}
-          <SectionTitle>DAILY STUDY REMINDER</SectionTitle>
-          <InsetGroup>
-            <InsetRow
-              label="Enable Daily Reminder"
-              labelStyle={{ flex: 1 }}
-              right={
-                <Switch
-                  value={reminderEnabled}
-                  onValueChange={onToggleReminder}
-                  trackColor={{ false: Colors.bg.tertiary, true: Colors.accent.indigo }}
-                  thumbColor="#F3F4F6"
-                />
-              }
-            />
+          <SectionTitle>NHẮC NHỞ HỌC HÀNG NGÀY</SectionTitle>
+          <View style={styles.insetGroup}>
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.switchLabel}>Bật nhắc học hàng ngày</Text>
+                <Text style={styles.switchSub}>Nhận thông báo nhắc ôn tập từ vựng</Text>
+              </View>
+              <Switch
+                value={reminderEnabled}
+                onValueChange={onToggleReminder}
+                trackColor={{ false: Colors.bg.tertiary, true: Colors.accent.indigo }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
 
             {reminderEnabled && (
-              <WheelTimePicker
-                hour={reminderHour}
-                minute={reminderMinute}
-                onHourChange={onHourChange}
-                onMinuteChange={onMinuteChange}
+              <View style={[styles.pickerContainer, styles.cellBorderTop]}>
+                <Text style={styles.pickerTitle}>CHỌN GIỜ NHẮC NHỞ HÀNG NGÀY</Text>
+                <WheelTimePicker
+                  hour={reminderHour}
+                  minute={reminderMinute}
+                  onHourChange={onHourChange}
+                  onMinuteChange={onMinuteChange}
+                />
+              </View>
+            )}
+          </View>
+
+          {/* Password Security Section */}
+          <SectionTitle>BẢO MẬT & MẬT KHẨU</SectionTitle>
+          <View style={styles.insetGroup}>
+            <View style={{ padding: Spacing.cellHorizontal, gap: Spacing.md }}>
+              <FormField
+                label="MẬT KHẨU HIỆN TẠI"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder="Nhập mật khẩu hiện tại"
+                secureTextEntry
               />
-            )}
-          </InsetGroup>
 
-          {/* Change Password Section */}
-          <SectionTitle>SECURITY & PASSWORD</SectionTitle>
-          <InsetGroup>
-            <InsetRow
-              label="Current Password"
-              right={
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="Optional for email reset"
-                  placeholderTextColor={Colors.text.tertiary}
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  secureTextEntry
-                />
-              }
-            />
-            <InsetRow
-              label="New Password"
-              isBorder
-              right={
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="At least 6 characters"
-                  placeholderTextColor={Colors.text.tertiary}
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  secureTextEntry
-                />
-              }
-            />
-          </InsetGroup>
+              <FormField
+                label="MẬT KHẨU MỚI"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="Tối thiểu 6 ký tự"
+                secureTextEntry
+              />
 
-          <TouchableOpacity
-            style={[styles.savePasswordBtn, updatingPassword && styles.btnDisabled]}
-            onPress={handlePasswordSubmit}
-            disabled={updatingPassword}
-            activeOpacity={0.8}
-          >
-            {updatingPassword ? (
-              <ActivityIndicator color="#F3F4F6" size="small" />
-            ) : (
-              <Text style={styles.savePasswordBtnText}>UPDATE PASSWORD</Text>
-            )}
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, (!newPassword || loadingPass) && styles.btnDisabled]}
+                onPress={handlePasswordSubmit}
+                disabled={!newPassword || loadingPass}
+                activeOpacity={0.8}
+              >
+                {loadingPass ? (
+                  <ActivityIndicator size="small" color="#F3F4F6" />
+                ) : (
+                  <Text style={styles.actionBtnText}>CẬP NHẬT MẬT KHẨU</Text>
+                )}
+              </TouchableOpacity>
+            </View>
 
-          {/* Email Recovery */}
-          <SectionTitle>EMAIL RECOVERY</SectionTitle>
-          <InsetGroup>
-            <TouchableOpacity
-              style={styles.modalActionCell}
-              onPress={handleResetSubmit}
-              disabled={sendingResetEmail}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.modalActionCellText}>Send Password Reset Email</Text>
-              {sendingResetEmail && <ActivityIndicator size="small" color={Colors.accent.indigoLight} />}
+            <View style={styles.cellBorderTop}>
+              <TouchableOpacity
+                style={styles.textActionRow}
+                onPress={handleResetSubmit}
+                disabled={loadingReset}
+                activeOpacity={0.7}
+              >
+                {loadingReset ? (
+                  <ActivityIndicator size="small" color={Colors.accent.indigoLight} />
+                ) : (
+                  <>
+                    <Ionicons name="mail-outline" size={18} color={Colors.accent.indigoLight} style={{ marginRight: 8 }} />
+                    <Text style={styles.textActionLabel}>Gửi email đặt lại mật khẩu</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Sign Out Action Section */}
+          <SectionTitle>THAO TÁC TÀI KHOẢN</SectionTitle>
+          <View style={styles.insetGroup}>
+            <TouchableOpacity style={styles.signOutRow} onPress={onSignOut} activeOpacity={0.7}>
+              <Ionicons name="log-out-outline" size={18} color={Colors.neon.coral} style={{ marginRight: 8 }} />
+              <Text style={styles.signOutText}>Đăng xuất tài khoản</Text>
             </TouchableOpacity>
-          </InsetGroup>
-
-          {/* Sign Out */}
-          <SectionTitle>ACCOUNT ACTIONS</SectionTitle>
-          <InsetGroup>
-            <TouchableOpacity
-              style={styles.modalActionCell}
-              onPress={onSignOut}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.destructiveText}>Sign Out Account</Text>
-            </TouchableOpacity>
-          </InsetGroup>
+          </View>
         </ScrollView>
       </View>
     </Modal>
@@ -198,67 +205,109 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.pageMargin,
+    paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border.separator,
-    backgroundColor: Colors.bg.secondary,
   },
   modalTitle: {
-    fontSize: Typography.text.footnote.fontSize,
+    fontSize: Typography.text.caption1.fontSize,
     fontWeight: Typography.weight.bold,
     color: Colors.text.primary,
     letterSpacing: 1,
   },
-  headerRightBtn: { padding: Spacing.xs },
+  doneBtn: { padding: Spacing.xs },
   doneBtnText: {
-    fontSize: Typography.text.body.fontSize,
+    fontSize: Typography.text.footnote.fontSize,
     color: Colors.accent.indigoLight,
     fontWeight: Typography.weight.bold,
   },
-  modalContent: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.md, paddingBottom: 40 },
-  fieldInput: {
-    flex: 1,
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
+  modalScroll: { paddingHorizontal: Spacing.pageMargin },
+
+  insetGroup: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
-  savePasswordBtn: {
+  cellBorderTop: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border.separator,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.cellHorizontal,
+    paddingVertical: Spacing.cellVertical,
+  },
+  infoLabel: { fontSize: Typography.text.body.fontSize, color: Colors.text.primary },
+  infoValue: { fontSize: Typography.text.body.fontSize, color: Colors.text.secondary, fontWeight: Typography.weight.medium },
+
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.cellHorizontal,
+    paddingVertical: Spacing.cellVertical,
+  },
+  switchLabel: { fontSize: Typography.text.body.fontSize, color: Colors.text.primary, fontWeight: Typography.weight.semibold },
+  switchSub: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: 2 },
+
+  pickerContainer: {
+    padding: Spacing.cellHorizontal,
+    alignItems: 'center',
+  },
+  pickerTitle: {
+    fontSize: Typography.text.caption2.fontSize,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weight.bold,
+    letterSpacing: 0.8,
+    marginBottom: Spacing.xs,
+  },
+
+  actionBtn: {
     backgroundColor: Colors.accent.indigo,
     borderRadius: Radii.card,
     height: 48,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.accent.indigoLight,
+    marginTop: Spacing.xs,
   },
-  savePasswordBtnText: {
+  btnDisabled: { opacity: 0.5 },
+  actionBtnText: {
     color: '#F3F4F6',
     fontSize: Typography.text.footnote.fontSize,
     fontWeight: Typography.weight.bold,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,
   },
-  btnDisabled: { opacity: 0.6 },
-  modalActionCell: {
+
+  textActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.cellHorizontal,
+    justifyContent: 'center',
     paddingVertical: Spacing.cellVertical,
-    minHeight: Spacing.cellMinHeight,
   },
-  modalActionCellText: {
-    fontSize: Typography.text.body.fontSize,
+  textActionLabel: {
+    fontSize: Typography.text.footnote.fontSize,
     color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.medium,
+    fontWeight: Typography.weight.semibold,
   },
-  destructiveText: {
+
+  signOutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.cellVertical,
+  },
+  signOutText: {
     fontSize: Typography.text.body.fontSize,
     color: Colors.neon.coral,
-    fontWeight: Typography.weight.semibold,
+    fontWeight: Typography.weight.bold,
   },
 });

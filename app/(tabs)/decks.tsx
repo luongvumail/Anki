@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  Modal, TextInput, Alert, ActivityIndicator,
+  Modal, Alert, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +12,7 @@ import { Colors, Typography, Spacing, Radii, VECTOR_DECK_ICONS, triggerHaptic } 
 import { DeckIcon } from '../../components/ui/DeckIcon';
 import { SectionTitle } from '../../components/ui/SectionTitle';
 import { InsetGroup } from '../../components/ui/InsetGroup';
-import { InsetRow } from '../../components/ui/InsetRow';
+import { FormField } from '../../components/ui/FormField';
 
 export default function DecksScreen() {
   const insets = useSafeAreaInsets();
@@ -37,7 +37,7 @@ export default function DecksScreen() {
     setCreating(true);
     triggerHaptic('medium');
     try {
-      await createDeck({ name: deckName.trim(), description: deckDesc.trim(), color: '#0A84FF', icon: selectedIcon });
+      await createDeck({ name: deckName.trim(), description: deckDesc.trim(), color: Colors.accent.indigo, icon: selectedIcon });
       triggerHaptic('success');
       setShowCreate(false);
       setDeckName(''); setDeckDesc('');
@@ -116,7 +116,7 @@ export default function DecksScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header Bar */}
+      {/* Linear Header Bar */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 16, 54) }]}>
         <View>
           <Text style={styles.largeTitle}>Bộ thẻ</Text>
@@ -130,7 +130,7 @@ export default function DecksScreen() {
           }}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={26} color={Colors.accent.blue} />
+          <Ionicons name="add" size={26} color={Colors.accent.indigoLight} />
         </TouchableOpacity>
       </View>
 
@@ -141,11 +141,11 @@ export default function DecksScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {isLoading && <ActivityIndicator color={Colors.accent.gray} style={{ marginTop: 30 }} />}
+        {isLoading && <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 30 }} />}
 
         {decks.length === 0 && !isLoading && (
           <View style={styles.emptyCard}>
-            <Ionicons name="folder-open-outline" size={40} color={Colors.accent.gray} style={{ marginBottom: Spacing.sm }} />
+            <Ionicons name="folder-open-outline" size={40} color={Colors.text.secondary} style={{ marginBottom: Spacing.sm }} />
             <Text style={styles.emptyTitle}>Chưa có bộ thẻ</Text>
             <Text style={styles.emptySub}>Tạo bộ thẻ để phân loại từ vựng Tiếng Trung</Text>
             <TouchableOpacity
@@ -181,8 +181,8 @@ export default function DecksScreen() {
                   >
                     <View style={styles.deckIconTile}>
                       {resettingDeckId === deck.id
-                        ? <ActivityIndicator size="small" color={Colors.accent.blue} />
-                        : <DeckIcon name={deck.icon} size={18} color={Colors.accent.blue} />
+                        ? <ActivityIndicator size="small" color={Colors.accent.indigoLight} />
+                        : <DeckIcon name={deck.icon} size={18} color={Colors.accent.indigoLight} />
                       }
                     </View>
 
@@ -219,17 +219,17 @@ export default function DecksScreen() {
         )}
       </ScrollView>
 
-      {/* Modal */}
+      {/* Modal - Linear Form Field Layout */}
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCreate(false)}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowCreate(false)} style={styles.headerLeftBtn}>
               <Text style={styles.cancelBtnText}>Hủy</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Bộ thẻ mới</Text>
+            <Text style={styles.modalTitle}>BỘ THẺ MỚI</Text>
             <TouchableOpacity onPress={handleCreate} disabled={creating} style={styles.headerRightBtn}>
               {creating ? (
-                <ActivityIndicator size="small" color={Colors.accent.blue} />
+                <ActivityIndicator size="small" color={Colors.accent.indigoLight} />
               ) : (
                 <Text style={styles.doneBtnText}>Tạo</Text>
               )}
@@ -238,35 +238,21 @@ export default function DecksScreen() {
 
           <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
             <SectionTitle>THÔNG TIN BỘ THẺ</SectionTitle>
-            <InsetGroup>
-              <InsetRow
-                label="Tên bộ thẻ"
-                labelStyle={{ width: 90 }}
-                right={
-                  <TextInput
-                    style={styles.fieldInput}
-                    placeholder="VD: HSK 1, Giao tiếp..."
-                    placeholderTextColor={Colors.text.tertiary}
-                    value={deckName}
-                    onChangeText={setDeckName}
-                  />
-                }
+            <View style={styles.formContainer}>
+              <FormField
+                label="TÊN BỘ THẺ"
+                placeholder="VD: HSK 1, Giao tiếp..."
+                value={deckName}
+                onChangeText={setDeckName}
               />
-              <InsetRow
-                label="Mô tả"
-                labelStyle={{ width: 90 }}
-                isBorder
-                right={
-                  <TextInput
-                    style={styles.fieldInput}
-                    placeholder="Mô tả ngắn (tuỳ chọn)"
-                    placeholderTextColor={Colors.text.tertiary}
-                    value={deckDesc}
-                    onChangeText={setDeckDesc}
-                  />
-                }
+              <FormField
+                label="MÔ TẢ BỘ THẺ"
+                placeholder="Mô tả ngắn (tuỳ chọn)"
+                value={deckDesc}
+                onChangeText={setDeckDesc}
+                containerStyle={{ marginBottom: 0 }}
               />
-            </InsetGroup>
+            </View>
 
             <SectionTitle>BIỂU TƯỢNG ICON VECTOR</SectionTitle>
             <View style={styles.modalInsetGroupPadding}>
@@ -280,7 +266,7 @@ export default function DecksScreen() {
                       setSelectedIcon(icName);
                     }}
                   >
-                    <DeckIcon name={icName} size={22} color={selectedIcon === icName ? Colors.accent.blue : Colors.text.secondary} />
+                    <DeckIcon name={icName} size={22} color={selectedIcon === icName ? Colors.accent.indigoLight : Colors.text.secondary} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -326,7 +312,7 @@ const styles = StyleSheet.create({
     minHeight: Spacing.cellMinHeight,
   },
   cellDividerIndented: {
-    height: 0.5,
+    height: 1,
     backgroundColor: Colors.border.separator,
     marginLeft: 56,
   },
@@ -334,7 +320,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: Radii.icon,
-    backgroundColor: Colors.accent.gray5,
+    backgroundColor: Colors.bg.tertiary,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -359,14 +347,14 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 4,
-    backgroundColor: Colors.accent.gray5,
+    backgroundColor: Colors.bg.tertiary,
     borderRadius: 2,
     marginTop: 6,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.accent.blue,
+    backgroundColor: Colors.accent.indigoLight,
     borderRadius: 2,
   },
   deckStatsText: {
@@ -375,21 +363,25 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   dueBadge: {
-    backgroundColor: Colors.accent.gray5,
-    borderRadius: 8,
+    backgroundColor: Colors.bg.tertiary,
+    borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   dueBadgeText: {
     fontSize: Typography.text.caption2.fontSize,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.medium,
+    color: Colors.accent.indigoLight,
+    fontWeight: Typography.weight.bold,
   },
   emptyCard: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.xl,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   emptyTitle: {
     fontSize: Typography.text.headline.fontSize,
@@ -404,17 +396,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyBtn: {
-    backgroundColor: Colors.accent.blue,
+    backgroundColor: Colors.accent.indigo,
     paddingHorizontal: Spacing.xl,
     height: 44,
     borderRadius: Radii.card,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.accent.indigoLight,
   },
   emptyBtnText: {
-    color: '#FFFFFF',
-    fontWeight: Typography.weight.semibold,
+    color: '#F3F4F6',
+    fontWeight: Typography.weight.bold,
     fontSize: Typography.text.subhead.fontSize,
+    letterSpacing: 0.5,
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,
@@ -427,36 +422,41 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 0.5,
+    borderBottomWidth: 1,
     borderBottomColor: Colors.border.separator,
     backgroundColor: Colors.bg.secondary,
   },
   modalTitle: {
-    fontSize: Typography.text.headline.fontSize,
-    fontWeight: Typography.weight.semibold,
+    fontSize: Typography.text.footnote.fontSize,
+    fontWeight: Typography.weight.bold,
     color: Colors.text.primary,
+    letterSpacing: 1,
   },
   headerLeftBtn: { padding: Spacing.xs },
   headerRightBtn: { padding: Spacing.xs },
   cancelBtnText: {
     fontSize: Typography.text.body.fontSize,
-    color: Colors.accent.blue,
+    color: Colors.accent.indigoLight,
   },
   doneBtnText: {
     fontSize: Typography.text.body.fontSize,
-    color: Colors.accent.blue,
+    color: Colors.accent.indigoLight,
     fontWeight: Typography.weight.bold,
   },
-  modalContent: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.md, paddingBottom: 40 },
+  modalContent: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.xs, paddingBottom: 40 },
+  formContainer: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+  },
   modalInsetGroupPadding: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.lg,
-  },
-  fieldInput: {
-    flex: 1,
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   iconOption: {
@@ -466,10 +466,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.bg.tertiary,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   iconOptionActive: {
-    borderWidth: 2,
-    borderColor: Colors.accent.blue,
-    backgroundColor: Colors.accent.blueDim,
+    borderWidth: 1,
+    borderColor: Colors.accent.indigoLight,
+    backgroundColor: Colors.accent.indigoDim,
   },
 });

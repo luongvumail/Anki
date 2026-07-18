@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStore } from "../../store/useStore";
@@ -108,8 +116,7 @@ export default function AddCardScreen() {
     triggerHaptic("medium");
     try {
       const targetExistingId =
-        existingCardId ||
-        findExistingCard(cardData.character, selectedDeckId)?.id;
+        existingCardId || findExistingCard(cardData.character, selectedDeckId)?.id;
 
       if (targetExistingId) {
         await updateCard(targetExistingId, selectedDeckId, {
@@ -125,10 +132,7 @@ export default function AddCardScreen() {
           tags: cardData.tags || [],
         });
         triggerHaptic("success");
-        Alert.alert(
-          "Đã cập nhật",
-          `Đã cập nhật từ vựng "${cardData.character}" thành công!`,
-        );
+        Alert.alert("Đã cập nhật", `Đã cập nhật từ vựng "${cardData.character}" thành công!`);
       } else {
         await addCard({
           deckId: selectedDeckId,
@@ -145,10 +149,7 @@ export default function AddCardScreen() {
           srs: DEFAULT_SRS_STATE,
         });
         triggerHaptic("success");
-        Alert.alert(
-          "Đã lưu thẻ",
-          `Đã thêm từ "${cardData.character}" vào bộ thẻ!`,
-        );
+        Alert.alert("Đã lưu thẻ", `Đã thêm từ "${cardData.character}" vào bộ thẻ!`);
       }
 
       setInput("");
@@ -178,7 +179,7 @@ export default function AddCardScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* iOS Header */}
+        {/* Linear Header */}
         <View style={styles.header}>
           <Text style={styles.subhead}>TỰ ĐỘNG PHÂN TÍCH TỪ VỰNG</Text>
           <Text style={styles.largeTitle}>Thêm từ AI</Text>
@@ -190,7 +191,7 @@ export default function AddCardScreen() {
           decks={decks}
           selectedDeckId={selectedDeckId}
           isOpen={deckPickerOpen}
-          onToggleOpen={() => setDeckPickerOpen(o => !o)}
+          onToggleOpen={() => setDeckPickerOpen((o) => !o)}
           onSelectDeck={(id) => {
             triggerHaptic("selection");
             setSelectedDeckId(id);
@@ -214,8 +215,7 @@ export default function AddCardScreen() {
             <TouchableOpacity
               style={[
                 styles.genBtn,
-                (loading || !input.trim() || !selectedDeckId) &&
-                  styles.genBtnDisabled,
+                (loading || !input.trim() || !selectedDeckId) && styles.genBtnDisabled,
               ]}
               onPress={() => handleGenerate()}
               disabled={loading || !input.trim() || !selectedDeckId}
@@ -232,7 +232,7 @@ export default function AddCardScreen() {
         {/* Loading Indicator */}
         {loading && (
           <View style={styles.loadingCard}>
-            <ActivityIndicator color={Colors.accent.gray} size="small" />
+            <ActivityIndicator color={Colors.accent.indigoLight} size="small" />
             <Text style={styles.loadingText}>
               AI đang phân tích âm Hán Việt & ví dụ cho "{input}"...
             </Text>
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     lineHeight: Typography.text.caption1.lineHeight,
     fontWeight: Typography.weight.semibold,
     color: Colors.text.secondary,
-    letterSpacing: -0.08,
+    letterSpacing: 1.2,
     marginBottom: 2,
   },
   largeTitle: {
@@ -288,18 +288,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   genBtn: {
-    backgroundColor: Colors.accent.blue,
+    backgroundColor: Colors.accent.indigo,
     borderRadius: Radii.card,
     paddingHorizontal: 16,
     height: 36,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Colors.accent.indigoLight,
   },
   genBtnDisabled: { opacity: 0.5 },
   genBtnText: {
-    color: "#FFFFFF",
-    fontWeight: Typography.weight.semibold,
+    color: "#F3F4F6",
+    fontWeight: Typography.weight.bold,
     fontSize: Typography.text.footnote.fontSize,
     textAlign: "center",
     textAlignVertical: "center",
@@ -314,6 +316,8 @@ const styles = StyleSheet.create({
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
     marginTop: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   loadingText: {
     flex: 1,

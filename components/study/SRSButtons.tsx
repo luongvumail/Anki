@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SRS_GRADES, getIntervalLabel, SRSState } from '../../lib/srs';
 import { Colors, Typography, Spacing, Radii } from '../../constants/theme';
+import { AnimatedButton } from '../ui/AnimatedButton';
 
 interface SRSButtonsProps {
   cardSRS: SRSState;
@@ -15,19 +16,19 @@ export function SRSButtons({ cardSRS, onGrade }: SRSButtonsProps) {
     <View style={[styles.srsArea, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
       <Text style={styles.srsLabel}>SELECT RECALL DIFFICULTY:</Text>
       <View style={styles.srsRow}>
-        <SRSButton
+        <SRSButtonPropsItem
           label="AGAIN (👈)"
           sub={getIntervalLabel(SRS_GRADES.AGAIN, cardSRS)}
           color={Colors.srs.again}
           onPress={() => onGrade(SRS_GRADES.AGAIN, 'left')}
         />
-        <SRSButton
+        <SRSButtonPropsItem
           label="HARD (👆)"
           sub={getIntervalLabel(SRS_GRADES.HARD, cardSRS)}
           color={Colors.srs.hard}
           onPress={() => onGrade(SRS_GRADES.HARD, 'up')}
         />
-        <SRSButton
+        <SRSButtonPropsItem
           label="GOOD (👉)"
           sub={getIntervalLabel(SRS_GRADES.GOOD, cardSRS)}
           color={Colors.srs.good}
@@ -38,16 +39,16 @@ export function SRSButtons({ cardSRS, onGrade }: SRSButtonsProps) {
   );
 }
 
-function SRSButton({ label, sub, color, onPress }: { label: string; sub: string; color: string; onPress: () => void }) {
+function SRSButtonPropsItem({ label, sub, color, onPress }: { label: string; sub: string; color: string; onPress: () => void }) {
   return (
-    <TouchableOpacity
-      style={[styles.srsBtn, { borderColor: color + '50', backgroundColor: Colors.bg.secondary }]}
+    <AnimatedButton
+      style={[styles.srsBtn, { borderColor: color + '60', backgroundColor: Colors.bg.secondary }]}
       onPress={onPress}
-      activeOpacity={0.8}
+      activeScale={0.93}
     >
       <Text style={[styles.srsBtnLabel, { color }]}>{label}</Text>
       <Text style={styles.srsBtnSub}>{sub}</Text>
-    </TouchableOpacity>
+    </AnimatedButton>
   );
 }
 

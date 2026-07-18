@@ -44,7 +44,7 @@ export function DeckPicker({
         <View style={styles.pickerRight}>
           {selectedDeck ? (
             <View style={styles.pickerSelectedRow}>
-              <DeckIcon name={selectedDeck.icon} size={16} color={Colors.accent.blue} style={{ marginRight: 6 }} />
+              <DeckIcon name={selectedDeck.icon} size={16} color={Colors.accent.indigoLight} style={{ marginRight: 6 }} />
               <Text style={styles.pickerValue}>{selectedDeck.name}</Text>
             </View>
           ) : (
@@ -68,11 +68,11 @@ export function DeckPicker({
               onPress={() => onSelectDeck(deck.id)}
             >
               <View style={styles.pickerSelectedRow}>
-                <DeckIcon name={deck.icon} size={16} color={Colors.accent.blue} style={{ marginRight: 6 }} />
+                <DeckIcon name={deck.icon} size={16} color={Colors.accent.indigoLight} style={{ marginRight: 6 }} />
                 <Text style={styles.pickerItemText}>{deck.name}</Text>
               </View>
               {selectedDeckId === deck.id && (
-                <Ionicons name="checkmark" size={18} color={Colors.accent.blue} />
+                <Ionicons name="checkmark" size={18} color={Colors.accent.indigoLight} />
               )}
             </TouchableOpacity>
           ))}
@@ -88,6 +88,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: Spacing.cellHorizontal,
     marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   warningText: {
     color: Colors.text.secondary,

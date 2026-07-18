@@ -9,7 +9,7 @@ interface DeckIconProps {
   style?: any;
 }
 
-export function DeckIcon({ name, size = 18, color = Colors.accent.blue, style }: DeckIconProps) {
+export function DeckIcon({ name, size = 18, color = Colors.accent.indigoLight, style }: DeckIconProps) {
   const icon = VECTOR_DECK_ICONS.includes(name)
     ? (name as keyof typeof Ionicons.glyphMap)
     : 'book-outline';

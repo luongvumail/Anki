@@ -1,22 +1,22 @@
 /**
  * SuperMemo-2 (SM-2) Spaced Repetition Algorithm
- * Ported to TypeScript for the HanViet app.
+ * Ported to TypeScript for the Anki app.
  */
 
 export const SRS_GRADES = {
   AGAIN: 1, // Quên hoàn toàn — ôn lại ngay
-  HARD: 3,  // Khó — nhớ nhưng rất mất công
-  GOOD: 4,  // Tốt — nhớ sau khi suy nghĩ nhẹ
-  EASY: 5,  // Dễ — nhớ ngay lập tức
+  HARD: 3, // Khó — nhớ nhưng rất mất công
+  GOOD: 4, // Tốt — nhớ sau khi suy nghĩ nhẹ
+  EASY: 5, // Dễ — nhớ ngay lập tức
 } as const;
 
 export type SRSGrade = (typeof SRS_GRADES)[keyof typeof SRS_GRADES];
 
 export interface SRSState {
   repetitions: number;
-  interval: number;     // days
-  easeFactor: number;   // default 2.5
-  dueDate: string;      // ISO date string
+  interval: number; // days
+  easeFactor: number; // default 2.5
+  dueDate: string; // ISO date string
 }
 
 export const DEFAULT_SRS_STATE: SRSState = {
@@ -29,10 +29,7 @@ export const DEFAULT_SRS_STATE: SRSState = {
 /**
  * Calculates the next SRS state based on the grade given.
  */
-export function calculateSRS(
-  grade: SRSGrade,
-  current: SRSState
-): SRSState {
+export function calculateSRS(grade: SRSGrade, current: SRSState): SRSState {
   let { repetitions, interval, easeFactor } = current;
 
   // Clamp ease factor minimum
@@ -86,8 +83,8 @@ export function isDue(srs: SRSState): boolean {
  */
 export function getIntervalLabel(grade: SRSGrade, current: SRSState): string {
   const next = calculateSRS(grade, current);
-  if (next.interval === 0) return 'Ngay bây giờ';
-  if (next.interval === 1) return '1 ngày';
+  if (next.interval === 0) return "Ngay bây giờ";
+  if (next.interval === 1) return "1 ngày";
   if (next.interval < 7) return `${next.interval} ngày`;
   if (next.interval < 30) return `${Math.round(next.interval / 7)} tuần`;
   if (next.interval < 365) return `${Math.round(next.interval / 30)} tháng`;

@@ -36,7 +36,7 @@ export default function CardDetailScreen() {
   if (!card) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={Colors.accent.gray} size="small" />
+        <ActivityIndicator color={Colors.accent.indigoLight} size="small" />
       </View>
     );
   }
@@ -60,7 +60,7 @@ export default function CardDetailScreen() {
         }}
         style={styles.backBtn}
       >
-        <Ionicons name="chevron-back" size={24} color={Colors.accent.blue} />
+        <Ionicons name="chevron-back" size={24} color={Colors.accent.indigoLight} />
         <Text style={styles.backText}>Quay lại</Text>
       </TouchableOpacity>
 
@@ -71,7 +71,7 @@ export default function CardDetailScreen() {
           <Text style={styles.traditional}>{card.traditional} (phồn thể)</Text>
         )}
         <TouchableOpacity style={styles.speakBtn} onPress={speak} activeOpacity={0.8}>
-          <Ionicons name={speaking ? "volume-high" : "volume-medium"} size={18} color={Colors.accent.blue} />
+          <Ionicons name={speaking ? "volume-high" : "volume-medium"} size={18} color={Colors.accent.indigoLight} />
           <Text style={styles.speakText}>{speaking ? 'Đang phát âm...' : 'Phát âm'}</Text>
         </TouchableOpacity>
       </View>
@@ -79,7 +79,7 @@ export default function CardDetailScreen() {
       {/* Info Group */}
       <SectionTitle>THÔNG TIN HÁN TỰ</SectionTitle>
       <InsetGroup>
-        <InsetRow label="Pinyin" value={card.pinyin} valueColor={Colors.accent.blue} labelStyle={{ width: 100 }} />
+        <InsetRow label="Pinyin" value={card.pinyin} valueColor={Colors.neon.cyan} labelStyle={{ width: 100 }} />
         <InsetRow label="Hán Việt" value={card.hanviet} isBorder labelStyle={{ width: 100 }} />
         <InsetRow label="Nghĩa TV" value={card.translation} isBorder labelStyle={{ width: 100 }} />
         {card.radical ? <InsetRow label="Bộ thủ" value={card.radical} isBorder labelStyle={{ width: 100 }} /> : null}
@@ -99,6 +99,7 @@ export default function CardDetailScreen() {
         <InsetRow
           label="Trạng thái"
           value={due ? 'Cần ôn ngay' : 'Đã thuộc'}
+          valueColor={due ? Colors.neon.coral : Colors.neon.emerald}
           isBorder
           labelStyle={{ width: 100 }}
         />
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg.primary },
 
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: Spacing.md },
-  backText: { color: Colors.accent.blue, fontSize: Typography.text.body.fontSize, fontWeight: Typography.weight.medium },
+  backText: { color: Colors.accent.indigoLight, fontSize: Typography.text.body.fontSize, fontWeight: Typography.weight.medium },
 
   cardHeader: { alignItems: 'center', marginBottom: Spacing.xl },
   characterBig: {
@@ -151,12 +152,14 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.full,
-    height: 38,
+    height: 36,
     paddingHorizontal: Spacing.xl,
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   speakText: {
-    color: Colors.accent.blue,
+    color: Colors.accent.indigoLight,
     fontSize: Typography.text.footnote.fontSize,
     fontWeight: Typography.weight.semibold,
     textAlign: 'center',
@@ -165,7 +168,7 @@ const styles = StyleSheet.create({
   },
 
   cellBorderTop: {
-    borderTopWidth: 0.5,
+    borderTopWidth: 1,
     borderTopColor: Colors.border.separator,
   },
 
@@ -173,6 +176,6 @@ const styles = StyleSheet.create({
     padding: Spacing.cellHorizontal,
   },
   exCn: { fontSize: Typography.text.body.fontSize, color: Colors.text.primary, fontWeight: Typography.weight.semibold },
-  exPy: { fontSize: Typography.text.footnote.fontSize, color: Colors.accent.blue, marginTop: 2 },
+  exPy: { fontSize: Typography.text.footnote.fontSize, color: Colors.neon.cyan, marginTop: 2 },
   exVi: { fontSize: Typography.text.footnote.fontSize, color: Colors.text.secondary, marginTop: 2 },
 });

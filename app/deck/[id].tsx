@@ -69,7 +69,7 @@ export default function DeckDetailScreen() {
 
   if (!deck) return (
     <View style={styles.center}>
-      <ActivityIndicator color={Colors.accent.gray} size="small" />
+      <ActivityIndicator color={Colors.accent.indigoLight} size="small" />
     </View>
   );
 
@@ -88,12 +88,12 @@ export default function DeckDetailScreen() {
           }}
           style={styles.backBtn}
         >
-          <Ionicons name="chevron-back" size={24} color={Colors.accent.blue} />
+          <Ionicons name="chevron-back" size={24} color={Colors.accent.indigoLight} />
           <Text style={styles.backText}>Bộ thẻ</Text>
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <View style={styles.deckIconTile}>
-            <DeckIcon name={deck.icon} size={22} color={Colors.accent.blue} />
+            <DeckIcon name={deck.icon} size={22} color={Colors.accent.indigoLight} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.deckName}>{deck.name}</Text>
@@ -104,9 +104,9 @@ export default function DeckDetailScreen() {
 
       {/* Quick stats */}
       <View style={styles.statsRow}>
-        <StatChip label="Cần ôn" value={dueCards.length} />
-        <StatChip label="Mới" value={newCards.length} />
-        <StatChip label="Đã học" value={learnedCards.length} />
+        <StatChip label="Cần ôn" value={dueCards.length} color={Colors.neon.coral} />
+        <StatChip label="Mới" value={newCards.length} color={Colors.neon.purple} />
+        <StatChip label="Đã học" value={learnedCards.length} color={Colors.neon.emerald} />
       </View>
 
       {/* Centered Study button */}
@@ -118,7 +118,7 @@ export default function DeckDetailScreen() {
         }}
         activeOpacity={0.8}
       >
-        <Ionicons name="play" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+        <Ionicons name="play" size={16} color="#F3F4F6" style={{ marginRight: 6 }} />
         <Text style={styles.studyBtnText}>Bắt đầu ôn tập ({dueCards.length} thẻ)</Text>
       </TouchableOpacity>
 
@@ -150,7 +150,7 @@ export default function DeckDetailScreen() {
           DANH SÁCH {deckCards.length} THẺ TRONG BỘ
         </SectionTitle>
 
-        {isLoading && <ActivityIndicator color={Colors.accent.gray} style={{ marginTop: 20 }} />}
+        {isLoading && <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 20 }} />}
 
         {deckCards.length > 0 && (
           <InsetGroup>
@@ -199,10 +199,10 @@ export default function DeckDetailScreen() {
   );
 }
 
-function StatChip({ label, value }: { label: string; value: number }) {
+function StatChip({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
     <View style={styles.chip}>
-      <Text style={styles.chipValue}>{value}</Text>
+      <Text style={[styles.chipValue, color ? { color } : null]}>{value}</Text>
       <Text style={styles.chipLabel}>{label}</Text>
     </View>
   );
@@ -214,20 +214,20 @@ const styles = StyleSheet.create({
 
   header: { paddingHorizontal: Spacing.pageMargin, paddingBottom: Spacing.md },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: Spacing.md },
-  backText: { color: Colors.accent.blue, fontSize: Typography.text.body.fontSize, fontWeight: Typography.weight.medium },
+  backText: { color: Colors.accent.indigoLight, fontSize: Typography.text.body.fontSize, fontWeight: Typography.weight.medium },
 
   headerInfo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  deckIconTile: { width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.bg.secondary, alignItems: 'center', justifyContent: 'center' },
+  deckIconTile: { width: 44, height: 44, borderRadius: Radii.card, backgroundColor: Colors.bg.secondary, borderWidth: 1, borderColor: Colors.border.default, alignItems: 'center', justifyContent: 'center' },
   deckName: { fontSize: Typography.text.title2.fontSize, lineHeight: Typography.text.title2.lineHeight, fontWeight: Typography.weight.bold, color: Colors.text.primary },
   deckDesc: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: 1 },
 
   statsRow: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.pageMargin, marginBottom: Spacing.lg },
-  chip: { flex: 1, backgroundColor: Colors.bg.secondary, borderRadius: Radii.card, padding: Spacing.cellHorizontal, alignItems: 'center' },
+  chip: { flex: 1, backgroundColor: Colors.bg.secondary, borderRadius: Radii.card, padding: Spacing.cellHorizontal, alignItems: 'center', borderWidth: 1, borderColor: Colors.border.default },
   chipValue: { fontSize: Typography.text.title2.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary },
-  chipLabel: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: 2 },
+  chipLabel: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: 2, fontWeight: Typography.weight.semibold },
 
   studyBtn: {
-    backgroundColor: Colors.accent.blue,
+    backgroundColor: Colors.accent.indigo,
     marginHorizontal: Spacing.pageMargin,
     borderRadius: Radii.card,
     height: 48,
@@ -235,11 +235,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.accent.indigoLight,
   },
   studyBtnText: {
-    color: '#FFFFFF',
-    fontWeight: Typography.weight.semibold,
-    fontSize: Typography.text.body.fontSize,
+    color: '#F3F4F6',
+    fontWeight: Typography.weight.bold,
+    fontSize: Typography.text.footnote.fontSize,
+    letterSpacing: 0.5,
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,
@@ -254,7 +257,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.neon.coral + '50',
-    backgroundColor: Colors.neon.coral + '10',
+    backgroundColor: Colors.bg.secondary,
   },
   resetBtnDisabled: { opacity: 0.5 },
   resetBtnText: {
@@ -277,7 +280,7 @@ const styles = StyleSheet.create({
     minHeight: Spacing.cellMinHeight,
   },
   cellDividerIndented: {
-    height: 0.5,
+    height: 1,
     backgroundColor: Colors.border.separator,
     marginLeft: 56,
   },
@@ -285,13 +288,13 @@ const styles = StyleSheet.create({
   cardChar: { fontSize: Typography.hanzi.sm, color: Colors.text.primary, fontWeight: Typography.weight.bold },
   cardMid: { flex: 1, paddingHorizontal: Spacing.md },
   cardPinyinRow: { flexDirection: 'row', gap: 6, alignItems: 'baseline' },
-  cardPinyin: { fontSize: Typography.text.subhead.fontSize, color: Colors.accent.blue, fontWeight: Typography.weight.semibold },
+  cardPinyin: { fontSize: Typography.text.subhead.fontSize, color: Colors.neon.cyan, fontWeight: Typography.weight.semibold },
   cardHanviet: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, fontWeight: Typography.weight.medium },
   cardTranslation: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: 2 },
   cardRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   intervalText: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary },
 
-  emptyCard: { backgroundColor: Colors.bg.secondary, borderRadius: Radii.card, padding: Spacing.xl, alignItems: 'center' },
+  emptyCard: { backgroundColor: Colors.bg.secondary, borderRadius: Radii.card, padding: Spacing.xl, alignItems: 'center', borderWidth: 1, borderColor: Colors.border.default },
   emptyTitle: { fontSize: Typography.text.body.fontSize, fontWeight: Typography.weight.semibold, color: Colors.text.primary },
   emptySub: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: 4, textAlign: 'center' },
 });

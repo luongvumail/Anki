@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { CardData } from '../../lib/gemini';
-import { Colors, Typography, Spacing, Radii } from '../../constants/theme';
-import { SectionTitle } from '../ui/SectionTitle';
+import React, { useEffect, useRef } from "react";
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Animated } from "react-native";
+import { CardData } from "../../lib/gemini";
+import { Colors, Typography, Spacing, Radii } from "../../constants/theme";
+import { SectionTitle } from "../ui/SectionTitle";
+import { AnimatedButton } from "../ui/AnimatedButton";
 
 interface CardPreviewProps {
   cardData: CardData;
@@ -11,16 +12,29 @@ interface CardPreviewProps {
   onSave: () => void;
 }
 
-export function CardPreview({
-  cardData,
-  saving,
-  onReGenerate,
-  onSave,
-}: CardPreviewProps) {
+export function CardPreview({ cardData, saving, onReGenerate, onSave }: CardPreviewProps) {
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 1,
+      tension: 65,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const translateY = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [24, 0],
+  });
+
   return (
-    <>
+    <Animated.View style={{ opacity: slideAnim, transform: [{ translateY }] }}>
       <View style={styles.previewHeaderRow}>
-        <SectionTitle style={{ marginBottom: 0, marginTop: 0, marginLeft: 0 }}>XEM TRƯỚC THẺ BÀI</SectionTitle>
+        <SectionTitle style={{ marginBottom: 0, marginTop: 0, marginLeft: 0 }}>
+          XEM TRƯỚC THẺ BÀI
+        </SectionTitle>
         <TouchableOpacity onPress={onReGenerate}>
           <Text style={styles.reGenLink}>Tạo lại ↻</Text>
         </TouchableOpacity>
@@ -42,11 +56,13 @@ export function CardPreview({
 
         {/* Data Rows */}
         <View style={styles.previewRows}>
-          <InfoRow label="Pinyin" value={cardData.pinyin} color={Colors.accent.blue} />
+          <InfoRow label="Pinyin" value={cardData.pinyin} color={Colors.neon.cyan} />
           <InfoRow label="Hán Việt" value={cardData.hanviet} />
           <InfoRow label="Nghĩa TV" value={cardData.translation} />
           {cardData.radical ? <InfoRow label="Bộ thủ" value={cardData.radical} /> : null}
-          {cardData.strokeCount ? <InfoRow label="Số nét" value={`${cardData.strokeCount} nét`} /> : null}
+          {cardData.strokeCount ? (
+            <InfoRow label="Số nét" value={`${cardData.strokeCount} nét`} />
+          ) : null}
         </View>
 
         {/* Examples */}
@@ -64,20 +80,20 @@ export function CardPreview({
         )}
 
         {/* Save Button */}
-        <TouchableOpacity
+        <AnimatedButton
           style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
           onPress={onSave}
           disabled={saving}
-          activeOpacity={0.8}
+          activeScale={0.97}
         >
           {saving ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
+            <ActivityIndicator color="#F3F4F6" size="small" />
           ) : (
             <Text style={styles.saveBtnText}>Lưu vào bộ thẻ</Text>
           )}
-        </TouchableOpacity>
+        </AnimatedButton>
       </View>
-    </>
+    </Animated.View>
   );
 }
 
@@ -85,7 +101,9 @@ function InfoRow({ label, value, color }: { label: string; value: string; color?
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={[styles.infoValue, color ? { color, fontWeight: Typography.weight.semibold } : null]}>
+      <Text
+        style={[styles.infoValue, color ? { color, fontWeight: Typography.weight.semibold } : null]}
+      >
         {value}
       </Text>
     </View>
@@ -94,16 +112,17 @@ function InfoRow({ label, value, color }: { label: string; value: string; color?
 
 const styles = StyleSheet.create({
   previewHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: Spacing.sectionTop,
     marginBottom: Spacing.sectionBottom,
     paddingHorizontal: 4,
   },
   reGenLink: {
     fontSize: Typography.text.footnote.fontSize,
-    color: Colors.accent.blue,
+    color: Colors.accent.indigoLight,
+    fontWeight: Typography.weight.medium,
   },
   previewCard: {
     backgroundColor: Colors.bg.secondary,
@@ -113,25 +132,27 @@ const styles = StyleSheet.create({
     borderColor: Colors.border.default,
   },
   previewTop: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: Spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border.separator,
     marginBottom: Spacing.md,
   },
   hskBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     right: 0,
-    backgroundColor: Colors.accent.gray5,
-    borderRadius: 8,
+    backgroundColor: Colors.bg.tertiary,
+    borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   hskText: {
     fontSize: Typography.text.caption2.fontSize,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weight.medium,
+    color: Colors.accent.indigoLight,
+    fontWeight: Typography.weight.bold,
   },
   characterBig: {
     fontSize: Typography.hanzi.lg,
@@ -148,8 +169,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
   },
   infoLabel: {
     width: 80,
@@ -172,12 +193,15 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     fontWeight: Typography.weight.semibold,
     marginBottom: Spacing.xs,
+    letterSpacing: 0.8,
   },
   exampleItem: {
     backgroundColor: Colors.bg.tertiary,
-    borderRadius: 10,
+    borderRadius: Radii.card,
     padding: Spacing.md,
     marginBottom: Spacing.xs,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   exCn: {
     fontSize: Typography.text.body.fontSize,
@@ -186,7 +210,7 @@ const styles = StyleSheet.create({
   },
   exPy: {
     fontSize: Typography.text.footnote.fontSize,
-    color: Colors.accent.blue,
+    color: Colors.neon.cyan,
     marginTop: 2,
   },
   exVi: {
@@ -195,20 +219,23 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   saveBtn: {
-    backgroundColor: Colors.accent.blue,
+    backgroundColor: Colors.accent.indigo,
     borderRadius: Radii.card,
     height: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Colors.accent.indigoLight,
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: {
-    color: '#FFFFFF',
-    fontSize: Typography.text.body.fontSize,
-    fontWeight: Typography.weight.semibold,
-    textAlign: 'center',
-    textAlignVertical: 'center',
+    color: "#F3F4F6",
+    fontSize: Typography.text.footnote.fontSize,
+    fontWeight: Typography.weight.bold,
+    letterSpacing: 0.5,
+    textAlign: "center",
+    textAlignVertical: "center",
     includeFontPadding: false,
   },
 });

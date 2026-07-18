@@ -1,5 +1,5 @@
 // Design tokens for Anki app
-// Authentic Linear.app Dark Aesthetic System & Eye-Care Anti-Halo Chinese Typography
+// Authentic Linear.app Dark Aesthetic System with a SINGLE UNIFIED PRIMARY BRAND COLOR
 
 import * as Haptics from 'expo-haptics';
 
@@ -15,13 +15,16 @@ export const Colors = {
     overlay: 'rgba(8, 9, 12, 0.85)',     // Modal Backdrop Overlay
   },
 
-  // Linear.app Brand Accents & Soft Neon Palette
+  // SINGLE UNIFIED LINEAR PRIMARY BRAND COLOR SYSTEM (#5E6AD2 / #707CE6)
   accent: {
-    indigo: '#5E6AD2',                   // Linear Signature Indigo / Violet Accent
-    indigoLight: '#707CE6',              // Linear Active Indigo Glow
+    primary: '#5E6AD2',                  // Linear Signature Indigo Primary Accent
+    primaryLight: '#707CE6',             // Linear Active Primary Indigo Glow
+    primaryDim: 'rgba(94, 106, 210, 0.18)',
+    indigo: '#5E6AD2',                   // Primary Indigo
+    indigoLight: '#707CE6',              // Active Indigo Glow
     indigoDim: 'rgba(94, 106, 210, 0.18)',
-    blue: '#22D3EE',                     // Electric Cyan
-    blueDim: 'rgba(34, 211, 238, 0.15)',
+    blue: '#707CE6',                     // Unified to Primary Indigo Glow
+    blueDim: 'rgba(94, 106, 210, 0.18)',
     gray: '#8B949E',                     // Linear Slate Gray
     gray2: '#6E7681',                    // Linear Muted Gray
     gray3: '#484F58',                    // Linear Dark Gray
@@ -30,12 +33,12 @@ export const Colors = {
     gray6: '#121318',                    // Linear Panel Gray 6
   },
 
-  // Soft Neon Color Palette (Pinyin Tones & SRS Memory States)
+  // Soft Neon Color Palette (Semantic Status & SRS ONLY)
   neon: {
-    cyan: '#22D3EE',                     // Tone 1 / Easy - Electric Cyan
-    emerald: '#34D399',                  // Tone 2 / Good - Emerald Green
-    purple: '#C084FC',                   // Tone 3 / Hard - Soft Purple
-    coral: '#FB7185',                    // Tone 4 / Again - Neon Coral
+    cyan: '#707CE6',                     // Unified to Primary Active Indigo Glow
+    emerald: '#34D399',                  // Semantic Good / Mastered - Emerald Green
+    purple: '#C084FC',                   // Semantic Hard - Soft Purple
+    coral: '#FB7185',                    // Semantic Again / Warning - Neon Coral
   },
 
   // SRS Status Colors (Matching Soft Neon Palette)
@@ -43,12 +46,12 @@ export const Colors = {
     again: '#FB7185',                    // Neon Coral (Quên)
     hard: '#C084FC',                     // Soft Purple (Khó)
     good: '#34D399',                     // Emerald Green (Đã nhớ)
-    easy: '#22D3EE',                     // Electric Cyan (Dễ / Thuộc)
+    easy: '#707CE6',                     // Primary Indigo Glow (Dễ / Thuộc)
   },
 
   // Eye-Care Anti-Halo Chinese Typography Labels
   text: {
-    primary: '#F3F4F6',                  // Milk White (Anti-glare / Anti-halo for intricate Hanzi)
+    primary: '#F3F4F6',                  // Milk White
     secondary: '#8B949E',                // Linear Slate Gray
     tertiary: '#6E7681',                 // Muted Label
     quaternary: '#484F58',               // Faded Label

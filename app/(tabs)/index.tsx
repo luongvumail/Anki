@@ -21,6 +21,7 @@ import { DeckIcon } from '../../components/ui/DeckIcon';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { SectionTitle } from '../../components/ui/SectionTitle';
 import { AccountModal } from '../../components/home/AccountModal';
+import { AnimatedButton } from '../../components/ui/AnimatedButton';
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -44,7 +45,8 @@ export default function DashboardScreen() {
   }).toUpperCase();
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'Học viên';
-  const initials = displayName.slice(0, 2).toUpperCase();
+  // 1 single character for circular avatar
+  const initials = displayName.slice(0, 1).toUpperCase();
 
   const totalDue = decks.reduce((s, d) => s + (d.dueCount || 0), 0);
   const totalCards = decks.reduce((s, d) => s + (d.cardCount || 0), 0);
@@ -180,84 +182,84 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
+        {/* 1 Single Character Circular Avatar */}
+        <AnimatedButton
           style={styles.avatarBtn}
           onPress={() => {
-            triggerHaptic('selection');
             setShowAccountModal(true);
           }}
-          activeOpacity={0.8}
+          hapticType="selection"
         >
           <Text style={styles.avatarText}>{initials}</Text>
-        </TouchableOpacity>
+        </AnimatedButton>
       </View>
 
-      {/* Linear Hero Panel Card */}
+      {/* Linear Hero Panel Card (100% Vietnamese) */}
       <View style={styles.heroCard}>
         <View style={styles.heroTop}>
-          <Text style={styles.heroSectionTitle}>DAILY REVIEWS DUE</Text>
+          <Text style={styles.heroSectionTitle}>CẦN ÔN HÔM NAY</Text>
           <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeText}>{decks.length} DECKS</Text>
+            <Text style={styles.heroBadgeText}>{decks.length} BỘ THẺ</Text>
           </View>
         </View>
 
         <View style={styles.heroCountRow}>
           <Text style={styles.heroCount}>{totalDue}</Text>
-          <Text style={styles.heroUnit}> CARD REVIEWS</Text>
+          <Text style={styles.heroUnit}> THẺ CẦN ÔN</Text>
         </View>
 
         <ProgressBar progress={progressPct} style={{ marginTop: Spacing.xs }} />
 
         <View style={styles.progressLabels}>
-          <Text style={styles.progressText}>{progressPct}% COMPLETE</Text>
-          <Text style={styles.progressText}>{doneToday} / {totalCards} CARDS</Text>
+          <Text style={styles.progressText}>{progressPct}% HOÀN THÀNH</Text>
+          <Text style={styles.progressText}>{doneToday} / {totalCards} THẺ</Text>
         </View>
 
-        <TouchableOpacity
+        <AnimatedButton
           style={[styles.primaryBtn, totalDue === 0 && styles.primaryBtnDisabled]}
           onPress={() => {
-            triggerHaptic('medium');
             const firstDue = decks.find(d => (d.dueCount || 0) > 0) || decks[0];
             if (firstDue) router.push(`/study/${firstDue.id}`);
           }}
           disabled={totalDue === 0 && decks.length === 0}
-          activeOpacity={0.8}
+          hapticType="medium"
+          activeScale={0.97}
         >
           <Ionicons name={totalDue > 0 ? "play" : "checkmark-circle"} size={17} color="#F3F4F6" style={{ marginRight: 6 }} />
           <Text style={styles.primaryBtnText}>
-            {totalDue > 0 ? 'START STUDY SESSION' : totalCards > 0 ? 'ALL REVIEWS COMPLETED' : 'CREATE DECK TO START'}
+            {totalDue > 0 ? 'BẮT ĐẦU HỌC NGAY' : totalCards > 0 ? 'ĐÃ HOÀN THÀNH TẤT CẢ' : 'TẠO BỘ THẺ ĐỂ BẮT ĐẦU'}
           </Text>
-        </TouchableOpacity>
+        </AnimatedButton>
       </View>
 
-      {/* Linear Grid Metrics */}
+      {/* Linear Grid Metrics (100% Vietnamese) */}
       <View style={styles.metricsGroup}>
         <View style={styles.metricCol}>
           <Text style={styles.metricValue}>{totalDue}</Text>
-          <Text style={styles.metricLabel}>DUE TODAY</Text>
+          <Text style={styles.metricLabel}>CẦN ÔN</Text>
         </View>
         <View style={styles.metricSeparator} />
         <View style={styles.metricCol}>
           <Text style={styles.metricValue}>{totalNew}</Text>
-          <Text style={styles.metricLabel}>NEW CARDS</Text>
+          <Text style={styles.metricLabel}>THẺ MỚI</Text>
         </View>
         <View style={styles.metricSeparator} />
         <View style={styles.metricCol}>
           <Text style={[styles.metricValue, { color: Colors.neon.emerald }]}>{doneToday}</Text>
-          <Text style={styles.metricLabel}>COMPLETED</Text>
+          <Text style={styles.metricLabel}>ĐÃ THUỘC</Text>
         </View>
       </View>
 
       {/* Decks Section Header */}
       <View style={styles.sectionHeader}>
-        <SectionTitle style={{ marginBottom: 0, marginTop: 0, marginLeft: 0 }}>DECK COLLECTIONS</SectionTitle>
+        <SectionTitle style={{ marginBottom: 0, marginTop: 0, marginLeft: 0 }}>BỘ THẺ LƯU TRỮ</SectionTitle>
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('selection');
             router.push('/decks' as any);
           }}
         >
-          <Text style={styles.sectionLink}>View All ›</Text>
+          <Text style={styles.sectionLink}>Xem tất cả ›</Text>
         </TouchableOpacity>
       </View>
 
@@ -265,18 +267,18 @@ export default function DashboardScreen() {
         <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 30 }} />
       ) : decks.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Ionicons name="journal-outline" size={36} color={Colors.accent.gray2} style={{ marginBottom: Spacing.sm }} />
-          <Text style={styles.emptyTitle}>No Collections Found</Text>
-          <Text style={styles.emptySub}>Create your first vocabulary deck to start studying</Text>
-          <TouchableOpacity
+          <Ionicons name="journal-outline" size={36} color={Colors.text.secondary} style={{ marginBottom: Spacing.sm }} />
+          <Text style={styles.emptyTitle}>Chưa có bộ thẻ nào</Text>
+          <Text style={styles.emptySub}>Tạo bộ thẻ đầu tiên để bắt đầu lưu từ vựng Tiếng Trung</Text>
+          <AnimatedButton
             style={styles.emptyBtn}
             onPress={() => {
-              triggerHaptic('medium');
               router.push('/decks' as any);
             }}
+            hapticType="medium"
           >
-            <Text style={styles.emptyBtnText}>+ CREATE NEW DECK</Text>
-          </TouchableOpacity>
+            <Text style={styles.emptyBtnText}>+ TẠO BỘ THẺ MỚI</Text>
+          </AnimatedButton>
         </View>
       ) : (
         <View style={styles.decksGroup}>
@@ -300,14 +302,14 @@ export default function DashboardScreen() {
                   </View>
                   <View style={styles.deckMeta}>
                     <Text style={styles.deckName} numberOfLines={1}>{deck.name}</Text>
-                    <Text style={styles.deckSub}>{total} cards  •  {pct}% mastered</Text>
+                    <Text style={styles.deckSub}>{total} thẻ  •  {pct}% thuộc</Text>
                   </View>
                   {due > 0 ? (
                     <View style={styles.dueBadge}>
-                      <Text style={styles.dueBadgeText}>{due} DUE</Text>
+                      <Text style={styles.dueBadgeText}>{due} ÔN</Text>
                     </View>
                   ) : (
-                    <Text style={styles.doneText}>COMPLETED</Text>
+                    <Text style={styles.doneText}>HOÀN THÀNH</Text>
                   )}
                   <Ionicons name="chevron-forward" size={15} color={Colors.accent.gray3} style={{ marginLeft: 6 }} />
                 </TouchableOpacity>
@@ -391,7 +393,7 @@ const styles = StyleSheet.create({
   avatarBtn: {
     width: 36,
     height: 36,
-    borderRadius: Radii.card,
+    borderRadius: 18,                   // Perfect Circle for 1-char avatar
     backgroundColor: Colors.bg.secondary,
     borderWidth: 1,
     borderColor: Colors.border.default,
@@ -581,7 +583,7 @@ const styles = StyleSheet.create({
   },
   dueBadgeText: {
     fontSize: Typography.text.caption2.fontSize,
-    color: Colors.neon.cyan,
+    color: Colors.accent.indigoLight,
     fontWeight: Typography.weight.bold,
     letterSpacing: 0.5,
   },

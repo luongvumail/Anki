@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   ActivityIndicator, Alert,
@@ -13,7 +13,8 @@ import { Colors, Typography, Spacing, Radii, VECTOR_DECK_ICONS, triggerHaptic } 
 export default function DeckDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { decks, cards, fetchCards, deleteCard, isLoading } = useStore();
+  const { decks, cards, fetchCards, deleteCard, resetDeckProgress, isLoading } = useStore();
+  const [resetting, setResetting] = useState(false);
   const deck = decks.find(d => d.id === id);
   const deckCards = cards[id] || [];
 
@@ -32,6 +33,35 @@ export default function DeckDetailScreen() {
         },
       },
     ]);
+  };
+
+  const handleResetProgress = () => {
+    triggerHaptic('warning');
+    Alert.alert(
+      'Reset tiến độ?',
+      `Toàn bộ tiến độ SRS của bộ thẻ “${deck?.name}” sẽ về 0.\nTừ vựng vẫn được giữ nguyên.`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Reset tiến độ',
+          style: 'destructive',
+          onPress: async () => {
+            triggerHaptic('error');
+            setResetting(true);
+            try {
+              await resetDeckProgress(id);
+              triggerHaptic('success');
+              Alert.alert('Đã reset', 'Tiến độ học đã được đưa về 0. Bạn có thể bắt đầu học lại từ đầu.');
+            } catch (e: any) {
+              triggerHaptic('error');
+              Alert.alert('Lỗi', e.message || 'Không thể reset tiến độ.');
+            } finally {
+              setResetting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderVectorIcon = (iconName: string, size = 22, color = Colors.accent.blue) => {
@@ -93,6 +123,22 @@ export default function DeckDetailScreen() {
       >
         <Ionicons name="play" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
         <Text style={styles.studyBtnText}>Bắt đầu ôn tập ({dueCards.length} thẻ)</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.resetBtn, resetting && styles.resetBtnDisabled]}
+        onPress={handleResetProgress}
+        disabled={resetting}
+        activeOpacity={0.8}
+      >
+        {resetting ? (
+          <ActivityIndicator size="small" color={Colors.neon.coral} />
+        ) : (
+          <>
+            <Ionicons name="refresh-outline" size={15} color={Colors.neon.coral} style={{ marginRight: 6 }} />
+            <Text style={styles.resetBtnText}>Reset Tiến Độ Học</Text>
+          </>
+        )}
       </TouchableOpacity>
 
       {/* Card list */}
@@ -195,6 +241,28 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: Typography.weight.semibold,
     fontSize: Typography.text.body.fontSize,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
+  resetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: Spacing.pageMargin,
+    borderRadius: Radii.card,
+    height: 40,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.neon.coral + '50',
+    backgroundColor: Colors.neon.coral + '10',
+  },
+  resetBtnDisabled: { opacity: 0.5 },
+  resetBtnText: {
+    color: Colors.neon.coral,
+    fontWeight: Typography.weight.semibold,
+    fontSize: Typography.text.footnote.fontSize,
+    letterSpacing: 0.5,
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,

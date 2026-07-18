@@ -39,9 +39,9 @@ export function calculateSRS(
   if (easeFactor < 1.3) easeFactor = 1.3;
 
   if (grade < 3) {
-    // Failed — reset streak, review tomorrow
+    // Failed — reset streak, ôn lại ngay trong buổi (interval = 0 = due now)
     repetitions = 0;
-    interval = 1;
+    interval = 0;
   } else {
     // Passed
     if (repetitions === 0) {

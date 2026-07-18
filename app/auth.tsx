@@ -20,6 +20,7 @@ import {
   sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import { getAuthErrorMessage } from "../lib/errorHandler";
 import {
   Colors,
   Typography,
@@ -38,45 +39,35 @@ export default function AuthScreen() {
   const [resettingPassword, setResettingPassword] = useState(false);
 
   const handleSubmit = async () => {
-    if (!email || !password) {
+    if (!email.trim() || !password) {
       triggerHaptic("warning");
-      Alert.alert("Thông báo", "Vui lòng nhập email và mật khẩu");
+      Alert.alert("Thông báo", "Vui lòng nhập địa chỉ email và mật khẩu.");
       return;
     }
     setLoading(true);
     triggerHaptic("medium");
     try {
       if (mode === "login") {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, email.trim(), password);
         triggerHaptic("success");
       } else {
-        if (!name) {
+        if (!name.trim()) {
           triggerHaptic("warning");
-          Alert.alert("Thông báo", "Vui lòng nhập họ tên");
+          Alert.alert("Thông báo", "Vui lòng nhập họ tên của bạn.");
           setLoading(false);
           return;
         }
         const cred = await createUserWithEmailAndPassword(
           auth,
-          email,
+          email.trim(),
           password,
         );
-        await updateProfile(cred.user, { displayName: name });
+        await updateProfile(cred.user, { displayName: name.trim() });
         triggerHaptic("success");
       }
     } catch (e: any) {
       triggerHaptic("error");
-      const msg =
-        e.code === "auth/user-not-found"
-          ? "Không tìm thấy tài khoản"
-          : e.code === "auth/wrong-password"
-            ? "Mật khẩu không đúng"
-            : e.code === "auth/email-already-in-use"
-              ? "Email đã được sử dụng"
-              : e.code === "auth/weak-password"
-                ? "Mật khẩu cần ít nhất 6 ký tự"
-                : `Lỗi (${e.code || "unknown"}): ${e.message || "Vui lòng kiểm tra lại"}`;
-      Alert.alert("Lỗi xác thực", msg);
+      Alert.alert("Lỗi xác thực", getAuthErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -102,13 +93,7 @@ export default function AuthScreen() {
       );
     } catch (e: any) {
       triggerHaptic("error");
-      const msg =
-        e.code === "auth/user-not-found"
-          ? "Không tìm thấy tài khoản với email này."
-          : e.code === "auth/invalid-email"
-            ? "Địa chỉ email không hợp lệ."
-            : e.message;
-      Alert.alert("Không thể gửi email", msg);
+      Alert.alert("Không thể gửi email", getAuthErrorMessage(e));
     } finally {
       setResettingPassword(false);
     }
@@ -140,17 +125,17 @@ export default function AuthScreen() {
           <View style={styles.appIconBox}>
             <Ionicons
               name="journal-outline"
-              size={32}
-              color={Colors.accent.blue}
+              size={30}
+              color={Colors.accent.indigoLight}
             />
           </View>
-          <Text style={styles.appName}>HanViet Anki</Text>
+          <Text style={styles.appName}>Anki</Text>
           <Text style={styles.tagline}>
-            Ghi nhớ từ vựng Tiếng Trung thông minh
+            INTELLIGENT CHINESE FLASHCARD SYSTEM
           </Text>
         </View>
 
-        {/* iOS Segmented Control */}
+        {/* Linear Segmented Control */}
         <View style={styles.segmentedControl}>
           <TouchableOpacity
             style={[
@@ -166,7 +151,7 @@ export default function AuthScreen() {
                 mode === "login" && styles.segmentTextActive,
               ]}
             >
-              Đăng nhập
+              SIGN IN
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -183,7 +168,7 @@ export default function AuthScreen() {
                 mode === "register" && styles.segmentTextActive,
               ]}
             >
-              Tạo tài khoản
+              CREATE ACCOUNT
             </Text>
           </TouchableOpacity>
         </View>
@@ -242,7 +227,7 @@ export default function AuthScreen() {
             activeOpacity={0.7}
           >
             {resettingPassword ? (
-              <ActivityIndicator size="small" color={Colors.accent.blue} />
+              <ActivityIndicator size="small" color={Colors.accent.indigoLight} />
             ) : (
               <Text style={styles.forgotBtnText}>Quên mật khẩu?</Text>
             )}
@@ -257,10 +242,10 @@ export default function AuthScreen() {
           activeOpacity={0.85}
         >
           {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color="#F3F4F6" />
           ) : (
             <Text style={styles.actionBtnText}>
-              {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
+              {mode === "login" ? "CONTINUE TO ANKI" : "REGISTER ACCOUNT"}
             </Text>
           )}
         </TouchableOpacity>
@@ -279,14 +264,14 @@ const styles = StyleSheet.create({
 
   header: { alignItems: "center", marginBottom: Spacing.xxl },
   appIconBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+    width: 60,
+    height: 60,
+    borderRadius: Radii.card,
     backgroundColor: Colors.bg.secondary,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 0.5,
-    borderColor: Colors.border.separator,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
     marginBottom: Spacing.md,
   },
   appName: {
@@ -294,44 +279,52 @@ const styles = StyleSheet.create({
     lineHeight: Typography.text.title1.lineHeight,
     fontWeight: Typography.weight.bold,
     color: Colors.text.primary,
+    letterSpacing: 0.5,
   },
   tagline: {
-    fontSize: Typography.text.subhead.fontSize,
-    lineHeight: Typography.text.subhead.lineHeight,
+    fontSize: Typography.text.caption2.fontSize,
+    lineHeight: Typography.text.caption2.lineHeight,
     color: Colors.text.secondary,
     textAlign: "center",
     marginTop: Spacing.xs,
+    letterSpacing: 1.2,
+    fontWeight: Typography.weight.semibold,
   },
 
   // Segmented Control
   segmentedControl: {
     flexDirection: "row",
     backgroundColor: Colors.bg.secondary,
-    borderRadius: 9,
-    padding: 2,
+    borderRadius: Radii.card,
+    padding: 3,
     marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   segmentBtn: {
     flex: 1,
     height: 34,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 7,
+    borderRadius: Radii.sm,
   },
   segmentBtnActive: {
-    backgroundColor: Colors.accent.gray4,
+    backgroundColor: Colors.bg.tertiary,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   segmentText: {
-    fontSize: Typography.text.footnote.fontSize,
+    fontSize: Typography.text.caption2.fontSize,
     color: Colors.text.secondary,
-    fontWeight: Typography.weight.medium,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: 0.8,
     textAlign: "center",
     textAlignVertical: "center",
     includeFontPadding: false,
   },
   segmentTextActive: {
     color: Colors.text.primary,
-    fontWeight: Typography.weight.semibold,
+    fontWeight: Typography.weight.bold,
   },
 
   // Inset Grouped Form
@@ -340,6 +333,8 @@ const styles = StyleSheet.create({
     borderRadius: Radii.card,
     overflow: "hidden",
     marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
   formRow: {
     flexDirection: "row",
@@ -349,7 +344,7 @@ const styles = StyleSheet.create({
     minHeight: Spacing.cellMinHeight,
   },
   rowBorderTop: {
-    borderTopWidth: 0.5,
+    borderTopWidth: 1,
     borderTopColor: Colors.border.separator,
   },
   fieldLabel: {
@@ -372,33 +367,29 @@ const styles = StyleSheet.create({
   },
   forgotBtnText: {
     fontSize: Typography.text.footnote.fontSize,
-    color: Colors.accent.blue,
+    color: Colors.accent.indigoLight,
     fontWeight: Typography.weight.medium,
   },
 
   actionBtn: {
-    backgroundColor: Colors.accent.blue,
+    backgroundColor: Colors.accent.indigo,
     borderRadius: Radii.card,
     height: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     marginTop: Spacing.xs,
+    borderWidth: 1,
+    borderColor: Colors.accent.indigoLight,
   },
   btnDisabled: { opacity: 0.6 },
   actionBtnText: {
-    color: "#FFFFFF",
-    fontSize: Typography.text.body.fontSize,
-    fontWeight: Typography.weight.semibold,
+    color: "#F3F4F6",
+    fontSize: Typography.text.footnote.fontSize,
+    fontWeight: Typography.weight.bold,
+    letterSpacing: 1,
     textAlign: "center",
     textAlignVertical: "center",
     includeFontPadding: false,
-  },
-
-  footerNote: {
-    fontSize: Typography.text.footnote.fontSize,
-    color: Colors.text.secondary,
-    textAlign: "center",
-    marginTop: Spacing.xxl,
   },
 });

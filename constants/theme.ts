@@ -1,58 +1,70 @@
-// Design tokens for HanViet app
-// Authentic Apple iOS Human Interface Guidelines (HIG) Dark Theme & Vector Icon Tokens
+// Design tokens for Anki app
+// Authentic Linear.app Dark Aesthetic System & Eye-Care Anti-Halo Chinese Typography
 
 import * as Haptics from 'expo-haptics';
 
 export const Colors = {
-  // Pure Apple Dark Backgrounds
+  // Authentic Linear.app Surface Hierarchy
   bg: {
-    primary: '#000000',                  // Pure Black Primary Background
-    secondary: '#1C1C1E',                // Grouped Inset Background
-    tertiary: '#2C2C2E',                 // Elevated Cell / Input Background
-    quaternary: '#3A3A3C',               // Hover / Pressed Surface
-    glass: 'rgba(28, 28, 30, 0.90)',     // iOS Translucent Glass Bar
-    overlay: 'rgba(0, 0, 0, 0.70)',       // Sheet Modal Backdrop Overlay
+    primary: '#08090C',                  // Linear Obsidian Main Canvas
+    secondary: '#121318',                // Linear Panel / Container Surface
+    tertiary: '#1A1C23',                 // Linear Input / Elevated Surface
+    quaternary: '#222530',               // Hover / Pressed Surface
+    card: '#000000',                     // Pure Jet-Black Card Body (High Depth Contrast)
+    glass: 'rgba(18, 19, 24, 0.92)',     // Linear Translucent Navigation Bar
+    overlay: 'rgba(8, 9, 12, 0.85)',     // Modal Backdrop Overlay
   },
 
-  // Single Apple System Accent & Neutral Grays
+  // Linear.app Brand Accents & Soft Neon Palette
   accent: {
-    blue: '#0A84FF',                     // Apple System Blue (Single App Accent)
-    blueDim: 'rgba(10, 132, 255, 0.15)',
-    gray: '#8E8E93',                     // System Gray
-    gray2: '#636366',                    // System Gray 2
-    gray3: '#48484A',                    // System Gray 3
-    gray4: '#3A3A3C',                    // System Gray 4
-    gray5: '#2C2C2E',                    // System Gray 5
-    gray6: '#1C1C1E',                    // System Gray 6
+    indigo: '#5E6AD2',                   // Linear Signature Indigo / Violet Accent
+    indigoLight: '#707CE6',              // Linear Active Indigo Glow
+    indigoDim: 'rgba(94, 106, 210, 0.18)',
+    blue: '#22D3EE',                     // Electric Cyan
+    blueDim: 'rgba(34, 211, 238, 0.15)',
+    gray: '#8B949E',                     // Linear Slate Gray
+    gray2: '#6E7681',                    // Linear Muted Gray
+    gray3: '#484F58',                    // Linear Dark Gray
+    gray4: '#30363D',                    // Linear Border Gray 4
+    gray5: '#1A1C23',                    // Linear Cell Gray 5
+    gray6: '#121318',                    // Linear Panel Gray 6
   },
 
-  // Restrained SRS Status Colors
+  // Soft Neon Color Palette (Pinyin Tones & SRS Memory States)
+  neon: {
+    cyan: '#22D3EE',                     // Tone 1 / Easy - Electric Cyan
+    emerald: '#34D399',                  // Tone 2 / Good - Emerald Green
+    purple: '#C084FC',                   // Tone 3 / Hard - Soft Purple
+    coral: '#FB7185',                    // Tone 4 / Again - Neon Coral
+  },
+
+  // SRS Status Colors (Matching Soft Neon Palette)
   srs: {
-    again: '#FF453A',                    // System Red
-    hard: '#FF9F0A',                     // System Orange
-    good: '#30D158',                     // System Green
-    easy: '#0A84FF',                     // System Blue
+    again: '#FB7185',                    // Neon Coral (Quên)
+    hard: '#C084FC',                     // Soft Purple (Khó)
+    good: '#34D399',                     // Emerald Green (Đã nhớ)
+    easy: '#22D3EE',                     // Electric Cyan (Dễ / Thuộc)
   },
 
-  // Apple System Text Labels
+  // Eye-Care Anti-Halo Chinese Typography Labels
   text: {
-    primary: '#FFFFFF',                  // Primary Label
-    secondary: '#8E8E93',                // Secondary Label
-    tertiary: '#636366',                 // Tertiary Label
-    quaternary: '#48484A',               // Quaternary Label
-    inverse: '#000000',
+    primary: '#F3F4F6',                  // Milk White (Anti-glare / Anti-halo for intricate Hanzi)
+    secondary: '#8B949E',                // Linear Slate Gray
+    tertiary: '#6E7681',                 // Muted Label
+    quaternary: '#484F58',               // Faded Label
+    inverse: '#08090C',
   },
 
-  // Hairline Separators & Borders
+  // Crisp Linear 1px Stroked Borders
   border: {
-    separator: '#38383A',                // 0.5px Hairline Divider
-    default: '#2C2C2E',
-    strong: '#38383A',
-    active: '#0A84FF',
+    separator: '#1F212B',                // Linear Subtle Separator
+    default: '#232530',                  // Linear Panel 1px Border Stroke
+    strong: '#303648',
+    active: '#707CE6',                   // Active Indigo Border
   },
 };
 
-// SF Typography Metrics with Explicit Line Heights
+// SF & Linear Technical Typography Metrics with Explicit Line Heights
 export const Typography = {
   hanzi: {
     xl: 88,
@@ -71,7 +83,7 @@ export const Typography = {
     title3: { fontSize: 20, lineHeight: 25 },
     title2: { fontSize: 22, lineHeight: 28 },
     title1: { fontSize: 28, lineHeight: 34 },
-    largeTitle: { fontSize: 34, lineHeight: 41 },
+    largeTitle: { fontSize: 32, lineHeight: 38 },
   },
   weight: {
     regular: '400' as const,
@@ -81,7 +93,7 @@ export const Typography = {
   },
 };
 
-// Apple Vector Deck Icon Presets (Ionicons)
+// Vector Deck Icon Presets (Ionicons)
 export const VECTOR_DECK_ICONS = [
   'book-outline',
   'language-outline',
@@ -97,7 +109,7 @@ export const VECTOR_DECK_ICONS = [
   'shapes-outline',
 ];
 
-// Apple HIG Geometry & Spacing Constants
+// Linear Geometry & Spacing Constants
 export const Spacing = {
   pageMargin: 16,
   cellHorizontal: 16,
@@ -115,12 +127,12 @@ export const Spacing = {
 };
 
 export const Radii = {
-  xs: 6,
-  sm: 8,
-  icon: 8,                               // SF Symbol Tile Radius
-  card: 12,                              // iOS Inset Group Card Radius
-  lg: 12,
-  xl: 16,
+  xs: 4,
+  sm: 6,
+  icon: 8,
+  card: 10,                              // Linear Panel Corner Radius
+  lg: 10,
+  xl: 14,
   full: 9999,
 };
 

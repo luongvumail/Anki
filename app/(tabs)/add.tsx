@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useStore } from "../../store/useStore";
 import { generateCardData, CardData } from "../../lib/gemini";
 import { DEFAULT_SRS_STATE } from "../../lib/srs";
+import { getGeminiErrorMessage, getFirestoreErrorMessage } from "../../lib/errorHandler";
 import {
   Colors,
   Typography,
@@ -108,11 +109,7 @@ export default function AddCardScreen() {
       setCardData(data);
     } catch (e: any) {
       triggerHaptic("error");
-      Alert.alert(
-        "Lỗi AI",
-        "Không thể tạo thông tin từ. Vui lòng kiểm tra kết nối mạng hoặc API Key.\n\n" +
-          e.message,
-      );
+      Alert.alert("Thông báo AI", getGeminiErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -172,7 +169,7 @@ export default function AddCardScreen() {
       setExistingCardId(null);
     } catch (e: any) {
       triggerHaptic("error");
-      Alert.alert("Lỗi", e.message);
+      Alert.alert("Lỗi lưu thẻ", getFirestoreErrorMessage(e));
     } finally {
       setSaving(false);
     }

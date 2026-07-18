@@ -67,6 +67,7 @@ interface AppState {
   updateCard: (cardId: string, deckId: string, updates: Partial<Card>) => Promise<void>;
   deleteCard: (cardId: string, deckId: string) => Promise<void>;
   gradeCard: (card: Card, grade: SRSGrade) => Promise<void>;
+  resetDeckProgress: (deckId: string) => Promise<void>;
   findExistingCard: (character: string, deckId?: string) => Card | undefined;
 
   // Study session
@@ -149,8 +150,20 @@ export const useStore = create<AppState>((set, get) => ({
 
   deleteDeck: async (deckId) => {
     const uid = getUserId();
+    // Cascade delete: xoá hết cards con trước
+    try {
+      const snap = await getDocs(cardsRef(uid, deckId));
+      const deletions = snap.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(deletions);
+    } catch (e) {
+      console.warn('[deleteDeck] Could not cascade delete cards:', e);
+    }
+    // Xoá deck document
     await deleteDoc(doc(decksRef(uid), deckId));
-    set(s => ({ decks: s.decks.filter(d => d.id !== deckId) }));
+    set(s => ({
+      decks: s.decks.filter(d => d.id !== deckId),
+      cards: Object.fromEntries(Object.entries(s.cards).filter(([k]) => k !== deckId)),
+    }));
   },
 
   cards: {},
@@ -223,6 +236,22 @@ export const useStore = create<AppState>((set, get) => ({
   gradeCard: async (card, grade) => {
     const newSRS = calculateSRS(grade, card.srs);
     await get().updateCard(card.id, card.deckId, { srs: newSRS });
+  },
+
+  resetDeckProgress: async (deckId) => {
+    const uid = getUserId();
+    const snap = await getDocs(cardsRef(uid, deckId));
+    const now = new Date().toISOString();
+    const resets = snap.docs.map(d =>
+      updateDoc(d.ref, { srs: DEFAULT_SRS_STATE, updatedAt: now })
+    );
+    await Promise.all(resets);
+    set(s => ({
+      cards: {
+        ...s.cards,
+        [deckId]: (s.cards[deckId] || []).map(c => ({ ...c, srs: DEFAULT_SRS_STATE, updatedAt: now })),
+      },
+    }));
   },
 
   findExistingCard: (character, deckId) => {

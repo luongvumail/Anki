@@ -96,7 +96,7 @@ export default function StatsScreen() {
     }
   }
 
-  const renderVectorIcon = (iconName: string, size = 18, color = Colors.accent.blue) => {
+  const renderVectorIcon = (iconName: string, size = 18, color = Colors.neon.cyan) => {
     const validIcons = VECTOR_DECK_ICONS;
     const icon = validIcons.includes(iconName) ? (iconName as any) : 'book-outline';
     return <Ionicons name={icon} size={size} color={color} />;
@@ -133,7 +133,7 @@ export default function StatsScreen() {
           <Text style={styles.heroSub}>{totalMastered} / {totalCards} từ vựng đã thuộc vĩnh viễn</Text>
         </View>
         <View style={styles.heroIconBox}>
-          <Ionicons name="checkmark-circle-outline" size={32} color={Colors.accent.blue} />
+          <Ionicons name="checkmark-circle-outline" size={32} color={Colors.neon.cyan} />
         </View>
       </View>
 
@@ -157,12 +157,12 @@ export default function StatsScreen() {
               day.count >= 1 ? 1 : 0;
 
             const activeColor =
-              level > 0 ? Colors.accent.blue : Colors.accent.gray5;
+              level > 0 ? Colors.neon.emerald : Colors.bg.tertiary;
 
             return (
               <View key={day.dateStr} style={styles.heatmapCol}>
                 <View style={[styles.heatmapSquare, { backgroundColor: activeColor }, day.isToday && styles.todaySquare]}>
-                  {day.count > 0 ? <Ionicons name="checkmark" size={12} color="#FFFFFF" /> : null}
+                  {day.count > 0 ? <Ionicons name="checkmark" size={12} color="#0D0E12" /> : null}
                 </View>
                 <Text style={[styles.heatmapDayText, day.isToday && styles.todayText]}>{day.dayName}</Text>
                 <Text style={styles.heatmapCountText}>{day.count > 0 ? `${day.count}` : '-'}</Text>
@@ -175,10 +175,10 @@ export default function StatsScreen() {
       {/* 2x2 Metric Grid Cards */}
       <Text style={styles.sectionHeaderTitle}>TỔNG QUAN THÔNG SỐ</Text>
       <View style={styles.grid}>
-        <MetricCard label="Tổng từ vựng" value={totalCards} icon="library-outline" />
-        <MetricCard label="Cần ôn hôm nay" value={totalDue} icon="time-outline" />
-        <MetricCard label="Thuộc dài hạn" value={totalMastered} icon="checkmark-circle-outline" />
-        <MetricCard label="Đang học mới" value={totalLearning + totalNew} icon="book-outline" />
+        <MetricCard label="Tổng từ vựng" value={totalCards} icon="library-outline" color={Colors.neon.cyan} />
+        <MetricCard label="Cần ôn hôm nay" value={totalDue} icon="time-outline" color={Colors.neon.coral} />
+        <MetricCard label="Thuộc dài hạn" value={totalMastered} icon="checkmark-circle-outline" color={Colors.neon.emerald} />
+        <MetricCard label="Đang học mới" value={totalLearning + totalNew} icon="book-outline" color={Colors.neon.purple} />
       </View>
 
       {/* Per-deck progress breakdown */}
@@ -201,7 +201,7 @@ export default function StatsScreen() {
                 {idx > 0 && <View style={styles.cellDividerIndented} />}
                 <View style={styles.deckCell}>
                   <View style={styles.deckIconTile}>
-                    {renderVectorIcon(deck.icon, 18, Colors.accent.blue)}
+                    {renderVectorIcon(deck.icon, 18, Colors.neon.cyan)}
                   </View>
 
                   <View style={styles.deckMeta}>
@@ -228,7 +228,7 @@ export default function StatsScreen() {
       {/* SRS Tip */}
       <View style={[styles.insetCard, { marginTop: Spacing.lg }]}>
         <View style={styles.tipHeader}>
-          <Ionicons name="information-circle-outline" size={18} color={Colors.text.secondary} />
+          <Ionicons name="information-circle-outline" size={18} color={Colors.neon.cyan} />
           <Text style={styles.tipTitle}>Thuật toán Spaced Repetition (SM-2)</Text>
         </View>
         <Text style={styles.tipBody}>
@@ -239,12 +239,12 @@ export default function StatsScreen() {
   );
 }
 
-function MetricCard({ label, value, icon }: { label: string; value: number; icon: any }) {
+function MetricCard({ label, value, icon, color }: { label: string; value: number; icon: any; color?: string }) {
   return (
     <View style={styles.metricCard}>
       <View style={styles.metricTop}>
-        <Ionicons name={icon} size={18} color={Colors.text.secondary} />
-        <Text style={styles.metricValue}>{value}</Text>
+        <Ionicons name={icon} size={18} color={color || Colors.text.secondary} />
+        <Text style={[styles.metricValue, color ? { color } : {}]}>{value}</Text>
       </View>
       <Text style={styles.metricLabel}>{label}</Text>
     </View>
@@ -284,6 +284,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
+    borderWidth: 0.5,
+    borderColor: Colors.border.default,
   },
   heroLeft: { flex: 1 },
   heroSectionTitle: {
@@ -296,7 +298,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     lineHeight: 42,
     fontWeight: Typography.weight.bold,
-    color: Colors.text.primary,
+    color: Colors.neon.cyan,
     marginVertical: 2,
   },
   heroSub: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary },
@@ -304,9 +306,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.accent.gray5,
+    backgroundColor: Colors.bg.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 0.5,
+    borderColor: Colors.border.default,
   },
 
   // Heatmap Inset Card
@@ -314,6 +318,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
+    borderWidth: 0.5,
+    borderColor: Colors.border.default,
   },
   streakHeaderRow: {
     flexDirection: 'row',
@@ -327,14 +333,16 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
   },
   streakBadge: {
-    backgroundColor: Colors.accent.gray5,
+    backgroundColor: Colors.bg.tertiary,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 2,
+    borderWidth: 0.5,
+    borderColor: Colors.border.default,
   },
   streakBadgeText: {
     fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
+    color: Colors.neon.cyan,
     fontWeight: Typography.weight.medium,
   },
 
@@ -348,9 +356,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 4,
   },
-  todaySquare: { borderWidth: 2, borderColor: Colors.accent.blue },
+  todaySquare: { borderWidth: 2, borderColor: Colors.neon.cyan },
   heatmapDayText: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary },
-  todayText: { color: Colors.accent.blue, fontWeight: Typography.weight.bold },
+  todayText: { color: Colors.neon.cyan, fontWeight: Typography.weight.bold },
   heatmapCountText: { fontSize: 10, color: Colors.text.tertiary, marginTop: 2 },
 
   // Grid
@@ -360,6 +368,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
+    borderWidth: 0.5,
+    borderColor: Colors.border.default,
   },
   metricTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   metricValue: { fontSize: Typography.text.title2.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary },
@@ -370,6 +380,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: Colors.border.default,
   },
   deckCell: {
     flexDirection: 'row',
@@ -387,7 +399,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: Radii.icon,
-    backgroundColor: Colors.accent.gray5,
+    backgroundColor: Colors.bg.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -407,16 +419,16 @@ const styles = StyleSheet.create({
   deckPctText: {
     fontSize: Typography.text.footnote.fontSize,
     fontWeight: Typography.weight.bold,
-    color: Colors.accent.blue,
+    color: Colors.neon.cyan,
   },
   progressTrack: {
     height: 4,
-    backgroundColor: Colors.accent.gray5,
+    backgroundColor: Colors.bg.tertiary,
     borderRadius: 2,
     marginTop: 4,
     overflow: 'hidden',
   },
-  progressFill: { height: '100%', backgroundColor: Colors.accent.blue, borderRadius: 2 },
+  progressFill: { height: '100%', backgroundColor: Colors.neon.cyan, borderRadius: 2 },
   deckSubText: {
     fontSize: Typography.text.caption1.fontSize,
     color: Colors.text.secondary,

@@ -10,8 +10,8 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: Colors.accent.blue,
-        tabBarInactiveTintColor: Colors.accent.gray,
+        tabBarActiveTintColor: Colors.accent.indigoLight,
+        tabBarInactiveTintColor: Colors.text.tertiary,
         tabBarLabelStyle: styles.tabLabel,
         tabBarItemStyle: styles.tabItem,
       }}
@@ -21,7 +21,7 @@ export default function TabLayout() {
         options={{
           title: 'Hôm nay',
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'today' : 'today-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'today' : 'today-outline'} size={23} color={color} />
           ),
         }}
         listeners={{
@@ -33,7 +33,7 @@ export default function TabLayout() {
         options={{
           title: 'Bộ thẻ',
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'library' : 'library-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'library' : 'library-outline'} size={23} color={color} />
           ),
         }}
         listeners={{
@@ -45,7 +45,7 @@ export default function TabLayout() {
         options={{
           title: 'Thêm từ',
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'add-circle' : 'add-circle-outline'} size={25} color={color} />
+            <Ionicons name={focused ? 'add-circle' : 'add-circle-outline'} size={24} color={color} />
           ),
         }}
         listeners={{
@@ -57,7 +57,7 @@ export default function TabLayout() {
         options={{
           title: 'Thống kê',
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={23} color={color} />
           ),
         }}
         listeners={{
@@ -70,9 +70,9 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: Colors.bg.secondary,
-    borderTopColor: Colors.border.separator,
-    borderTopWidth: 0.5,
+    backgroundColor: Colors.bg.primary,   // Linear Obsidian Backdrop (#08090C)
+    borderTopColor: Colors.border.separator, // Crisp Linear 1px Divider (#1F212B)
+    borderTopWidth: 1,
     height: Platform.OS === 'ios' ? 84 : 64,
     paddingBottom: Platform.OS === 'ios' ? 24 : 8,
     paddingTop: 6,
@@ -85,9 +85,9 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   tabLabel: {
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: -0.1,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.2,
     marginTop: 2,
   },
 });

@@ -7,16 +7,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useStore } from '../../store/useStore';
+import { getFirestoreErrorMessage } from '../../lib/errorHandler';
 import { Colors, Typography, Spacing, Radii, VECTOR_DECK_ICONS, triggerHaptic } from '../../constants/theme';
 
 export default function DecksScreen() {
   const insets = useSafeAreaInsets();
-  const { decks, fetchDecks, createDeck, deleteDeck, isLoading, userId } = useStore();
+  const { decks, fetchDecks, createDeck, deleteDeck, resetDeckProgress, isLoading, userId } = useStore();
   const [showCreate, setShowCreate] = useState(false);
   const [deckName, setDeckName] = useState('');
   const [deckDesc, setDeckDesc] = useState('');
   const [selectedIcon, setSelectedIcon] = useState(VECTOR_DECK_ICONS[0]);
   const [creating, setCreating] = useState(false);
+  const [resettingDeckId, setResettingDeckId] = useState<string | null>(null);
 
   useEffect(() => {
     if (userId) fetchDecks();
@@ -37,25 +39,75 @@ export default function DecksScreen() {
       setDeckName(''); setDeckDesc('');
     } catch (e: any) {
       triggerHaptic('error');
-      Alert.alert('Lỗi', e.message);
+      Alert.alert('Lỗi lưu dữ liệu', getFirestoreErrorMessage(e));
     } finally {
       setCreating(false);
     }
   };
 
-  const handleDeleteDeck = (deck: any) => {
+  const handleLongPressDeck = (deck: any) => {
     triggerHaptic('warning');
-    Alert.alert('Xoá bộ thẻ', `Bạn có chắc chắn muốn xoá bộ thẻ "${deck.name}"?`, [
-      { text: 'Hủy', style: 'cancel' },
-      {
-        text: 'Xoá bộ thẻ',
-        style: 'destructive',
-        onPress: () => {
-          triggerHaptic('error');
-          deleteDeck(deck.id);
+    Alert.alert(
+      deck.name,
+      'Chọn thao tác cho bộ thẻ này:',
+      [
+        {
+          text: 'Học ngay',
+          onPress: () => {
+            triggerHaptic('light');
+            router.push(`/study/${deck.id}`);
+          },
         },
-      },
-    ]);
+        {
+          text: 'Reset tiến độ học ⚠️',
+          onPress: () => {
+            Alert.alert(
+              'Reset tiến độ?',
+              `Toàn bộ tiến độ SRS của bộ thẻ “${deck.name}” sẽ về 0. Từ vựng vẫn được giữ nguyên.`,
+              [
+                { text: 'Hủy', style: 'cancel' },
+                {
+                  text: 'Reset tiến độ',
+                  style: 'destructive',
+                  onPress: async () => {
+                    triggerHaptic('error');
+                    setResettingDeckId(deck.id);
+                    try {
+                      await resetDeckProgress(deck.id);
+                      triggerHaptic('success');
+                      Alert.alert('Đã reset', `Tiến độ học của bộ thẻ “${deck.name}” đã về 0.`);
+                    } catch (e: any) {
+                      triggerHaptic('error');
+                      Alert.alert('Lỗi', e.message || 'Không thể reset tiến độ.');
+                    } finally {
+                      setResettingDeckId(null);
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+        {
+          text: 'Xoá bộ thẻ 🗑️',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert('Xoá bộ thẻ', `Bạn có chắc chẫn muốn xoá bộ thẻ “${deck.name}” và toàn bộ từ vựng?`, [
+              { text: 'Hủy', style: 'cancel' },
+              {
+                text: 'Xoá',
+                style: 'destructive',
+                onPress: () => {
+                  triggerHaptic('error');
+                  deleteDeck(deck.id);
+                },
+              },
+            ]);
+          },
+        },
+        { text: 'Hủy', style: 'cancel' },
+      ]
+    );
   };
 
   const renderVectorIcon = (iconName: string, size = 18, color = Colors.accent.blue) => {
@@ -126,11 +178,14 @@ export default function DecksScreen() {
                       triggerHaptic('light');
                       router.push(`/deck/${deck.id}`);
                     }}
-                    onLongPress={() => handleDeleteDeck(deck)}
+                    onLongPress={() => handleLongPressDeck(deck)}
                     activeOpacity={0.7}
                   >
                     <View style={styles.deckIconTile}>
-                      {renderVectorIcon(deck.icon, 18, Colors.accent.blue)}
+                      {resettingDeckId === deck.id
+                        ? <ActivityIndicator size="small" color={Colors.accent.blue} />
+                        : renderVectorIcon(deck.icon, 18, Colors.accent.blue)
+                      }
                     </View>
 
                     <View style={styles.deckMeta}>

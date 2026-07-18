@@ -32,12 +32,15 @@ export default function AuthScreen() {
         await updateProfile(cred.user, { displayName: name });
       }
     } catch (e: any) {
+      console.error('Firebase Auth Error Details:', e);
       const msg = e.code === 'auth/user-not-found' ? 'Không tìm thấy tài khoản'
         : e.code === 'auth/wrong-password' ? 'Mật khẩu không đúng'
         : e.code === 'auth/email-already-in-use' ? 'Email đã được sử dụng'
         : e.code === 'auth/weak-password' ? 'Mật khẩu cần ít nhất 6 ký tự'
-        : 'Đã xảy ra lỗi. Vui lòng thử lại.';
-      Alert.alert('Lỗi', msg);
+        : e.code === 'auth/operation-not-allowed' ? 'Tính năng Email/Password chưa được bật trên Firebase Console'
+        : e.code === 'auth/invalid-api-key' ? 'API Key Firebase không hợp lệ trong file .env'
+        : `Lỗi (${e.code || 'unknown'}): ${e.message || 'Vui lòng kiểm tra lại cấu hình'}`;
+      Alert.alert('Lỗi đăng nhập/đăng ký', msg);
     } finally {
       setLoading(false);
     }

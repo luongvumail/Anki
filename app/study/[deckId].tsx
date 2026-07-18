@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     alignItems: 'center',
-    justify: 'center',
+    justifyContent: 'center',
   },
   cardFace: {
     position: 'absolute',

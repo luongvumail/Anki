@@ -135,12 +135,12 @@ export default function AddCardScreen() {
             placeholderTextColor={Colors.text.muted}
             value={input}
             onChangeText={setInput}
-            onSubmitEditing={handleGenerate}
+            onSubmitEditing={() => handleGenerate()}
             returnKeyType="search"
           />
           <TouchableOpacity
             style={[styles.genBtn, loading && styles.genBtnDisabled]}
-            onPress={handleGenerate}
+            onPress={() => handleGenerate()}
             disabled={loading || !input.trim() || !selectedDeckId}
           >
             {loading
@@ -165,7 +165,7 @@ export default function AddCardScreen() {
 
             {/* Quick Action Bar at the top */}
             <View style={styles.actionRowTop}>
-              <TouchableOpacity style={styles.regenerateBtn} onPress={handleGenerate}>
+              <TouchableOpacity style={styles.regenerateBtn} onPress={() => handleGenerate(true)}>
                 <Text style={styles.regenerateBtnText}>↻ Tạo lại</Text>
               </TouchableOpacity>
               <TouchableOpacity

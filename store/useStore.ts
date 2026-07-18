@@ -114,11 +114,17 @@ export const useStore = create<AppState>((set, get) => ({
     const uid = auth.currentUser?.uid;
     if (!uid) return;
     set({ isLoading: true });
+    console.log('[fetchDecks] Starting Firestore fetch for uid:', uid);
     try {
-      const snap = await getDocs(decksRef(uid));
-      const decks = snap.docs.map(d => ({ id: d.id, ...d.data() } as Deck));
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Firestore timeout — kiểm tra Firestore Database và Security Rules trên Firebase Console')), 10000)
+      );
+      const snap = await Promise.race([getDocs(decksRef(uid)), timeout]) as any;
+      const decks = snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Deck));
+      console.log('[fetchDecks] Success, got', decks.length, 'decks');
       set({ decks, isLoading: false });
     } catch (e: any) {
+      console.error('[fetchDecks] ERROR:', e.message || e);
       set({ error: e.message, isLoading: false });
     }
   },

@@ -3,6 +3,32 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(apiKey);
 
+// List of models to try in order if free quota/rate-limits occur
+const CANDIDATE_MODELS = [
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-pro',
+];
+
+async function generateWithFallback(prompt: string): Promise<string> {
+  let lastError: any = null;
+  for (const modelName of CANDIDATE_MODELS) {
+    try {
+      console.log(`[Gemini] Attempting generation with model: ${modelName}`);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      console.log(`[Gemini] Success using model: ${modelName}`);
+      return text;
+    } catch (err: any) {
+      console.warn(`[Gemini] Model ${modelName} failed (${err.message || err}), trying fallback...`);
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
+
 export interface CardData {
   character: string;
   traditional?: string;
@@ -25,8 +51,6 @@ export interface CardData {
  * Returns structured JSON with all fields needed for a flashcard.
  */
 export async function generateCardData(input: string): Promise<CardData> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
   const prompt = `Bạn là chuyên gia ngôn ngữ Hán-Việt. Hãy phân tích từ tiếng Trung: "${input}"
 
 Trả về JSON (CHỈ JSON, không kèm markdown hay giải thích):
@@ -54,14 +78,10 @@ Trả về JSON (CHỈ JSON, không kèm markdown hay giải thích):
   "tags": ["danh từ/động từ/tính từ/...", "chủ đề liên quan"]
 }`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim();
-
+  const text = (await generateWithFallback(prompt)).trim();
   // Strip markdown code fences if present
   const jsonText = text.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
-
-  const data = JSON.parse(jsonText) as CardData;
-  return data;
+  return JSON.parse(jsonText) as CardData;
 }
 
 /**
@@ -73,7 +93,6 @@ export async function generateQuizSentence(character: string, translation: strin
   answer: string;
   vietnamese: string;
 }> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
   const prompt = `Tạo 1 câu tiếng Trung có dùng từ "${character}" (nghĩa: ${translation}), trong đó thay thế từ đó bằng ___. 
 Trả về JSON:
 {
@@ -83,8 +102,7 @@ Trả về JSON:
   "vietnamese": "dịch nghĩa tiếng Việt"
 }`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim();
+  const text = (await generateWithFallback(prompt)).trim();
   const jsonText = text.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
   return JSON.parse(jsonText);
 }

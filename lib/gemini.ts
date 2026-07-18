@@ -1,17 +1,10 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
+const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 // List of models to try in order if free quota/rate-limits occur
-const CANDIDATE_MODELS = [
-  'gemini-3.5-flash',
-  'gemini-3.1-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-1.5-pro',
-];
+const CANDIDATE_MODELS = ["gemini-3.5-flash"];
 
 async function generateWithFallback(prompt: string): Promise<string> {
   let lastError: any = null;
@@ -24,7 +17,9 @@ async function generateWithFallback(prompt: string): Promise<string> {
       console.log(`[Gemini] Success using model: ${modelName}`);
       return text;
     } catch (err: any) {
-      console.warn(`[Gemini] Model ${modelName} failed (${err.message || err}), trying fallback...`);
+      console.warn(
+        `[Gemini] Model ${modelName} failed (${err.message || err}), trying fallback...`,
+      );
       lastError = err;
     }
   }
@@ -53,43 +48,43 @@ export interface CardData {
  * Returns structured JSON with all fields needed for a flashcard.
  */
 export async function generateCardData(input: string): Promise<CardData> {
-  const prompt = `Bạn là chuyên gia ngôn ngữ Hán-Việt. Hãy phân tích từ tiếng Trung: "${input}"
-
-Trả về JSON (CHỈ JSON, không kèm markdown hay giải thích):
+  const prompt = `Bạn là chuyên gia Hán-Việt. Phân tích từ tiếng Trung: "${input}"
+Trả về JSON (CHỈ JSON, không markdown):
 {
   "character": "chữ giản thể",
-  "traditional": "chữ phồn thể (nếu khác giản thể)",
-  "pinyin": "phiên âm đầy đủ có dấu thanh",
-  "hanviet": "âm Hán Việt tương ứng",
-  "translation": "nghĩa tiếng Việt ngắn gọn (tối đa 5 nghĩa, cách nhau bởi dấu phẩy)",
+  "traditional": "chữ phồn thể",
+  "pinyin": "phiên âm có dấu",
+  "hanviet": "âm Hán Việt",
+  "translation": "nghĩa ngắn gọn (tối đa 3 nghĩa)",
   "examples": [
     {
-      "chinese": "câu ví dụ 1 tiếng Trung",
-      "pinyin": "phiên âm câu ví dụ 1",
-      "vietnamese": "dịch nghĩa tiếng Việt"
-    },
-    {
-      "chinese": "câu ví dụ 2 tiếng Trung",
-      "pinyin": "phiên âm câu ví dụ 2",
-      "vietnamese": "dịch nghĩa tiếng Việt"
+      "chinese": "câu ví dụ ngắn",
+      "pinyin": "phiên âm câu ví dụ",
+      "vietnamese": "dịch nghĩa"
     }
   ],
-  "radical": "bộ thủ (nếu biết)",
-  "strokeCount": số nét (number),
-  "hskLevel": cấp độ HSK 1-6 (number hoặc null),
-  "tags": ["danh từ/động từ/tính từ/...", "chủ đề liên quan"]
+  "radical": "bộ thủ",
+  "strokeCount": 0,
+  "hskLevel": 1,
+  "tags": ["loại từ"]
 }`;
 
   const text = (await generateWithFallback(prompt)).trim();
   // Strip markdown code fences if present
-  const jsonText = text.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
+  const jsonText = text
+    .replace(/^```json?\s*/i, "")
+    .replace(/```\s*$/, "")
+    .trim();
   return JSON.parse(jsonText) as CardData;
 }
 
 /**
  * Generates a fill-in-the-blank quiz sentence for a given word.
  */
-export async function generateQuizSentence(character: string, translation: string): Promise<{
+export async function generateQuizSentence(
+  character: string,
+  translation: string,
+): Promise<{
   sentence: string;
   pinyin: string;
   answer: string;
@@ -105,6 +100,9 @@ Trả về JSON:
 }`;
 
   const text = (await generateWithFallback(prompt)).trim();
-  const jsonText = text.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
+  const jsonText = text
+    .replace(/^```json?\s*/i, "")
+    .replace(/```\s*$/, "")
+    .trim();
   return JSON.parse(jsonText);
 }

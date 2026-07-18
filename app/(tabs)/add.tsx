@@ -115,7 +115,25 @@ export default function AddCardScreen() {
 
         {cardData && (
           <View style={styles.preview}>
-            <Text style={styles.previewTitle}>Xem trước thẻ</Text>
+            <View style={styles.previewHeader}>
+              <Text style={styles.previewTitle}>Xem trước thẻ</Text>
+            </View>
+
+            {/* Quick Action Bar at the top */}
+            <View style={styles.actionRowTop}>
+              <TouchableOpacity style={styles.regenerateBtn} onPress={handleGenerate}>
+                <Text style={styles.regenerateBtnText}>↻ Tạo lại</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+                onPress={handleSave}
+                disabled={saving}
+              >
+                {saving
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.saveBtnText}>💾 Lưu thẻ ngay</Text>}
+              </TouchableOpacity>
+            </View>
 
             {/* Front of card */}
             <View style={styles.cardFront}>
@@ -130,9 +148,8 @@ export default function AddCardScreen() {
               <Row label="Pinyin" value={cardData.pinyin} valueStyle={styles.pinyin} />
               <Row label="Hán Việt" value={cardData.hanviet} valueStyle={styles.hanviet} />
               <Row label="Nghĩa" value={cardData.translation} />
-              {cardData.radical && <Row label="Bộ thủ" value={cardData.radical} />}
-              {cardData.hskLevel && <Row label="HSK" value={`Cấp ${cardData.hskLevel}`} />}
-              {cardData.strokeCount ? <Row label="Số nét" value={`${cardData.strokeCount} nét`} /> : null}
+              {cardData.radical ? <Row label="Bộ thủ" value={cardData.radical} /> : null}
+              {cardData.hskLevel ? <Row label="HSK" value={`Cấp ${cardData.hskLevel}`} /> : null}
 
               {cardData.examples && cardData.examples.length > 0 && (
                 <View style={styles.examples}>
@@ -146,21 +163,6 @@ export default function AddCardScreen() {
                   ))}
                 </View>
               )}
-            </View>
-
-            <View style={styles.actionRow}>
-              <TouchableOpacity style={styles.regenerateBtn} onPress={handleGenerate}>
-                <Text style={styles.regenerateBtnText}>↻ Tạo lại</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-                onPress={handleSave}
-                disabled={saving}
-              >
-                {saving
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={styles.saveBtnText}>💾 Lưu thẻ</Text>}
-              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -209,23 +211,24 @@ const styles = StyleSheet.create({
   loadingText: { color: Colors.text.secondary, marginTop: Spacing.md, textAlign: 'center' },
 
   preview: { backgroundColor: Colors.bg.card, borderRadius: Radii.xl, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border.subtle },
-  previewTitle: { fontSize: Typography.text.sm, color: Colors.text.secondary, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.border.subtle },
-  cardFront: { alignItems: 'center', paddingVertical: Spacing.xxl, backgroundColor: Colors.bg.elevated },
-  character: { fontSize: Typography.hanzi.xl, color: Colors.text.primary, fontWeight: Typography.weight.bold },
-  traditional: { fontSize: Typography.text.lg, color: Colors.text.secondary, marginTop: Spacing.sm },
+  previewHeader: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md },
+  previewTitle: { fontSize: Typography.text.xs, color: Colors.text.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  actionRowTop: { flexDirection: 'row', gap: Spacing.sm, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.border.subtle },
+  cardFront: { alignItems: 'center', paddingVertical: Spacing.xl, backgroundColor: Colors.bg.elevated },
+  character: { fontSize: Typography.hanzi.lg, color: Colors.text.primary, fontWeight: Typography.weight.bold },
+  traditional: { fontSize: Typography.text.md, color: Colors.text.secondary, marginTop: 2 },
   cardBack: { padding: Spacing.lg },
-  row: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.md },
+  row: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.sm },
   rowLabel: { fontSize: Typography.text.sm, color: Colors.text.muted, width: 72 },
   rowValue: { flex: 1, fontSize: Typography.text.md, color: Colors.text.primary },
   pinyin: { color: Colors.accent.purpleLight, fontWeight: Typography.weight.medium },
   hanviet: { color: Colors.accent.gold, fontWeight: Typography.weight.medium },
-  examples: { marginTop: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.border.subtle, paddingTop: Spacing.lg },
-  examplesTitle: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginBottom: Spacing.md },
-  exampleItem: { marginBottom: Spacing.lg, backgroundColor: Colors.bg.secondary, borderRadius: Radii.md, padding: Spacing.md },
-  exampleCn: { fontSize: Typography.text.lg, color: Colors.text.primary, fontWeight: Typography.weight.medium },
-  examplePy: { fontSize: Typography.text.sm, color: Colors.accent.purpleLight, marginTop: 4 },
-  exampleVi: { fontSize: Typography.text.sm, color: Colors.text.secondary, marginTop: 4 },
-  actionRow: { flexDirection: 'row', gap: Spacing.sm, padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.border.subtle },
+  examples: { marginTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.border.subtle, paddingTop: Spacing.md },
+  examplesTitle: { fontSize: Typography.text.xs, color: Colors.text.muted, marginBottom: Spacing.sm },
+  exampleItem: { marginBottom: Spacing.sm, backgroundColor: Colors.bg.secondary, borderRadius: Radii.md, padding: Spacing.md },
+  exampleCn: { fontSize: Typography.text.md, color: Colors.text.primary, fontWeight: Typography.weight.medium },
+  examplePy: { fontSize: Typography.text.xs, color: Colors.accent.purpleLight, marginTop: 2 },
+  exampleVi: { fontSize: Typography.text.xs, color: Colors.text.secondary, marginTop: 2 },
   regenerateBtn: {
     flex: 1, borderRadius: Radii.md, padding: Spacing.md, alignItems: 'center',
     borderWidth: 1, borderColor: Colors.border.default,

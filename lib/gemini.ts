@@ -11,7 +11,14 @@ async function generateWithFallback(prompt: string): Promise<string> {
   for (const modelName of CANDIDATE_MODELS) {
     try {
       console.log(`[Gemini] Attempting generation with model: ${modelName}`);
-      const model = genAI.getGenerativeModel({ model: modelName });
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          maxOutputTokens: 256,
+          temperature: 0.1,
+        },
+      });
       const result = await model.generateContent(prompt);
       const text = result.response.text();
       console.log(`[Gemini] Success using model: ${modelName}`);

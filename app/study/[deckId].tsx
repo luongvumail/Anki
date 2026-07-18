@@ -113,13 +113,17 @@ export default function StudyScreen() {
           return;
         }
 
-        // Swipe gestures (mapped to SM-2 Anki SRS grades)
+        // Swipe gestures (mapped to 3 SRS levels)
         if (absX > absY && absX > SWIPE_THRESHOLD) {
-          if (dx < 0) handleGrade(SRS_GRADES.AGAIN, 'left');   // 👈 Left = Again (Quên)
-          else handleGrade(SRS_GRADES.GOOD, 'right');          // 👉 Right = Good (Tốt)
+          if (dx < 0) handleGrade(SRS_GRADES.AGAIN, 'left');   // 👈 Left = Quên (Again)
+          else handleGrade(SRS_GRADES.GOOD, 'right');          // 👉 Right = Đã nhớ (Good)
         } else if (absY > absX && absY > SWIPE_THRESHOLD) {
-          if (dy < 0) handleGrade(SRS_GRADES.HARD, 'up');       // 👆 Up = Hard (Khó)
-          else handleGrade(SRS_GRADES.EASY, 'down');           // 👇 Down = Easy (Dễ)
+          if (dy < 0) handleGrade(SRS_GRADES.HARD, 'up');       // 👆 Up = Khó (Hard)
+          else {
+            // Spring back if swiping down
+            setActiveSwipeDirection(null);
+            Animated.spring(pan, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: true }).start();
+          }
         } else {
           // Spring back to center
           setActiveSwipeDirection(null);
@@ -220,7 +224,7 @@ export default function StudyScreen() {
 
       {/* Gesture hints guide */}
       <Text style={styles.gestureHintText}>
-        👈 Trái: Quên • 👆 Trên: Khó • 👉 Phải: Tốt • 👇 Dưới: Dễ
+        👈 Trái: Quên • 👆 Trên: Khó • 👉 Phải: Đã nhớ
       </Text>
 
       {/* Flashcard Area */}
@@ -237,17 +241,12 @@ export default function StudyScreen() {
           )}
           {activeSwipeDirection === 'right' && (
             <View style={[styles.swipeBadge, { backgroundColor: Colors.srs.good, right: 20, top: 20 }]}>
-              <Text style={styles.swipeBadgeText}>👉 TỐT</Text>
+              <Text style={styles.swipeBadgeText}>👉 ĐÃ NHỚ</Text>
             </View>
           )}
           {activeSwipeDirection === 'up' && (
             <View style={[styles.swipeBadge, { backgroundColor: Colors.srs.hard, top: 20, alignSelf: 'center' }]}>
               <Text style={styles.swipeBadgeText}>👆 KHÓ</Text>
-            </View>
-          )}
-          {activeSwipeDirection === 'down' && (
-            <View style={[styles.swipeBadge, { backgroundColor: Colors.srs.easy, bottom: 20, alignSelf: 'center' }]}>
-              <Text style={styles.swipeBadgeText}>👇 DỄ</Text>
             </View>
           )}
 
@@ -327,16 +326,10 @@ export default function StudyScreen() {
               onPress={() => handleGrade(SRS_GRADES.HARD, 'up')}
             />
             <SRSButton
-              label="Tốt (👉)"
+              label="Đã nhớ (👉)"
               sub={getIntervalLabel(SRS_GRADES.GOOD, currentCard.srs)}
               color={Colors.srs.good}
               onPress={() => handleGrade(SRS_GRADES.GOOD, 'right')}
-            />
-            <SRSButton
-              label="Dễ (👇)"
-              sub={getIntervalLabel(SRS_GRADES.EASY, currentCard.srs)}
-              color={Colors.srs.easy}
-              onPress={() => handleGrade(SRS_GRADES.EASY, 'down')}
             />
           </View>
         </View>

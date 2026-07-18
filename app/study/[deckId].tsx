@@ -69,14 +69,23 @@ export default function StudyScreen() {
     }).start(() => {
       // Advance to next card in session queue
       resetCardPosition();
-      useStore.setState(s => ({
-        session: s.session ? {
-          ...s.session,
-          currentIndex: s.session.currentIndex + 1,
-          reviewedCount: s.session.reviewedCount + 1,
-          correctCount: grade >= 3 ? s.session.correctCount + 1 : s.session.correctCount,
-        } : null,
-      }));
+      useStore.setState(s => {
+        if (!s.session) return { session: null };
+        const updatedQueue = [...s.session.queue];
+        // Anki Active Recall principle: Failed cards (AGAIN) are re-queued at the end of the session
+        if (grade === SRS_GRADES.AGAIN) {
+          updatedQueue.push(currentCard);
+        }
+        return {
+          session: {
+            ...s.session,
+            queue: updatedQueue,
+            currentIndex: s.session.currentIndex + 1,
+            reviewedCount: s.session.reviewedCount + 1,
+            correctCount: grade >= 3 ? s.session.correctCount + 1 : s.session.correctCount,
+          },
+        };
+      });
     });
   };
 

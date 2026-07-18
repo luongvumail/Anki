@@ -6,7 +6,7 @@ export interface Card {
   character: string;
   traditional?: string;
   pinyin: string;
-  anki: string;
+  hanviet: string;
   translation: string;
   examples: Array<{ chinese: string; pinyin: string; vietnamese: string }>;
   radical?: string;

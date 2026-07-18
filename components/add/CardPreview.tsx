@@ -1,5 +1,12 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Animated } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+  Animated,
+} from "react-native";
 import { CardData } from "../../lib/gemini";
 import { Colors, Typography, Spacing, Radii } from "../../constants/theme";
 import { SectionTitle } from "../ui/SectionTitle";

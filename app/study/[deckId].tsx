@@ -1,21 +1,28 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet, Animated,
-  Dimensions, ActivityIndicator, ScrollView, PanResponder,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import * as Speech from 'expo-speech';
-import { useStore } from '../../store/useStore';
-import { SRS_GRADES } from '../../lib/srs';
-import { getPinyinToneColor } from '../../lib/pinyinColor';
-import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
-import { ProgressBar } from '../../components/ui/ProgressBar';
-import { SRSButtons } from '../../components/study/SRSButtons';
-import { SessionDoneScreen } from '../../components/study/SessionDoneScreen';
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  ActivityIndicator,
+  ScrollView,
+  PanResponder,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import * as Speech from "expo-speech";
+import { useStore } from "../../store/useStore";
+import { SRS_GRADES } from "../../lib/srs";
+import { getPinyinToneColor } from "../../lib/pinyinColor";
+import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { ProgressBar } from "../../components/ui/ProgressBar";
+import { SRSButtons } from "../../components/study/SRSButtons";
+import { SessionDoneScreen } from "../../components/study/SessionDoneScreen";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 const CARD_WIDTH = width - Spacing.pageMargin * 2;
 const CARD_HEIGHT = height * 0.54;
 const SWIPE_THRESHOLD = 90;
@@ -27,13 +34,15 @@ export default function StudyScreen() {
 
   const [flipped, setFlipped] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [activeSwipeDirection, setActiveSwipeDirection] = useState<'left' | 'right' | 'up' | 'down' | null>(null);
+  const [activeSwipeDirection, setActiveSwipeDirection] = useState<
+    "left" | "right" | "up" | "down" | null
+  >(null);
 
   const slideAnim = useRef(new Animated.Value(0)).current; // 0 (front) -> 1 (revealed/expanded)
   const pan = useRef(new Animated.ValueXY()).current;
 
   // Computed values
-  const deck = decks.find(d => d.id === deckId);
+  const deck = decks.find((d) => d.id === deckId);
   const currentCard = session?.queue[session.currentIndex ?? 0];
   const isSessionDone = session && session.currentIndex >= session.queue.length;
   const progress = session ? session.currentIndex / Math.max(session.queue.length, 1) : 0;
@@ -42,19 +51,27 @@ export default function StudyScreen() {
   const flippedRef = useRef(flipped);
   const currentCardRef = useRef(currentCard);
   const sessionRef = useRef(session);
-  useEffect(() => { flippedRef.current = flipped; }, [flipped]);
-  useEffect(() => { currentCardRef.current = currentCard; }, [currentCard]);
-  useEffect(() => { sessionRef.current = session; }, [session]);
+  useEffect(() => {
+    flippedRef.current = flipped;
+  }, [flipped]);
+  useEffect(() => {
+    currentCardRef.current = currentCard;
+  }, [currentCard]);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   useEffect(() => {
     if (deckId) startSession(deckId);
-    return () => { Speech.stop(); };
+    return () => {
+      Speech.stop();
+    };
   }, [deckId]);
 
   // Apple / Duolingo Style Reveal (Smooth Slide Up & Spring Expand)
   const flipCard = () => {
     if (flipped) return;
-    triggerHaptic('light');
+    triggerHaptic("light");
     setFlipped(true);
 
     Animated.spring(slideAnim, {
@@ -72,19 +89,19 @@ export default function StudyScreen() {
     setActiveSwipeDirection(null);
   };
 
-  const handleGrade = async (grade: number, direction: 'left' | 'right' | 'up' | 'down') => {
+  const handleGrade = async (grade: number, direction: "left" | "right" | "up" | "down") => {
     const card = currentCardRef.current;
     const sess = sessionRef.current;
     if (!card || !sess) return;
 
-    if (grade === SRS_GRADES.AGAIN) triggerHaptic('error');
-    else if (grade === SRS_GRADES.HARD) triggerHaptic('warning');
-    else triggerHaptic('success');
+    if (grade === SRS_GRADES.AGAIN) triggerHaptic("error");
+    else if (grade === SRS_GRADES.HARD) triggerHaptic("warning");
+    else triggerHaptic("success");
 
     await gradeCard(card, grade as any);
 
-    const targetX = direction === 'left' ? -width * 1.3 : direction === 'right' ? width * 1.3 : 0;
-    const targetY = direction === 'up' ? -height * 1.3 : direction === 'down' ? height * 1.3 : 0;
+    const targetX = direction === "left" ? -width * 1.3 : direction === "right" ? width * 1.3 : 0;
+    const targetY = direction === "up" ? -height * 1.3 : direction === "down" ? height * 1.3 : 0;
 
     const isLastCard = sess.currentIndex + 1 >= sess.queue.length && grade !== SRS_GRADES.AGAIN;
 
@@ -97,7 +114,7 @@ export default function StudyScreen() {
 
       const updateDelay = isLastCard ? 150 : 0;
       setTimeout(() => {
-        useStore.setState(s => {
+        useStore.setState((s) => {
           if (!s.session) return { session: null };
           const updatedQueue = [...s.session.queue];
           if (grade === SRS_GRADES.AGAIN) {
@@ -118,7 +135,9 @@ export default function StudyScreen() {
   };
 
   const handleGradeRef = useRef(handleGrade);
-  useEffect(() => { handleGradeRef.current = handleGrade; });
+  useEffect(() => {
+    handleGradeRef.current = handleGrade;
+  });
 
   const panResponder = useRef(
     PanResponder.create({
@@ -131,12 +150,12 @@ export default function StudyScreen() {
 
         const { dx, dy } = gestureState;
         if (Math.abs(dx) > Math.abs(dy)) {
-          if (dx < -40) setActiveSwipeDirection('left');
-          else if (dx > 40) setActiveSwipeDirection('right');
+          if (dx < -40) setActiveSwipeDirection("left");
+          else if (dx > 40) setActiveSwipeDirection("right");
           else setActiveSwipeDirection(null);
         } else {
-          if (dy < -40) setActiveSwipeDirection('up');
-          else if (dy > 40) setActiveSwipeDirection('down');
+          if (dy < -40) setActiveSwipeDirection("up");
+          else if (dy > 40) setActiveSwipeDirection("down");
           else setActiveSwipeDirection(null);
         }
       },
@@ -155,18 +174,26 @@ export default function StudyScreen() {
 
         if (!flippedRef.current) {
           setActiveSwipeDirection(null);
-          Animated.spring(pan, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: true }).start();
+          Animated.spring(pan, {
+            toValue: { x: 0, y: 0 },
+            friction: 5,
+            useNativeDriver: true,
+          }).start();
           return;
         }
 
         if (absX > absY && absX > SWIPE_THRESHOLD) {
-          if (dx < 0) handleGradeRef.current(SRS_GRADES.AGAIN, 'left');
-          else handleGradeRef.current(SRS_GRADES.GOOD, 'right');
+          if (dx < 0) handleGradeRef.current(SRS_GRADES.AGAIN, "left");
+          else handleGradeRef.current(SRS_GRADES.GOOD, "right");
         } else if (absY > absX && absY > SWIPE_THRESHOLD) {
-          if (dy < 0) handleGradeRef.current(SRS_GRADES.HARD, 'up');
+          if (dy < 0) handleGradeRef.current(SRS_GRADES.HARD, "up");
           else {
             setActiveSwipeDirection(null);
-            Animated.spring(pan, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: true }).start();
+            Animated.spring(pan, {
+              toValue: { x: 0, y: 0 },
+              friction: 5,
+              useNativeDriver: true,
+            }).start();
           }
         } else {
           setActiveSwipeDirection(null);
@@ -177,15 +204,15 @@ export default function StudyScreen() {
           }).start();
         }
       },
-    })
+    }),
   ).current;
 
   const speakWord = () => {
     if (!currentCard) return;
-    triggerHaptic('selection');
+    triggerHaptic("selection");
     setSpeaking(true);
     Speech.speak(currentCard.character, {
-      language: 'zh-CN',
+      language: "zh-CN",
       rate: 0.8,
       onDone: () => setSpeaking(false),
       onError: () => setSpeaking(false),
@@ -199,7 +226,7 @@ export default function StudyScreen() {
       {
         rotate: pan.x.interpolate({
           inputRange: [-width, 0, width],
-          outputRange: ['-10deg', '0deg', '10deg'],
+          outputRange: ["-10deg", "0deg", "10deg"],
         }),
       },
     ],
@@ -262,7 +289,7 @@ export default function StudyScreen() {
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 48) }]}>
         <TouchableOpacity
           onPress={() => {
-            triggerHaptic('light');
+            triggerHaptic("light");
             endSession();
             router.back();
           }}
@@ -271,11 +298,17 @@ export default function StudyScreen() {
           <Text style={styles.doneTextBtn}>Đóng</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{deck?.name || 'PHIÊN HỌC THẺ'}</Text>
-          <Text style={styles.headerSub}>THẺ {session.currentIndex + 1} / {session.queue.length}</Text>
+          <Text style={styles.headerTitle}>{deck?.name || "PHIÊN HỌC THẺ"}</Text>
+          <Text style={styles.headerSub}>
+            THẺ {session.currentIndex + 1} / {session.queue.length}
+          </Text>
         </View>
         <TouchableOpacity onPress={speakWord} style={styles.headerRightBtn}>
-          <Ionicons name={speaking ? "volume-high" : "volume-medium-outline"} size={20} color={Colors.accent.indigoLight} />
+          <Ionicons
+            name={speaking ? "volume-high" : "volume-medium-outline"}
+            size={20}
+            color={Colors.accent.indigoLight}
+          />
         </TouchableOpacity>
       </View>
 
@@ -284,30 +317,37 @@ export default function StudyScreen() {
 
       {/* Gesture hints (100% Vietnamese) */}
       <View style={styles.gestureHintRow}>
-        <Text style={styles.gestureHintText}>
-          👈 QUÊN • 👆 KHÓ • 👉 THUỘC
-        </Text>
+        <Text style={styles.gestureHintText}>👈 QUÊN • 👆 KHÓ • 👉 THUỘC</Text>
       </View>
 
       {/* Flashcard Area */}
       <View style={styles.cardArea}>
-        <Animated.View
-          style={[styles.cardWrapper, cardRotateStyle]}
-          {...panResponder.panHandlers}
-        >
+        <Animated.View style={[styles.cardWrapper, cardRotateStyle]} {...panResponder.panHandlers}>
           {/* Swipe badges */}
-          {activeSwipeDirection === 'left' && (
-            <View style={[styles.swipeBadge, { backgroundColor: Colors.neon.coral, left: 20, top: 20 }]}>
+          {activeSwipeDirection === "left" && (
+            <View
+              style={[styles.swipeBadge, { backgroundColor: Colors.neon.coral, left: 20, top: 20 }]}
+            >
               <Text style={styles.swipeBadgeText}>QUÊN</Text>
             </View>
           )}
-          {activeSwipeDirection === 'right' && (
-            <View style={[styles.swipeBadge, { backgroundColor: Colors.neon.emerald, right: 20, top: 20 }]}>
+          {activeSwipeDirection === "right" && (
+            <View
+              style={[
+                styles.swipeBadge,
+                { backgroundColor: Colors.neon.emerald, right: 20, top: 20 },
+              ]}
+            >
               <Text style={styles.swipeBadgeText}>THUỘC</Text>
             </View>
           )}
-          {activeSwipeDirection === 'up' && (
-            <View style={[styles.swipeBadge, { backgroundColor: Colors.neon.purple, top: 20, alignSelf: 'center' }]}>
+          {activeSwipeDirection === "up" && (
+            <View
+              style={[
+                styles.swipeBadge,
+                { backgroundColor: Colors.neon.purple, top: 20, alignSelf: "center" },
+              ]}
+            >
               <Text style={styles.swipeBadgeText}>KHÓ</Text>
             </View>
           )}
@@ -340,8 +380,12 @@ export default function StudyScreen() {
               )}
 
               <TouchableOpacity style={styles.speakBtn} onPress={speakWord} activeOpacity={0.8}>
-                <Ionicons name={speaking ? "volume-high" : "volume-medium"} size={16} color={Colors.accent.indigoLight} />
-                <Text style={styles.speakBtnText}>{speaking ? 'Đang phát âm...' : 'Phát âm'}</Text>
+                <Ionicons
+                  name={speaking ? "volume-high" : "volume-medium"}
+                  size={16}
+                  color={Colors.accent.indigoLight}
+                />
+                <Text style={styles.speakBtnText}>{speaking ? "Đang phát âm..." : "Phát âm"}</Text>
               </TouchableOpacity>
             </Animated.View>
 
@@ -376,7 +420,9 @@ export default function StudyScreen() {
                   {currentCard.examples && currentCard.examples.length > 0 && (
                     <View style={styles.exampleBox}>
                       <Text style={styles.exampleCn}>{currentCard.examples[0].chinese}</Text>
-                      <Text style={[styles.examplePy, { color: pinyinColor }]}>{currentCard.examples[0].pinyin}</Text>
+                      <Text style={[styles.examplePy, { color: pinyinColor }]}>
+                        {currentCard.examples[0].pinyin}
+                      </Text>
                       <Text style={styles.exampleVi}>{currentCard.examples[0].vietnamese}</Text>
                     </View>
                   )}
@@ -403,31 +449,65 @@ export default function StudyScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg.primary },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg.primary },
-  loadingText: { color: Colors.text.secondary, marginTop: Spacing.md, fontSize: Typography.text.footnote.fontSize, letterSpacing: 1 },
+  loading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.bg.primary,
+  },
+  loadingText: {
+    color: Colors.text.secondary,
+    marginTop: Spacing.md,
+    fontSize: Typography.text.footnote.fontSize,
+    letterSpacing: 1,
+  },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: Spacing.pageMargin,
     paddingBottom: Spacing.xs,
   },
   headerLeftBtn: { padding: Spacing.xs },
-  doneTextBtn: { fontSize: Typography.text.footnote.fontSize, color: Colors.accent.indigoLight, fontWeight: Typography.weight.bold },
+  doneTextBtn: {
+    fontSize: Typography.text.footnote.fontSize,
+    color: Colors.accent.indigoLight,
+    fontWeight: Typography.weight.bold,
+  },
   headerRightBtn: { padding: Spacing.xs },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: Typography.text.caption1.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary, letterSpacing: 1 },
-  headerSub: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary, marginTop: 1, letterSpacing: 0.8 },
+  headerCenter: { flex: 1, alignItems: "center" },
+  headerTitle: {
+    fontSize: Typography.text.caption1.fontSize,
+    fontWeight: Typography.weight.bold,
+    color: Colors.text.primary,
+    letterSpacing: 1,
+  },
+  headerSub: {
+    fontSize: Typography.text.caption2.fontSize,
+    color: Colors.text.secondary,
+    marginTop: 1,
+    letterSpacing: 0.8,
+  },
 
-  gestureHintRow: { alignItems: 'center', marginTop: Spacing.sm },
-  gestureHintText: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary, letterSpacing: 0.8, fontWeight: Typography.weight.semibold },
+  gestureHintRow: { alignItems: "center", marginTop: Spacing.sm },
+  gestureHintText: {
+    fontSize: Typography.text.caption2.fontSize,
+    color: Colors.text.secondary,
+    letterSpacing: 0.8,
+    fontWeight: Typography.weight.semibold,
+  },
 
-  cardArea: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bg.primary },
+  cardArea: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.bg.primary,
+  },
   cardWrapper: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   cardCardBody: {
     width: CARD_WIDTH,
@@ -437,22 +517,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border.default,
     padding: Spacing.lg,
-    overflow: 'hidden',
-    position: 'relative',
-    alignItems: 'center',
+    overflow: "hidden",
+    position: "relative",
+    alignItems: "center",
   },
 
   swipeBadge: {
-    position: 'absolute',
+    position: "absolute",
     zIndex: 100,
     borderRadius: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
   },
-  swipeBadgeText: { color: '#08090C', fontSize: Typography.text.footnote.fontSize, fontWeight: Typography.weight.bold, letterSpacing: 0.8 },
+  swipeBadgeText: {
+    color: "#08090C",
+    fontSize: Typography.text.footnote.fontSize,
+    fontWeight: Typography.weight.bold,
+    letterSpacing: 0.8,
+  },
 
   hskBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: Spacing.lg,
     right: Spacing.lg,
     backgroundColor: Colors.bg.tertiary,
@@ -463,28 +548,37 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     zIndex: 10,
   },
-  hskText: { fontSize: Typography.text.caption2.fontSize, color: Colors.accent.indigoLight, fontWeight: Typography.weight.bold, letterSpacing: 0.5 },
+  hskText: {
+    fontSize: Typography.text.caption2.fontSize,
+    color: Colors.accent.indigoLight,
+    fontWeight: Typography.weight.bold,
+    letterSpacing: 0.5,
+  },
 
   charHeaderBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   characterBig: {
     fontSize: Typography.hanzi.xl,
     color: Colors.text.primary,
     fontWeight: Typography.weight.bold,
   },
-  traditional: { fontSize: Typography.text.subhead.fontSize, color: Colors.text.secondary, marginTop: 2 },
+  traditional: {
+    fontSize: Typography.text.subhead.fontSize,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
   speakBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     marginTop: Spacing.md,
     backgroundColor: Colors.bg.tertiary,
     borderRadius: Radii.full,
     height: 32,
     paddingHorizontal: Spacing.md,
-    justifyContent: 'center',
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: Colors.border.default,
   },
@@ -493,37 +587,78 @@ const styles = StyleSheet.create({
     fontSize: Typography.text.caption1.fontSize,
     fontWeight: Typography.weight.bold,
     letterSpacing: 0.5,
-    textAlign: 'center',
-    textAlignVertical: 'center',
+    textAlign: "center",
+    textAlignVertical: "center",
     includeFontPadding: false,
   },
-  tapHint: { position: 'absolute', bottom: Spacing.lg, fontSize: Typography.text.caption2.fontSize, color: Colors.text.tertiary, letterSpacing: 0.8 },
+  tapHint: {
+    position: "absolute",
+    bottom: Spacing.lg,
+    fontSize: Typography.text.caption2.fontSize,
+    color: Colors.text.tertiary,
+    letterSpacing: 0.8,
+  },
 
   answerContainer: {
     flex: 1,
-    width: '100%',
+    width: "100%",
     marginTop: Spacing.xs,
   },
   answerScrollContent: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingBottom: Spacing.md,
   },
-  pinyin: { fontSize: Typography.text.title2.fontSize, fontWeight: Typography.weight.bold, marginTop: Spacing.xs },
-  hanviet: { fontSize: Typography.text.title3.fontSize, color: Colors.text.primary, marginTop: 2, fontWeight: Typography.weight.semibold },
-  divider: { height: 1, width: '100%', backgroundColor: Colors.border.separator, marginVertical: Spacing.md },
-  translation: { fontSize: Typography.text.subhead.fontSize, color: Colors.text.primary, textAlign: 'center', fontWeight: Typography.weight.semibold },
-  exampleBox: { backgroundColor: Colors.bg.tertiary, borderRadius: 10, padding: Spacing.md, marginTop: Spacing.md, width: '100%', borderWidth: 1, borderColor: Colors.border.default },
-  exampleCn: { fontSize: Typography.text.body.fontSize, color: Colors.text.primary, fontWeight: Typography.weight.semibold },
+  pinyin: {
+    fontSize: Typography.text.title2.fontSize,
+    fontWeight: Typography.weight.bold,
+    marginTop: Spacing.xs,
+  },
+  hanviet: {
+    fontSize: Typography.text.title3.fontSize,
+    color: Colors.text.primary,
+    marginTop: 2,
+    fontWeight: Typography.weight.semibold,
+  },
+  divider: {
+    height: 1,
+    width: "100%",
+    backgroundColor: Colors.border.separator,
+    marginVertical: Spacing.md,
+  },
+  translation: {
+    fontSize: Typography.text.subhead.fontSize,
+    color: Colors.text.primary,
+    textAlign: "center",
+    fontWeight: Typography.weight.semibold,
+  },
+  exampleBox: {
+    backgroundColor: Colors.bg.tertiary,
+    borderRadius: 10,
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+  },
+  exampleCn: {
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.text.primary,
+    fontWeight: Typography.weight.semibold,
+  },
   examplePy: { fontSize: Typography.text.caption1.fontSize, marginTop: 2 },
-  exampleVi: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: 2 },
+  exampleVi: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
 
   tapArea: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.sm },
   revealBtn: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: Colors.border.default,
   },
@@ -532,8 +667,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.text.footnote.fontSize,
     fontWeight: Typography.weight.bold,
     letterSpacing: 0.8,
-    textAlign: 'center',
-    textAlignVertical: 'center',
+    textAlign: "center",
+    textAlignVertical: "center",
     includeFontPadding: false,
   },
 });

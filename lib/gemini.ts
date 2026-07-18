@@ -25,7 +25,7 @@ export interface CardData {
  * Returns structured JSON with all fields needed for a flashcard.
  */
 export async function generateCardData(input: string): Promise<CardData> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const prompt = `Bạn là chuyên gia ngôn ngữ Hán-Việt. Hãy phân tích từ tiếng Trung: "${input}"
 
@@ -73,7 +73,7 @@ export async function generateQuizSentence(character: string, translation: strin
   answer: string;
   vietnamese: string;
 }> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
   const prompt = `Tạo 1 câu tiếng Trung có dùng từ "${character}" (nghĩa: ${translation}), trong đó thay thế từ đó bằng ___. 
 Trả về JSON:
 {

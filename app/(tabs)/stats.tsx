@@ -5,7 +5,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore, Card } from '../../store/useStore';
-import { Colors, Typography, Spacing, Radii, VECTOR_DECK_ICONS } from '../../constants/theme';
+import { Colors, Typography, Spacing, Radii } from '../../constants/theme';
+import { DeckIcon } from '../../components/ui/DeckIcon';
+import { SectionTitle } from '../../components/ui/SectionTitle';
+import { InsetGroup } from '../../components/ui/InsetGroup';
 
 const { width } = Dimensions.get('window');
 
@@ -45,9 +48,8 @@ export default function StatsScreen() {
       setLoadingCards(true);
       await fetchDecks();
       const currentDecks = useStore.getState().decks;
-      for (const d of currentDecks) {
-        await fetchCards(d.id);
-      }
+      // Parallel fetch cards for all decks
+      await Promise.all(currentDecks.map(d => fetchCards(d.id)));
       setLoadingCards(false);
     }
     loadAllData();
@@ -96,12 +98,6 @@ export default function StatsScreen() {
     }
   }
 
-  const renderVectorIcon = (iconName: string, size = 18, color = Colors.neon.cyan) => {
-    const validIcons = VECTOR_DECK_ICONS;
-    const icon = validIcons.includes(iconName) ? (iconName as any) : 'book-outline';
-    return <Ionicons name={icon} size={size} color={color} />;
-  };
-
   if (loadingCards) {
     return (
       <View style={styles.loadingContainer}>
@@ -138,7 +134,7 @@ export default function StatsScreen() {
       </View>
 
       {/* 7-Day Activity Heatmap */}
-      <Text style={styles.sectionHeaderTitle}>CHUỖI HỌC TẬP 7 NGÀY</Text>
+      <SectionTitle>CHUỖI HỌC TẬP 7 NGÀY</SectionTitle>
       <View style={styles.insetCard}>
         <View style={styles.streakHeaderRow}>
           <Text style={styles.streakLabel}>Hoạt động gần đây</Text>
@@ -173,7 +169,7 @@ export default function StatsScreen() {
       </View>
 
       {/* 2x2 Metric Grid Cards */}
-      <Text style={styles.sectionHeaderTitle}>TỔNG QUAN THÔNG SỐ</Text>
+      <SectionTitle>TỔNG QUAN THÔNG SỐ</SectionTitle>
       <View style={styles.grid}>
         <MetricCard label="Tổng từ vựng" value={totalCards} icon="library-outline" color={Colors.neon.cyan} />
         <MetricCard label="Cần ôn hôm nay" value={totalDue} icon="time-outline" color={Colors.neon.coral} />
@@ -182,13 +178,13 @@ export default function StatsScreen() {
       </View>
 
       {/* Per-deck progress breakdown */}
-      <Text style={styles.sectionHeaderTitle}>PHÂN BỔ THEO BỘ THẺ</Text>
+      <SectionTitle>PHÂN BỔ THEO BỘ THẺ</SectionTitle>
       {decks.length === 0 ? (
         <View style={styles.insetCard}>
           <Text style={styles.emptyText}>Tạo bộ thẻ để theo dõi thống kê học tập.</Text>
         </View>
       ) : (
-        <View style={styles.decksInsetGroup}>
+        <InsetGroup>
           {decks.map((deck, idx) => {
             const deckCards = cards[deck.id] || [];
             const count = deckCards.length;
@@ -201,7 +197,7 @@ export default function StatsScreen() {
                 {idx > 0 && <View style={styles.cellDividerIndented} />}
                 <View style={styles.deckCell}>
                   <View style={styles.deckIconTile}>
-                    {renderVectorIcon(deck.icon, 18, Colors.neon.cyan)}
+                    <DeckIcon name={deck.icon} size={18} color={Colors.neon.cyan} />
                   </View>
 
                   <View style={styles.deckMeta}>
@@ -222,7 +218,7 @@ export default function StatsScreen() {
               </React.Fragment>
             );
           })}
-        </View>
+        </InsetGroup>
       )}
 
       {/* SRS Tip */}
@@ -266,17 +262,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.37,
   },
 
-  sectionHeaderTitle: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weight.semibold,
-    letterSpacing: -0.08,
-    marginBottom: Spacing.sectionBottom,
-    marginTop: Spacing.sectionTop,
-    marginLeft: 4,
-  },
-
-  // Hero Card
   heroCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -313,7 +298,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border.default,
   },
 
-  // Heatmap Inset Card
   insetCard: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
@@ -361,7 +345,6 @@ const styles = StyleSheet.create({
   todayText: { color: Colors.neon.cyan, fontWeight: Typography.weight.bold },
   heatmapCountText: { fontSize: 10, color: Colors.text.tertiary, marginTop: 2 },
 
-  // Grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   metricCard: {
     width: (width - Spacing.pageMargin * 2 - 12) / 2,
@@ -375,14 +358,6 @@ const styles = StyleSheet.create({
   metricValue: { fontSize: Typography.text.title2.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary },
   metricLabel: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: Spacing.sm },
 
-  // Decks Inset Group
-  decksInsetGroup: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: Colors.border.default,
-  },
   deckCell: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -437,7 +412,6 @@ const styles = StyleSheet.create({
 
   emptyText: { color: Colors.text.secondary, fontSize: Typography.text.subhead.fontSize },
 
-  // Tip
   tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   tipTitle: { fontSize: Typography.text.footnote.fontSize, fontWeight: Typography.weight.semibold, color: Colors.text.primary },
   tipBody: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, lineHeight: 18 },

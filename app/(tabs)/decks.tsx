@@ -9,6 +9,10 @@ import { router } from 'expo-router';
 import { useStore } from '../../store/useStore';
 import { getFirestoreErrorMessage } from '../../lib/errorHandler';
 import { Colors, Typography, Spacing, Radii, VECTOR_DECK_ICONS, triggerHaptic } from '../../constants/theme';
+import { DeckIcon } from '../../components/ui/DeckIcon';
+import { SectionTitle } from '../../components/ui/SectionTitle';
+import { InsetGroup } from '../../components/ui/InsetGroup';
+import { InsetRow } from '../../components/ui/InsetRow';
 
 export default function DecksScreen() {
   const insets = useSafeAreaInsets();
@@ -92,7 +96,7 @@ export default function DecksScreen() {
           text: 'Xoá bộ thẻ 🗑️',
           style: 'destructive',
           onPress: () => {
-            Alert.alert('Xoá bộ thẻ', `Bạn có chắc chẫn muốn xoá bộ thẻ “${deck.name}” và toàn bộ từ vựng?`, [
+            Alert.alert('Xoá bộ thẻ', `Bạn có chắc chắn muốn xoá bộ thẻ “${deck.name}” và toàn bộ từ vựng?`, [
               { text: 'Hủy', style: 'cancel' },
               {
                 text: 'Xoá',
@@ -110,15 +114,9 @@ export default function DecksScreen() {
     );
   };
 
-  const renderVectorIcon = (iconName: string, size = 18, color = Colors.accent.blue) => {
-    const validIcons = VECTOR_DECK_ICONS;
-    const icon = validIcons.includes(iconName) ? (iconName as any) : 'book-outline';
-    return <Ionicons name={icon} size={size} color={color} />;
-  };
-
   return (
     <View style={styles.container}>
-      {/* iOS Header Bar */}
+      {/* Header Bar */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 16, 54) }]}>
         <View>
           <Text style={styles.largeTitle}>Bộ thẻ</Text>
@@ -163,7 +161,7 @@ export default function DecksScreen() {
         )}
 
         {decks.length > 0 && (
-          <View style={styles.insetGroup}>
+          <InsetGroup>
             {decks.map((deck, idx) => {
               const total = deck.cardCount || 0;
               const due = deck.dueCount || 0;
@@ -184,7 +182,7 @@ export default function DecksScreen() {
                     <View style={styles.deckIconTile}>
                       {resettingDeckId === deck.id
                         ? <ActivityIndicator size="small" color={Colors.accent.blue} />
-                        : renderVectorIcon(deck.icon, 18, Colors.accent.blue)
+                        : <DeckIcon name={deck.icon} size={18} color={Colors.accent.blue} />
                       }
                     </View>
 
@@ -217,14 +215,13 @@ export default function DecksScreen() {
                 </React.Fragment>
               );
             })}
-          </View>
+          </InsetGroup>
         )}
       </ScrollView>
 
-      {/* iOS Page Sheet Modal */}
+      {/* Modal */}
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCreate(false)}>
         <View style={styles.modalContainer}>
-          {/* Header Bar */}
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowCreate(false)} style={styles.headerLeftBtn}>
               <Text style={styles.cancelBtnText}>Hủy</Text>
@@ -240,31 +237,38 @@ export default function DecksScreen() {
           </View>
 
           <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-            <Text style={styles.sectionHeaderTitle}>THÔNG TIN BỘ THẺ</Text>
-            <View style={styles.modalInsetGroup}>
-              <View style={styles.modalRow}>
-                <Text style={styles.fieldLabel}>Tên bộ thẻ</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="VD: HSK 1, Giao tiếp..."
-                  placeholderTextColor={Colors.text.tertiary}
-                  value={deckName}
-                  onChangeText={setDeckName}
-                />
-              </View>
-              <View style={[styles.modalRow, styles.cellBorderTop]}>
-                <Text style={styles.fieldLabel}>Mô tả</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="Mô tả ngắn (tuỳ chọn)"
-                  placeholderTextColor={Colors.text.tertiary}
-                  value={deckDesc}
-                  onChangeText={setDeckDesc}
-                />
-              </View>
-            </View>
+            <SectionTitle>THÔNG TIN BỘ THẺ</SectionTitle>
+            <InsetGroup>
+              <InsetRow
+                label="Tên bộ thẻ"
+                labelStyle={{ width: 90 }}
+                right={
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="VD: HSK 1, Giao tiếp..."
+                    placeholderTextColor={Colors.text.tertiary}
+                    value={deckName}
+                    onChangeText={setDeckName}
+                  />
+                }
+              />
+              <InsetRow
+                label="Mô tả"
+                labelStyle={{ width: 90 }}
+                isBorder
+                right={
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="Mô tả ngắn (tuỳ chọn)"
+                    placeholderTextColor={Colors.text.tertiary}
+                    value={deckDesc}
+                    onChangeText={setDeckDesc}
+                  />
+                }
+              />
+            </InsetGroup>
 
-            <Text style={styles.sectionHeaderTitle}>BIỂU TƯỢNG ICON VECTOR</Text>
+            <SectionTitle>BIỂU TƯỢNG ICON VECTOR</SectionTitle>
             <View style={styles.modalInsetGroupPadding}>
               <View style={styles.iconGrid}>
                 {VECTOR_DECK_ICONS.map(icName => (
@@ -276,7 +280,7 @@ export default function DecksScreen() {
                       setSelectedIcon(icName);
                     }}
                   >
-                    {renderVectorIcon(icName, 22, selectedIcon === icName ? Colors.accent.blue : Colors.text.secondary)}
+                    <DeckIcon name={icName} size={22} color={selectedIcon === icName ? Colors.accent.blue : Colors.text.secondary} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -314,11 +318,6 @@ const styles = StyleSheet.create({
   },
   list: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.sm },
 
-  insetGroup: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    overflow: 'hidden',
-  },
   deckCell: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -386,7 +385,6 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
     fontWeight: Typography.weight.medium,
   },
-
   emptyCard: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
@@ -422,7 +420,6 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
-  // Modal
   modalContainer: { flex: 1, backgroundColor: Colors.bg.primary },
   modalHeader: {
     flexDirection: 'row',
@@ -450,50 +447,17 @@ const styles = StyleSheet.create({
     color: Colors.accent.blue,
     fontWeight: Typography.weight.bold,
   },
-
   modalContent: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.md, paddingBottom: 40 },
-  sectionHeaderTitle: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weight.semibold,
-    letterSpacing: -0.08,
-    marginBottom: Spacing.sectionBottom,
-    marginTop: Spacing.sectionTop,
-    marginLeft: 4,
-  },
-  modalInsetGroup: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    overflow: 'hidden',
-  },
   modalInsetGroupPadding: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.lg,
-  },
-  modalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: Spacing.cellVertical,
-    minHeight: Spacing.cellMinHeight,
-  },
-  cellBorderTop: {
-    borderTopWidth: 0.5,
-    borderTopColor: Colors.border.separator,
-  },
-  fieldLabel: {
-    width: 90,
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.medium,
   },
   fieldInput: {
     flex: 1,
     fontSize: Typography.text.body.fontSize,
     color: Colors.text.primary,
   },
-
   iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   iconOption: {
     width: 44,

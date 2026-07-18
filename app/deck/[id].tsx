@@ -8,7 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useStore, Card } from '../../store/useStore';
 import { isDue } from '../../lib/srs';
-import { Colors, Typography, Spacing, Radii, VECTOR_DECK_ICONS, triggerHaptic } from '../../constants/theme';
+import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
+import { DeckIcon } from '../../components/ui/DeckIcon';
+import { SectionTitle } from '../../components/ui/SectionTitle';
+import { InsetGroup } from '../../components/ui/InsetGroup';
 
 export default function DeckDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -64,12 +67,6 @@ export default function DeckDetailScreen() {
     );
   };
 
-  const renderVectorIcon = (iconName: string, size = 22, color = Colors.accent.blue) => {
-    const validIcons = VECTOR_DECK_ICONS;
-    const icon = validIcons.includes(iconName) ? (iconName as any) : 'book-outline';
-    return <Ionicons name={icon} size={size} color={color} />;
-  };
-
   if (!deck) return (
     <View style={styles.center}>
       <ActivityIndicator color={Colors.accent.gray} size="small" />
@@ -96,7 +93,7 @@ export default function DeckDetailScreen() {
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <View style={styles.deckIconTile}>
-            {renderVectorIcon(deck.icon, 22, Colors.accent.blue)}
+            <DeckIcon name={deck.icon} size={22} color={Colors.accent.blue} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.deckName}>{deck.name}</Text>
@@ -149,12 +146,14 @@ export default function DeckDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>DANH SÁCH {deckCards.length} THẺ TRONG BỘ</Text>
+        <SectionTitle style={{ marginLeft: 4, marginBottom: Spacing.sectionBottom }}>
+          DANH SÁCH {deckCards.length} THẺ TRONG BỘ
+        </SectionTitle>
 
         {isLoading && <ActivityIndicator color={Colors.accent.gray} style={{ marginTop: 20 }} />}
 
         {deckCards.length > 0 && (
-          <View style={styles.insetGroup}>
+          <InsetGroup>
             {deckCards.map((card, idx) => (
               <React.Fragment key={card.id}>
                 {idx > 0 && <View style={styles.cellDividerIndented} />}
@@ -186,7 +185,7 @@ export default function DeckDetailScreen() {
                 </TouchableOpacity>
               </React.Fragment>
             ))}
-          </View>
+          </InsetGroup>
         )}
 
         {deckCards.length === 0 && !isLoading && (
@@ -269,20 +268,7 @@ const styles = StyleSheet.create({
   },
 
   cardList: { paddingHorizontal: Spacing.pageMargin },
-  sectionTitle: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weight.semibold,
-    letterSpacing: -0.08,
-    marginBottom: Spacing.sectionBottom,
-    marginLeft: 4,
-  },
 
-  insetGroup: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    overflow: 'hidden',
-  },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',

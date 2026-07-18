@@ -8,9 +8,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { useStore } from '../../store/useStore';
-import { SRS_GRADES, getIntervalLabel } from '../../lib/srs';
+import { SRS_GRADES } from '../../lib/srs';
 import { getPinyinToneColor } from '../../lib/pinyinColor';
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
+import { ProgressBar } from '../../components/ui/ProgressBar';
+import { SRSButtons } from '../../components/study/SRSButtons';
+import { SessionDoneScreen } from '../../components/study/SessionDoneScreen';
 
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = width - Spacing.pageMargin * 2;
@@ -29,13 +32,13 @@ export default function StudyScreen() {
   const flipAnim = useRef(new Animated.Value(0)).current;
   const pan = useRef(new Animated.ValueXY()).current;
 
-  // Computed values — phải khai báo TRƯỚC refs
+  // Computed values
   const deck = decks.find(d => d.id === deckId);
   const currentCard = session?.queue[session.currentIndex ?? 0];
   const isSessionDone = session && session.currentIndex >= session.queue.length;
   const progress = session ? session.currentIndex / Math.max(session.queue.length, 1) : 0;
 
-  // Refs để tránh stale closure trong PanResponder
+  // Refs for PanResponder handlers
   const flippedRef = useRef(flipped);
   const currentCardRef = useRef(currentCard);
   const sessionRef = useRef(session);
@@ -106,13 +109,11 @@ export default function StudyScreen() {
     });
   };
 
-  // Dùng ref để lưu handleGrade tránh stale closure trong PanResponder
   const handleGradeRef = useRef(handleGrade);
   useEffect(() => { handleGradeRef.current = handleGrade; });
 
   const panResponder = useRef(
     PanResponder.create({
-      // Chỉ set panResponder khi gesture đủ lớn (tránh tranh với ScrollView)
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return Math.abs(gestureState.dx) > 8 || Math.abs(gestureState.dy) > 8;
@@ -136,7 +137,6 @@ export default function StudyScreen() {
         const absX = Math.abs(dx);
         const absY = Math.abs(dy);
 
-        // Tap nhỏ → flip (chỉ khi chưa lật)
         if (absX < 12 && absY < 12) {
           if (!flippedRef.current) {
             triggerHaptic('light');
@@ -152,7 +152,6 @@ export default function StudyScreen() {
           return;
         }
 
-        // Chỉ cho phép swipe grade khi đã lật thẻ
         if (!flippedRef.current) {
           setActiveSwipeDirection(null);
           Animated.spring(pan, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: true }).start();
@@ -224,45 +223,14 @@ export default function StudyScreen() {
   }
 
   if (isSessionDone) {
-    const accuracy = session.reviewedCount > 0
-      ? Math.round((session.correctCount / session.reviewedCount) * 100)
-      : 0;
-
     return (
-      <View style={[styles.doneScreen, { paddingTop: Math.max(insets.top + 20, 50), paddingBottom: Math.max(insets.bottom + 20, 30) }]}>
-        <View style={styles.doneIconBox}>
-          <Ionicons name="checkmark-circle" size={56} color={Colors.neon.emerald} />
-        </View>
-        <Text style={styles.doneTitle}>SESSION COMPLETED</Text>
-        <Text style={styles.doneSub}>All queued flashcard reviews are finished for today</Text>
-
-        <View style={styles.doneInsetGroup}>
-          <View style={styles.doneRow}>
-            <Text style={styles.doneRowLabel}>Total Reviewed</Text>
-            <Text style={styles.doneRowValue}>{session.reviewedCount} cards</Text>
-          </View>
-          <View style={[styles.doneRow, styles.cellBorderTop]}>
-            <Text style={styles.doneRowLabel}>Accuracy Rate</Text>
-            <Text style={[styles.doneRowValue, { color: Colors.neon.emerald }]}>{accuracy}%</Text>
-          </View>
-          <View style={[styles.doneRow, styles.cellBorderTop]}>
-            <Text style={styles.doneRowLabel}>Cards Re-queued</Text>
-            <Text style={[styles.doneRowValue, { color: Colors.neon.coral }]}>{session.reviewedCount - session.correctCount}</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.doneBtn}
-          onPress={() => {
-            triggerHaptic('medium');
-            endSession();
-            router.back();
-          }}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.doneBtnText}>DONE</Text>
-        </TouchableOpacity>
-      </View>
+      <SessionDoneScreen
+        session={session}
+        onDone={() => {
+          endSession();
+          router.back();
+        }}
+      />
     );
   }
 
@@ -272,7 +240,7 @@ export default function StudyScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Linear Header Bar */}
+      {/* Header Bar */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 48) }]}>
         <TouchableOpacity
           onPress={() => {
@@ -293,10 +261,8 @@ export default function StudyScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Linear Progress Bar */}
-      <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-      </View>
+      {/* Progress Bar */}
+      <ProgressBar progress={progress} style={{ marginHorizontal: Spacing.pageMargin }} />
 
       {/* Gesture hints */}
       <View style={styles.gestureHintRow}>
@@ -311,7 +277,7 @@ export default function StudyScreen() {
           style={[styles.cardWrapper, cardRotateStyle]}
           {...panResponder.panHandlers}
         >
-          {/* Swipe indicator overlay badges */}
+          {/* Swipe badges */}
           {activeSwipeDirection === 'left' && (
             <View style={[styles.swipeBadge, { backgroundColor: Colors.neon.coral, left: 20, top: 20 }]}>
               <Text style={styles.swipeBadgeText}>AGAIN</Text>
@@ -328,7 +294,7 @@ export default function StudyScreen() {
             </View>
           )}
 
-          {/* Card Front (Pure Jet Black Card Body #000000 with 1px #232530 stroke) */}
+          {/* Card Front */}
           <Animated.View
             pointerEvents={flipped ? 'none' : 'auto'}
             style={[
@@ -344,7 +310,6 @@ export default function StudyScreen() {
                 </View>
               ) : null}
 
-              {/* Anti-halo Milk White Hanzi Character */}
               <Text style={styles.characterBig}>{currentCard.character}</Text>
 
               {currentCard.traditional && currentCard.traditional !== currentCard.character && (
@@ -376,10 +341,7 @@ export default function StudyScreen() {
               onStartShouldSetResponder={() => false}
             >
               <Text style={styles.characterSmall}>{currentCard.character}</Text>
-
-              {/* Soft Neon Pinyin Tone Accent */}
               <Text style={[styles.pinyin, { color: pinyinColor }]}>{currentCard.pinyin}</Text>
-
               <Text style={styles.hanviet}>{currentCard.hanviet}</Text>
               <View style={styles.divider} />
               <Text style={styles.translation}>{currentCard.translation}</Text>
@@ -401,31 +363,9 @@ export default function StudyScreen() {
         </Animated.View>
       </View>
 
-      {/* SRS Action Buttons */}
+      {/* Action Area */}
       {flipped ? (
-        <View style={[styles.srsArea, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
-          <Text style={styles.srsLabel}>SELECT RECALL DIFFICULTY:</Text>
-          <View style={styles.srsRow}>
-            <SRSButton
-              label="AGAIN (👈)"
-              sub={getIntervalLabel(SRS_GRADES.AGAIN, currentCard.srs)}
-              color={Colors.srs.again}
-              onPress={() => handleGrade(SRS_GRADES.AGAIN, 'left')}
-            />
-            <SRSButton
-              label="HARD (👆)"
-              sub={getIntervalLabel(SRS_GRADES.HARD, currentCard.srs)}
-              color={Colors.srs.hard}
-              onPress={() => handleGrade(SRS_GRADES.HARD, 'up')}
-            />
-            <SRSButton
-              label="GOOD (👉)"
-              sub={getIntervalLabel(SRS_GRADES.GOOD, currentCard.srs)}
-              color={Colors.srs.good}
-              onPress={() => handleGrade(SRS_GRADES.GOOD, 'right')}
-            />
-          </View>
-        </View>
+        <SRSButtons cardSRS={currentCard.srs} onGrade={handleGrade} />
       ) : (
         <View style={[styles.tapArea, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
           <TouchableOpacity style={styles.revealBtn} onPress={flipCard} activeOpacity={0.8}>
@@ -434,19 +374,6 @@ export default function StudyScreen() {
         </View>
       )}
     </View>
-  );
-}
-
-function SRSButton({ label, sub, color, onPress }: { label: string; sub: string; color: string; onPress: () => void }) {
-  return (
-    <TouchableOpacity
-      style={[styles.srsBtn, { borderColor: color + '50', backgroundColor: Colors.bg.secondary }]}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <Text style={[styles.srsBtnLabel, { color }]}>{label}</Text>
-      <Text style={styles.srsBtnSub}>{sub}</Text>
-    </TouchableOpacity>
   );
 }
 
@@ -468,9 +395,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: Typography.text.caption1.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary, letterSpacing: 1 },
   headerSub: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary, marginTop: 1, letterSpacing: 0.8 },
 
-  progressTrack: { height: 3, backgroundColor: Colors.bg.secondary, marginHorizontal: Spacing.pageMargin, borderRadius: 1.5, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: Colors.accent.indigo, borderRadius: 1.5 },
-
   gestureHintRow: { alignItems: 'center', marginTop: Spacing.sm },
   gestureHintText: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary, letterSpacing: 0.8, fontWeight: Typography.weight.semibold },
 
@@ -489,12 +413,12 @@ const styles = StyleSheet.create({
     backfaceVisibility: 'hidden',
   },
   cardFront: {
-    backgroundColor: Colors.bg.card,     // Pure Jet-Black Card Body (#000000) for Linear depth
+    backgroundColor: Colors.bg.card,
     borderWidth: 1,
-    borderColor: Colors.border.default,  // Crisp 1px Linear stroke (#232530)
+    borderColor: Colors.border.default,
   },
   cardBack: {
-    backgroundColor: Colors.bg.card,      // Pure Jet-Black Card Body (#000000)
+    backgroundColor: Colors.bg.card,
     borderWidth: 1,
     borderColor: Colors.border.default,
   },
@@ -522,10 +446,9 @@ const styles = StyleSheet.create({
   },
   hskText: { fontSize: Typography.text.caption2.fontSize, color: Colors.accent.indigoLight, fontWeight: Typography.weight.bold, letterSpacing: 0.5 },
 
-  // Anti-halo Milk White Hanzi Typography
   characterBig: {
     fontSize: Typography.hanzi.xl,
-    color: Colors.text.primary,          // Milk White (#F3F4F6)
+    color: Colors.text.primary,
     fontWeight: Typography.weight.bold,
   },
   traditional: { fontSize: Typography.text.title3.fontSize, color: Colors.text.secondary, marginTop: Spacing.sm },
@@ -601,75 +524,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.text.footnote.fontSize,
     fontWeight: Typography.weight.bold,
     letterSpacing: 0.8,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    includeFontPadding: false,
-  },
-
-  srsArea: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.xs },
-  srsLabel: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary, textAlign: 'center', marginBottom: Spacing.xs, letterSpacing: 1, fontWeight: Typography.weight.semibold },
-  srsRow: { flexDirection: 'row', gap: Spacing.xs },
-  srsBtn: {
-    flex: 1,
-    borderRadius: Radii.card,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  srsBtnLabel: {
-    fontSize: Typography.text.caption1.fontSize,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 0.5,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    includeFontPadding: false,
-  },
-  srsBtnSub: { fontSize: 10, color: Colors.text.secondary, marginTop: 2, fontWeight: Typography.weight.semibold },
-
-  // Done screen
-  doneScreen: { flex: 1, backgroundColor: Colors.bg.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.pageMargin },
-  doneIconBox: { marginBottom: Spacing.lg },
-  doneTitle: { fontSize: Typography.text.largeTitle.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary, letterSpacing: 1 },
-  doneSub: { fontSize: Typography.text.subhead.fontSize, color: Colors.text.secondary, marginTop: Spacing.xs, textAlign: 'center' },
-  doneInsetGroup: {
-    width: '100%',
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    overflow: 'hidden',
-    marginTop: Spacing.xxl,
-    marginBottom: Spacing.xxl,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
-  },
-  doneRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: Spacing.cellVertical,
-  },
-  cellBorderTop: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border.separator,
-  },
-  doneRowLabel: { fontSize: Typography.text.body.fontSize, color: Colors.text.primary },
-  doneRowValue: { fontSize: Typography.text.body.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary },
-  doneBtn: {
-    width: '100%',
-    backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.card,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.accent.indigoLight,
-  },
-  doneBtnText: {
-    color: '#F3F4F6',
-    fontSize: Typography.text.footnote.fontSize,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 1,
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,

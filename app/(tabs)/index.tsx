@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl, ActivityIndicator, Alert, Modal, TextInput, Switch,
+  RefreshControl, ActivityIndicator, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,10 @@ import {
 } from '../../lib/notificationService';
 import { useStore } from '../../store/useStore';
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
+import { DeckIcon } from '../../components/ui/DeckIcon';
+import { ProgressBar } from '../../components/ui/ProgressBar';
+import { SectionTitle } from '../../components/ui/SectionTitle';
+import { AccountModal } from '../../components/home/AccountModal';
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -25,22 +29,11 @@ export default function DashboardScreen() {
 
   // Account Settings Modal States
   const [showAccountModal, setShowAccountModal] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [updatingPassword, setUpdatingPassword] = useState(false);
-  const [sendingResetEmail, setSendingResetEmail] = useState(false);
 
   // Daily Study Reminder States
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderHour, setReminderHour] = useState(20);
   const [reminderMinute, setReminderMinute] = useState(0);
-
-  // Wheel picker refs
-  const ITEM_HEIGHT = 44;
-  const hourScrollRef = useRef<ScrollView>(null);
-  const minuteScrollRef = useRef<ScrollView>(null);
-  const HOURS = Array.from({ length: 24 }, (_, i) => i);
-  const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 
   const user = auth.currentUser;
 
@@ -70,11 +63,6 @@ export default function DashboardScreen() {
       setReminderEnabled(settings.enabled);
       setReminderHour(settings.hour);
       setReminderMinute(settings.minute);
-      // Scroll wheels to saved position after a tick
-      setTimeout(() => {
-        hourScrollRef.current?.scrollTo({ y: settings.hour * ITEM_HEIGHT, animated: false });
-        minuteScrollRef.current?.scrollTo({ y: settings.minute * ITEM_HEIGHT, animated: false });
-      }, 100);
     }
     loadReminder();
   }, []);
@@ -106,19 +94,15 @@ export default function DashboardScreen() {
     }
   };
 
-  const handleHourScroll = useCallback((y: number) => {
-    const h = Math.round(y / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(23, h));
-    setReminderHour(clamped);
-    if (reminderEnabled) scheduleDailyStudyReminder(clamped, reminderMinute);
-  }, [reminderEnabled, reminderMinute]);
+  const handleHourChange = (h: number) => {
+    setReminderHour(h);
+    if (reminderEnabled) scheduleDailyStudyReminder(h, reminderMinute);
+  };
 
-  const handleMinuteScroll = useCallback((y: number) => {
-    const m = Math.round(y / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(59, m));
-    setReminderMinute(clamped);
-    if (reminderEnabled) scheduleDailyStudyReminder(reminderHour, clamped);
-  }, [reminderEnabled, reminderHour]);
+  const handleMinuteChange = (m: number) => {
+    setReminderMinute(m);
+    if (reminderEnabled) scheduleDailyStudyReminder(reminderHour, m);
+  };
 
   const handleSignOut = () => {
     triggerHaptic('warning');
@@ -135,7 +119,7 @@ export default function DashboardScreen() {
     ]);
   };
 
-  const handleChangePassword = async () => {
+  const handleChangePassword = async (currentPassword: string, newPassword: string) => {
     if (!user || !user.email) return;
     if (!newPassword || newPassword.length < 6) {
       triggerHaptic('warning');
@@ -143,7 +127,6 @@ export default function DashboardScreen() {
       return;
     }
 
-    setUpdatingPassword(true);
     triggerHaptic('medium');
     try {
       if (currentPassword) {
@@ -153,19 +136,15 @@ export default function DashboardScreen() {
       await updatePassword(user, newPassword);
       triggerHaptic('success');
       Alert.alert('Thành công', 'Mật khẩu của bạn đã được cập nhật thành công!');
-      setCurrentPassword('');
-      setNewPassword('');
     } catch (e: any) {
       triggerHaptic('error');
       Alert.alert('Đổi mật khẩu thất bại', getAuthErrorMessage(e));
-    } finally {
-      setUpdatingPassword(false);
+      throw e;
     }
   };
 
   const handleSendResetEmail = async () => {
     if (!user || !user.email) return;
-    setSendingResetEmail(true);
     triggerHaptic('medium');
     try {
       await sendPasswordResetEmail(auth, user.email);
@@ -174,22 +153,9 @@ export default function DashboardScreen() {
     } catch (e: any) {
       triggerHaptic('error');
       Alert.alert('Không thể gửi email', getAuthErrorMessage(e));
-    } finally {
-      setSendingResetEmail(false);
+      throw e;
     }
   };
-
-  const renderVectorIcon = (iconName: string) => {
-    const validIcons = [
-      'book-outline', 'language-outline', 'school-outline', 'journal-outline',
-      'sparkles-outline', 'bookmarks-outline', 'earth-outline', 'cube-outline',
-      'trophy-outline', 'ribbon-outline', 'bulb-outline', 'shapes-outline',
-    ];
-    const icon = validIcons.includes(iconName) ? (iconName as any) : 'book-outline';
-    return <Ionicons name={icon} size={16} color={Colors.accent.indigoLight} />;
-  };
-
-  const formattedReminderTime = `${reminderHour < 10 ? '0' : ''}${reminderHour}:${reminderMinute < 10 ? '0' : ''}${reminderMinute}`;
 
   return (
     <ScrollView
@@ -226,7 +192,7 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Linear Hero Panel Card (#121318 Surface with 1px #232530 stroke) */}
+      {/* Linear Hero Panel Card */}
       <View style={styles.heroCard}>
         <View style={styles.heroTop}>
           <Text style={styles.heroSectionTitle}>DAILY REVIEWS DUE</Text>
@@ -240,16 +206,13 @@ export default function DashboardScreen() {
           <Text style={styles.heroUnit}> CARD REVIEWS</Text>
         </View>
 
-        {/* Progress Track */}
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
-        </View>
+        <ProgressBar progress={progressPct} style={{ marginTop: Spacing.xs }} />
+
         <View style={styles.progressLabels}>
           <Text style={styles.progressText}>{progressPct}% COMPLETE</Text>
           <Text style={styles.progressText}>{doneToday} / {totalCards} CARDS</Text>
         </View>
 
-        {/* Linear Signature Indigo Action Button */}
         <TouchableOpacity
           style={[styles.primaryBtn, totalDue === 0 && styles.primaryBtnDisabled]}
           onPress={() => {
@@ -287,7 +250,7 @@ export default function DashboardScreen() {
 
       {/* Decks Section Header */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>DECK COLLECTIONS</Text>
+        <SectionTitle style={{ marginBottom: 0, marginTop: 0, marginLeft: 0 }}>DECK COLLECTIONS</SectionTitle>
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('selection');
@@ -333,7 +296,7 @@ export default function DashboardScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.deckIconTile}>
-                    {renderVectorIcon(deck.icon)}
+                    <DeckIcon name={deck.icon} size={16} color={Colors.accent.indigoLight} />
                   </View>
                   <View style={styles.deckMeta}>
                     <Text style={styles.deckName} numberOfLines={1}>{deck.name}</Text>
@@ -355,208 +318,21 @@ export default function DashboardScreen() {
       )}
 
       {/* Account Settings Page Sheet Modal */}
-      <Modal
+      <AccountModal
         visible={showAccountModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowAccountModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <View style={{ width: 60 }} />
-            <Text style={styles.modalTitle}>ACCOUNT & SETTINGS</Text>
-            <TouchableOpacity onPress={() => setShowAccountModal(false)} style={styles.headerRightBtn}>
-              <Text style={styles.doneBtnText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-            {/* Account Info */}
-            <Text style={styles.sectionHeaderTitle}>PROFILE</Text>
-            <View style={styles.modalInsetGroup}>
-              <View style={styles.modalRow}>
-                <Text style={styles.fieldLabel}>Display Name</Text>
-                <Text style={styles.fieldValue}>{displayName}</Text>
-              </View>
-              <View style={[styles.modalRow, styles.cellBorderTop]}>
-                <Text style={styles.fieldLabel}>Email Address</Text>
-                <Text style={styles.fieldValue}>{user?.email || 'N/A'}</Text>
-              </View>
-            </View>
-
-            {/* Daily Study Reminder */}
-            <Text style={styles.sectionHeaderTitle}>DAILY STUDY REMINDER</Text>
-            <View style={styles.modalInsetGroup}>
-              <View style={styles.modalRow}>
-                <Text style={[styles.fieldLabel, { flex: 1 }]}>Enable Daily Reminder</Text>
-                <Switch
-                  value={reminderEnabled}
-                  onValueChange={handleToggleReminder}
-                  trackColor={{ false: Colors.bg.tertiary, true: Colors.accent.indigo }}
-                  thumbColor="#F3F4F6"
-                />
-              </View>
-
-              {reminderEnabled && (
-                <View style={styles.reminderTimeBox}>
-                  <Text style={styles.reminderTimeSubLabel}>CHỌN GIỜ NHẮC HỌC</Text>
-
-                  <View style={styles.wheelPickerContainer}>
-                    {/* Hour Wheel */}
-                    <View style={styles.wheelColumn}>
-                      <Text style={styles.wheelLabel}>GIỜ</Text>
-                      <View style={styles.wheelWrapper}>
-                        <View style={styles.wheelSelector} pointerEvents="none" />
-                        <ScrollView
-                          ref={hourScrollRef}
-                          style={styles.wheelScroll}
-                          showsVerticalScrollIndicator={false}
-                          snapToInterval={ITEM_HEIGHT}
-                          decelerationRate="fast"
-                          contentContainerStyle={{ paddingVertical: ITEM_HEIGHT }}
-                          onMomentumScrollEnd={e => handleHourScroll(e.nativeEvent.contentOffset.y)}
-                          onScrollEndDrag={e => handleHourScroll(e.nativeEvent.contentOffset.y)}
-                        >
-                          {HOURS.map(h => (
-                            <TouchableOpacity
-                              key={h}
-                              style={styles.wheelItem}
-                              onPress={() => {
-                                triggerHaptic('selection');
-                                setReminderHour(h);
-                                hourScrollRef.current?.scrollTo({ y: h * ITEM_HEIGHT, animated: true });
-                                if (reminderEnabled) scheduleDailyStudyReminder(h, reminderMinute);
-                              }}
-                            >
-                              <Text style={[
-                                styles.wheelItemText,
-                                reminderHour === h && styles.wheelItemTextActive,
-                              ]}>
-                                {h < 10 ? `0${h}` : `${h}`}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                      </View>
-                    </View>
-
-                    <Text style={styles.wheelColon}>:</Text>
-
-                    {/* Minute Wheel */}
-                    <View style={styles.wheelColumn}>
-                      <Text style={styles.wheelLabel}>PHÚT</Text>
-                      <View style={styles.wheelWrapper}>
-                        <View style={styles.wheelSelector} pointerEvents="none" />
-                        <ScrollView
-                          ref={minuteScrollRef}
-                          style={styles.wheelScroll}
-                          showsVerticalScrollIndicator={false}
-                          snapToInterval={ITEM_HEIGHT}
-                          decelerationRate="fast"
-                          contentContainerStyle={{ paddingVertical: ITEM_HEIGHT }}
-                          onMomentumScrollEnd={e => handleMinuteScroll(e.nativeEvent.contentOffset.y)}
-                          onScrollEndDrag={e => handleMinuteScroll(e.nativeEvent.contentOffset.y)}
-                        >
-                          {MINUTES.map(m => (
-                            <TouchableOpacity
-                              key={m}
-                              style={styles.wheelItem}
-                              onPress={() => {
-                                triggerHaptic('selection');
-                                setReminderMinute(m);
-                                minuteScrollRef.current?.scrollTo({ y: m * ITEM_HEIGHT, animated: true });
-                                if (reminderEnabled) scheduleDailyStudyReminder(reminderHour, m);
-                              }}
-                            >
-                              <Text style={[
-                                styles.wheelItemText,
-                                reminderMinute === m && styles.wheelItemTextActive,
-                              ]}>
-                                {m < 10 ? `0${m}` : `${m}`}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={styles.reminderStatusRow}>
-                    <Ionicons name="notifications-outline" size={15} color={Colors.accent.indigoLight} />
-                    <Text style={styles.reminderStatusText}>Nhắc học hàng ngày lúc {formattedReminderTime}</Text>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* Change Password */}
-            <Text style={styles.sectionHeaderTitle}>SECURITY & PASSWORD</Text>
-            <View style={styles.modalInsetGroup}>
-              <View style={styles.modalRow}>
-                <Text style={styles.fieldLabel}>Current Password</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="Optional for email reset"
-                  placeholderTextColor={Colors.text.tertiary}
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  secureTextEntry
-                />
-              </View>
-              <View style={[styles.modalRow, styles.cellBorderTop]}>
-                <Text style={styles.fieldLabel}>New Password</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="At least 6 characters"
-                  placeholderTextColor={Colors.text.tertiary}
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  secureTextEntry
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.savePasswordBtn, updatingPassword && styles.btnDisabled]}
-              onPress={handleChangePassword}
-              disabled={updatingPassword}
-              activeOpacity={0.8}
-            >
-              {updatingPassword ? (
-                <ActivityIndicator color="#F3F4F6" size="small" />
-              ) : (
-                <Text style={styles.savePasswordBtnText}>UPDATE PASSWORD</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Reset Email Option */}
-            <Text style={styles.sectionHeaderTitle}>EMAIL RECOVERY</Text>
-            <View style={styles.modalInsetGroup}>
-              <TouchableOpacity
-                style={styles.modalActionCell}
-                onPress={handleSendResetEmail}
-                disabled={sendingResetEmail}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalActionCellText}>Send Password Reset Email</Text>
-                {sendingResetEmail && <ActivityIndicator size="small" color={Colors.accent.indigoLight} />}
-              </TouchableOpacity>
-            </View>
-
-            {/* Sign Out */}
-            <Text style={styles.sectionHeaderTitle}>ACCOUNT ACTIONS</Text>
-            <View style={styles.modalInsetGroup}>
-              <TouchableOpacity
-                style={styles.modalActionCell}
-                onPress={handleSignOut}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.destructiveText}>Sign Out Account</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
+        onClose={() => setShowAccountModal(false)}
+        displayName={displayName}
+        email={user?.email || null}
+        reminderEnabled={reminderEnabled}
+        reminderHour={reminderHour}
+        reminderMinute={reminderMinute}
+        onToggleReminder={handleToggleReminder}
+        onHourChange={handleHourChange}
+        onMinuteChange={handleMinuteChange}
+        onChangePassword={handleChangePassword}
+        onSendResetEmail={handleSendResetEmail}
+        onSignOut={handleSignOut}
+      />
     </ScrollView>
   );
 }
@@ -565,7 +341,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg.primary },
   content: { paddingHorizontal: Spacing.pageMargin },
 
-  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -613,7 +388,6 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     fontWeight: Typography.weight.semibold,
   },
-
   avatarBtn: {
     width: 36,
     height: 36,
@@ -632,8 +406,6 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     includeFontPadding: false,
   },
-
-  // Hero Card
   heroCard: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
@@ -668,7 +440,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.bold,
     letterSpacing: 0.5,
   },
-
   heroCountRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -687,19 +458,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginLeft: 6,
   },
-
-  progressTrack: {
-    height: 4,
-    backgroundColor: Colors.bg.tertiary,
-    borderRadius: 2,
-    marginTop: Spacing.xs,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.accent.indigo,
-    borderRadius: 2,
-  },
   progressLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -712,7 +470,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.semibold,
     letterSpacing: 0.5,
   },
-
   primaryBtn: {
     backgroundColor: Colors.accent.indigo,
     borderRadius: Radii.card,
@@ -736,8 +493,6 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     includeFontPadding: false,
   },
-
-  // Metrics Group
   metricsGroup: {
     flexDirection: 'row',
     backgroundColor: Colors.bg.secondary,
@@ -747,10 +502,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border.default,
   },
-  metricCol: {
-    flex: 1,
-    alignItems: 'center',
-  },
+  metricCol: { flex: 1, alignItems: 'center' },
   metricValue: {
     fontSize: Typography.text.title2.fontSize,
     lineHeight: Typography.text.title2.lineHeight,
@@ -764,12 +516,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginTop: 2,
   },
-  metricSeparator: {
-    width: 1,
-    backgroundColor: Colors.border.separator,
-  },
-
-  // Section Header
+  metricSeparator: { width: 1, backgroundColor: Colors.border.separator },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -777,19 +524,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sectionBottom,
     paddingHorizontal: 4,
   },
-  sectionTitle: {
-    fontSize: Typography.text.caption1.fontSize,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.secondary,
-    letterSpacing: 1.2,
-  },
   sectionLink: {
     fontSize: Typography.text.footnote.fontSize,
     color: Colors.accent.indigoLight,
     fontWeight: Typography.weight.semibold,
   },
-
-  // Decks Group
   decksGroup: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
@@ -852,8 +591,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.bold,
     letterSpacing: 0.5,
   },
-
-  // Empty
   emptyCard: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
@@ -892,206 +629,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,
-  },
-
-  // Account Modal
-  modalContainer: { flex: 1, backgroundColor: Colors.bg.primary },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border.separator,
-    backgroundColor: Colors.bg.secondary,
-  },
-  modalTitle: {
-    fontSize: Typography.text.footnote.fontSize,
-    fontWeight: Typography.weight.bold,
-    color: Colors.text.primary,
-    letterSpacing: 1,
-  },
-  headerRightBtn: { padding: Spacing.xs },
-  doneBtnText: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.bold,
-  },
-  modalContent: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.md, paddingBottom: 40 },
-  sectionHeaderTitle: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weight.semibold,
-    letterSpacing: 1.2,
-    marginBottom: Spacing.sectionBottom,
-    marginTop: Spacing.sectionTop,
-    marginLeft: 4,
-  },
-  modalInsetGroup: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.border.default,
-  },
-  modalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: Spacing.cellVertical,
-    minHeight: Spacing.cellMinHeight,
-  },
-  cellBorderTop: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border.separator,
-  },
-  fieldLabel: {
-    width: 140,
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.medium,
-  },
-  fieldValue: {
-    flex: 1,
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.secondary,
-  },
-  fieldInput: {
-    flex: 1,
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
-  },
-
-  // Wheel Time Picker
-  reminderTimeBox: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border.separator,
-    paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: Spacing.cellVertical,
-  },
-  reminderTimeSubLabel: {
-    fontSize: Typography.text.caption2.fontSize,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 1,
-    marginBottom: Spacing.sm,
-  },
-  wheelPickerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    marginVertical: Spacing.xs,
-  },
-  wheelColumn: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  wheelLabel: {
-    fontSize: Typography.text.caption2.fontSize,
-    color: Colors.text.tertiary,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  wheelWrapper: {
-    height: 44 * 3,
-    overflow: 'hidden',
-    borderRadius: Radii.card,
-    backgroundColor: Colors.bg.tertiary,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
-    position: 'relative',
-  },
-  wheelSelector: {
-    position: 'absolute',
-    top: 44,
-    left: 0,
-    right: 0,
-    height: 44,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: Colors.accent.indigo,
-    backgroundColor: Colors.accent.indigo + '18',
-    zIndex: 1,
-  },
-  wheelScroll: {
-    flex: 1,
-  },
-  wheelItem: {
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  wheelItemText: {
-    fontSize: 22,
-    fontWeight: Typography.weight.medium,
-    color: Colors.text.secondary,
-    letterSpacing: 1,
-  },
-  wheelItemTextActive: {
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.bold,
-    fontSize: 24,
-  },
-  wheelColon: {
-    fontSize: 28,
-    fontWeight: Typography.weight.bold,
-    color: Colors.text.secondary,
-    paddingBottom: 16,
-    marginHorizontal: 4,
-  },
-  reminderStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: Spacing.sm,
-  },
-  reminderStatusText: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.medium,
-  },
-
-  savePasswordBtn: {
-    backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.card,
-    height: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.accent.indigoLight,
-  },
-  savePasswordBtnText: {
-    color: '#F3F4F6',
-    fontSize: Typography.text.footnote.fontSize,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 0.5,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    includeFontPadding: false,
-  },
-  btnDisabled: { opacity: 0.6 },
-
-  modalActionCell: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: Spacing.cellVertical,
-    minHeight: Spacing.cellMinHeight,
-  },
-  modalActionCellText: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.medium,
-  },
-  destructiveText: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.neon.coral,
-    fontWeight: Typography.weight.semibold,
   },
 });

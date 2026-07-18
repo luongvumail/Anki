@@ -14,7 +14,7 @@ async function generateWithFallback(prompt: string): Promise<string> {
       const model = genAI.getGenerativeModel({
         model: modelName,
         generationConfig: {
-          responseMimeType: 'application/json',
+          responseMimeType: "application/json",
           temperature: 0.1,
         },
       });

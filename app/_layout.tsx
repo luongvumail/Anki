@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useStore } from '../store/useStore';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export default function RootLayout() {
   const setUserId = useStore(s => s.setUserId);
@@ -22,7 +23,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <ErrorBoundary>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="auth" />
@@ -31,6 +32,6 @@ export default function RootLayout() {
         <Stack.Screen name="deck/[id]" />
         <Stack.Screen name="card/[id]" />
       </Stack>
-    </>
+    </ErrorBoundary>
   );
 }

@@ -9,6 +9,9 @@ import * as Speech from 'expo-speech';
 import { useStore } from '../../store/useStore';
 import { isDue } from '../../lib/srs';
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
+import { SectionTitle } from '../../components/ui/SectionTitle';
+import { InsetGroup } from '../../components/ui/InsetGroup';
+import { InsetRow } from '../../components/ui/InsetRow';
 
 export default function CardDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -74,42 +77,44 @@ export default function CardDetailScreen() {
       </View>
 
       {/* Info Group */}
-      <Text style={styles.sectionHeaderTitle}>THÔNG TIN HÁN TỰ</Text>
-      <View style={styles.insetGroup}>
-        <InfoRow label="Pinyin" value={card.pinyin} valueColor={Colors.accent.blue} />
-        <InfoRow label="Hán Việt" value={card.hanviet} isBorder />
-        <InfoRow label="Nghĩa TV" value={card.translation} isBorder />
-        {card.radical ? <InfoRow label="Bộ thủ" value={card.radical} isBorder /> : null}
-        {card.strokeCount ? <InfoRow label="Số nét" value={`${card.strokeCount} nét`} isBorder /> : null}
-        {card.hskLevel ? <InfoRow label="Cấp HSK" value={`HSK ${card.hskLevel}`} isBorder /> : null}
+      <SectionTitle>THÔNG TIN HÁN TỰ</SectionTitle>
+      <InsetGroup>
+        <InsetRow label="Pinyin" value={card.pinyin} valueColor={Colors.accent.blue} labelStyle={{ width: 100 }} />
+        <InsetRow label="Hán Việt" value={card.hanviet} isBorder labelStyle={{ width: 100 }} />
+        <InsetRow label="Nghĩa TV" value={card.translation} isBorder labelStyle={{ width: 100 }} />
+        {card.radical ? <InsetRow label="Bộ thủ" value={card.radical} isBorder labelStyle={{ width: 100 }} /> : null}
+        {card.strokeCount ? <InsetRow label="Số nét" value={`${card.strokeCount} nét`} isBorder labelStyle={{ width: 100 }} /> : null}
+        {card.hskLevel ? <InsetRow label="Cấp HSK" value={`HSK ${card.hskLevel}`} isBorder labelStyle={{ width: 100 }} /> : null}
         {card.tags && card.tags.length > 0 && (
-          <InfoRow label="Phân loại" value={card.tags.join(', ')} isBorder />
+          <InsetRow label="Phân loại" value={card.tags.join(', ')} isBorder labelStyle={{ width: 100 }} />
         )}
-      </View>
+      </InsetGroup>
 
       {/* SRS Memory Group */}
-      <Text style={styles.sectionHeaderTitle}>TRẠNG THÁI TRÍ NHỚ (ANKI)</Text>
-      <View style={styles.insetGroup}>
-        <InfoRow label="Lần ôn" value={`${card.srs.repetitions} lần`} />
-        <InfoRow label="Khoảng cách" value={`${card.srs.interval} ngày`} isBorder />
-        <InfoRow label="Hệ số Ease" value={`${card.srs.easeFactor}`} isBorder />
-        <InfoRow
+      <SectionTitle>TRẠNG THÁI TRÍ NHỚ (ANKI)</SectionTitle>
+      <InsetGroup>
+        <InsetRow label="Lần ôn" value={`${card.srs.repetitions} lần`} labelStyle={{ width: 100 }} />
+        <InsetRow label="Khoảng cách" value={`${card.srs.interval} ngày`} isBorder labelStyle={{ width: 100 }} />
+        <InsetRow label="Hệ số Ease" value={`${card.srs.easeFactor}`} isBorder labelStyle={{ width: 100 }} />
+        <InsetRow
           label="Trạng thái"
           value={due ? 'Cần ôn ngay' : 'Đã thuộc'}
           isBorder
+          labelStyle={{ width: 100 }}
         />
-        <InfoRow
+        <InsetRow
           label="Lần ôn tiếp"
           value={new Date(card.srs.dueDate).toLocaleDateString('vi-VN')}
           isBorder
+          labelStyle={{ width: 100 }}
         />
-      </View>
+      </InsetGroup>
 
       {/* Examples Group */}
       {card.examples && card.examples.length > 0 && (
         <>
-          <Text style={styles.sectionHeaderTitle}>CÂU VÍ DỤ NGUYÊN CẢNH</Text>
-          <View style={styles.examplesInsetGroup}>
+          <SectionTitle>CÂU VÍ DỤ NGUYÊN CẢNH</SectionTitle>
+          <InsetGroup>
             {card.examples.map((ex, i) => (
               <View key={i} style={[styles.exampleItem, i > 0 && styles.cellBorderTop]}>
                 <Text style={styles.exCn}>{ex.chinese}</Text>
@@ -117,19 +122,10 @@ export default function CardDetailScreen() {
                 <Text style={styles.exVi}>{ex.vietnamese}</Text>
               </View>
             ))}
-          </View>
+          </InsetGroup>
         </>
       )}
     </ScrollView>
-  );
-}
-
-function InfoRow({ label, value, valueColor, isBorder }: { label: string; value: string; valueColor?: string; isBorder?: boolean }) {
-  return (
-    <View style={[styles.infoRow, isBorder && styles.cellBorderTop]}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={[styles.infoValue, valueColor ? { color: valueColor, fontWeight: Typography.weight.semibold } : {}]}>{value}</Text>
-    </View>
   );
 }
 
@@ -168,40 +164,11 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
-  sectionHeaderTitle: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weight.semibold,
-    letterSpacing: -0.08,
-    marginBottom: Spacing.sectionBottom,
-    marginTop: Spacing.sectionTop,
-    marginLeft: 4,
-  },
-
-  insetGroup: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    overflow: 'hidden',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: Spacing.cellVertical,
-    minHeight: Spacing.cellMinHeight,
-  },
   cellBorderTop: {
     borderTopWidth: 0.5,
     borderTopColor: Colors.border.separator,
   },
-  infoLabel: { width: 100, fontSize: Typography.text.body.fontSize, color: Colors.text.secondary },
-  infoValue: { flex: 1, fontSize: Typography.text.body.fontSize, color: Colors.text.primary },
 
-  examplesInsetGroup: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    overflow: 'hidden',
-  },
   exampleItem: {
     padding: Spacing.cellHorizontal,
   },

@@ -47,15 +47,24 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     };
     await setDoc(ref, card);
 
-    // Update deck card count
+    // Update deck card count & new count
     const deckDocRef = doc(decksRef(uid), cardData.deckId);
     const deckSnap = await getDoc(deckDocRef);
     if (deckSnap.exists()) {
       const d = deckSnap.data() as Deck;
-      await updateDoc(deckDocRef, { cardCount: (d.cardCount || 0) + 1 });
+      const newCardCount = (d.cardCount || 0) + 1;
+      const newNewCount = (d.newCount || 0) + 1;
+      await updateDoc(deckDocRef, { cardCount: newCardCount, newCount: newNewCount });
+      set((s) => ({
+        decks: s.decks.map((deck) =>
+          deck.id === cardData.deckId
+            ? { ...deck, cardCount: newCardCount, newCount: newNewCount }
+            : deck,
+        ),
+      }));
     }
 
-    set(s => {
+    set((s) => {
       const existing = s.cards[cardData.deckId] || [];
       return { cards: { ...s.cards, [cardData.deckId]: [...existing, card] } };
     });
@@ -63,13 +72,16 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
 
   updateCard: async (cardId, deckId, updates) => {
     const uid = getUserId();
-    await updateDoc(cardRef(uid, deckId, cardId), { ...updates, updatedAt: new Date().toISOString() });
-    set(s => {
+    await updateDoc(cardRef(uid, deckId, cardId), {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    });
+    set((s) => {
       const existing = s.cards[deckId] || [];
       return {
         cards: {
           ...s.cards,
-          [deckId]: existing.map(c => c.id === cardId ? { ...c, ...updates } : c),
+          [deckId]: existing.map((c) => (c.id === cardId ? { ...c, ...updates } : c)),
         },
       };
     });
@@ -78,17 +90,33 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
   deleteCard: async (cardId, deckId) => {
     const uid = getUserId();
     await deleteDoc(cardRef(uid, deckId, cardId));
-    set(s => ({
+
+    // Update deck card count
+    const deckDocRef = doc(decksRef(uid), deckId);
+    const deckSnap = await getDoc(deckDocRef);
+    if (deckSnap.exists()) {
+      const d = deckSnap.data() as Deck;
+      const newCardCount = Math.max(0, (d.cardCount || 0) - 1);
+      await updateDoc(deckDocRef, { cardCount: newCardCount });
+      set((s) => ({
+        decks: s.decks.map((deck) =>
+          deck.id === deckId ? { ...deck, cardCount: newCardCount } : deck,
+        ),
+      }));
+    }
+
+    set((s) => ({
       cards: {
         ...s.cards,
-        [deckId]: (s.cards[deckId] || []).filter(c => c.id !== cardId),
+        [deckId]: (s.cards[deckId] || []).filter((c) => c.id !== cardId),
       },
     }));
   },
 
   gradeCard: async (card, grade) => {
     const newSRS = calculateSRS(grade, card.srs);
-    await get().updateCard(card.id, card.deckId, { srs: newSRS });
+    const now = new Date().toISOString();
+    await get().updateCard(card.id, card.deckId, { srs: newSRS, lastReviewedAt: now });
   },
 
   resetDeckProgress: async (deckId) => {

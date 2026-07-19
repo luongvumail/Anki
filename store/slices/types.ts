@@ -1,4 +1,4 @@
-import { SRSState, SRSGrade } from "../../lib/srs";
+import { SRSState } from "../../lib/srs";
 
 export interface Card {
   id: string;
@@ -8,7 +8,7 @@ export interface Card {
   pinyin: string;
   hanviet: string;
   translation: string;
-  examples: Array<{ chinese: string; pinyin: string; vietnamese: string }>;
+  examples: { chinese: string; pinyin: string; vietnamese: string }[];
   radical?: string;
   strokeCount?: number;
   hskLevel?: number;
@@ -16,6 +16,7 @@ export interface Card {
   srs: SRSState;
   createdAt: string;
   updatedAt: string;
+  lastReviewedAt?: string;
 }
 
 export interface Deck {

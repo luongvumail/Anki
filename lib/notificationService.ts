@@ -25,6 +25,7 @@ let notificationHandlerConfigured = false;
 function getNotificationsModule() {
   if (Platform.OS === 'web') return null;
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Notifications = require('expo-notifications');
     if (Notifications && !notificationHandlerConfigured) {
       try {

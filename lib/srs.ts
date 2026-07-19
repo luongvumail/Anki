@@ -19,11 +19,28 @@ export interface SRSState {
   dueDate: string; // ISO date string
 }
 
+export function createDefaultSRSState(): SRSState {
+  return {
+    repetitions: 0,
+    interval: 0,
+    easeFactor: 2.5,
+    dueDate: new Date().toISOString(),
+  };
+}
+
 export const DEFAULT_SRS_STATE: SRSState = {
-  repetitions: 0,
-  interval: 0,
-  easeFactor: 2.5,
-  dueDate: new Date().toISOString(),
+  get repetitions() {
+    return 0;
+  },
+  get interval() {
+    return 0;
+  },
+  get easeFactor() {
+    return 2.5;
+  },
+  get dueDate() {
+    return new Date().toISOString();
+  },
 };
 
 /**

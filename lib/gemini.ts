@@ -32,17 +32,24 @@ async function generateWithFallback(prompt: string): Promise<string> {
   throw lastError;
 }
 
+function sanitizeInput(input: string): string {
+  return input
+    .trim()
+    .slice(0, 50)
+    .replace(/["'\\\n\r]/g, " ");
+}
+
 export interface CardData {
   character: string;
   traditional?: string;
   pinyin: string;
   hanviet: string;
   translation: string;
-  examples: Array<{
+  examples: {
     chinese: string;
     pinyin: string;
     vietnamese: string;
-  }>;
+  }[];
   radical?: string;
   strokeCount?: number;
   hskLevel?: number;
@@ -54,7 +61,8 @@ export interface CardData {
  * Returns structured JSON with all fields needed for a flashcard.
  */
 export async function generateCardData(input: string): Promise<CardData> {
-  const prompt = `Bạn là chuyên gia Hán-Việt. Phân tích từ tiếng Trung: "${input}"
+  const cleanInput = sanitizeInput(input);
+  const prompt = `Bạn là chuyên gia Hán-Việt. Phân tích từ tiếng Trung: "${cleanInput}"
 Trả về JSON (CHỈ JSON, không markdown):
 {
   "character": "chữ giản thể",

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -24,7 +25,7 @@ import { CardPreview } from "../../components/add/CardPreview";
 
 export default function AddCardScreen() {
   const insets = useSafeAreaInsets();
-  const { decks, addCard, updateCard, findExistingCard, fetchCards } = useStore();
+  const { decks, cards, addCard, updateCard, findExistingCard, fetchCards } = useStore();
   const [input, setInput] = useState("");
   const [selectedDeckId, setSelectedDeckId] = useState("");
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
@@ -33,10 +34,21 @@ export default function AddCardScreen() {
   const [existingCardId, setExistingCardId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Restore last selected deck from storage once decks are loaded
   useEffect(() => {
-    if (selectedDeckId) {
+    if (decks.length === 0) return;
+    AsyncStorage.getItem("lastSelectedDeckId").then((saved) => {
+      if (saved && decks.some((d) => d.id === saved)) {
+        setSelectedDeckId(saved);
+      }
+    });
+  }, [decks]);
+
+  useEffect(() => {
+    if (selectedDeckId && (!cards[selectedDeckId] || cards[selectedDeckId].length === 0)) {
       fetchCards(selectedDeckId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDeckId]);
 
   const handleGenerate = async (forceAI = false) => {
@@ -196,6 +208,7 @@ export default function AddCardScreen() {
             triggerHaptic("selection");
             setSelectedDeckId(id);
             setDeckPickerOpen(false);
+            AsyncStorage.setItem("lastSelectedDeckId", id);
           }}
         />
 

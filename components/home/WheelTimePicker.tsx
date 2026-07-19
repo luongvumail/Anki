@@ -28,6 +28,7 @@ export function WheelTimePicker({
       hourScrollRef.current?.scrollTo({ y: hour * ITEM_HEIGHT, animated: false });
       minuteScrollRef.current?.scrollTo({ y: minute * ITEM_HEIGHT, animated: false });
     }, 100);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleHourScroll = useCallback(

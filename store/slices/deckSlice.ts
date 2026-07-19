@@ -1,5 +1,5 @@
 import { StateCreator } from "zustand";
-import { getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { getDocs, doc, setDoc, deleteDoc, QuerySnapshot, DocumentData } from "firebase/firestore";
 import { auth } from "../../lib/firebase";
 import { Deck } from "./types";
 import { getUserId, decksRef, cardsRef } from "./firestoreHelpers";
@@ -37,8 +37,8 @@ export const createDeckSlice: StateCreator<DeckSlice & UISlice & CardSlice, [], 
           10000,
         ),
       );
-      const snap = (await Promise.race([getDocs(decksRef(uid)), timeout])) as any;
-      const decks = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }) as Deck);
+      const snap = (await Promise.race([getDocs(decksRef(uid)), timeout])) as QuerySnapshot<DocumentData>;
+      const decks = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Deck);
       console.log("[fetchDecks] Success, got", decks.length, "decks");
       set({ decks, isLoading: false });
     } catch (e: any) {

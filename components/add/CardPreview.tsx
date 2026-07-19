@@ -29,6 +29,7 @@ export function CardPreview({ cardData, saving, onReGenerate, onSave }: CardPrev
       friction: 8,
       useNativeDriver: true,
     }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const translateY = slideAnim.interpolate({

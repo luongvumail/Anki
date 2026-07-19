@@ -28,6 +28,7 @@ export default function DeckDetailScreen() {
 
   useEffect(() => {
     if (id) fetchCards(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleDeleteCard = (card: Card) => {
@@ -126,15 +127,26 @@ export default function DeckDetailScreen() {
 
       {/* Centered Study button */}
       <TouchableOpacity
-        style={styles.studyBtn}
+        style={[styles.studyBtn, dueCards.length === 0 && styles.studyBtnDisabled]}
         onPress={() => {
+          if (dueCards.length === 0) return;
           triggerHaptic("medium");
           router.push(`/study/${id}`);
         }}
+        disabled={dueCards.length === 0}
         activeOpacity={0.8}
       >
-        <Ionicons name="play" size={16} color="#F3F4F6" style={{ marginRight: 6 }} />
-        <Text style={styles.studyBtnText}>Bắt đầu ôn tập ({dueCards.length} thẻ)</Text>
+        <Ionicons
+          name={dueCards.length > 0 ? "play" : "checkmark-circle"}
+          size={16}
+          color="#F3F4F6"
+          style={{ marginRight: 6 }}
+        />
+        <Text style={styles.studyBtnText}>
+          {dueCards.length > 0
+            ? `Bắt đầu ôn tập (${dueCards.length} thẻ)`
+            : "Đã hoàn thành ôn tập hôm nay ✓"}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -315,6 +327,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.accent.indigoLight,
+  },
+  studyBtnDisabled: {
+    backgroundColor: Colors.bg.tertiary,
+    borderColor: Colors.border.default,
   },
   studyBtnText: {
     color: "#F3F4F6",

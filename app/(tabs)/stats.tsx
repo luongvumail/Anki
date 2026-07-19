@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Dimensions, ActivityIndicator, Animated,
 } from 'react-native';
@@ -61,50 +61,71 @@ export default function StatsScreen() {
       }).start();
     }
     loadAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  const allCards: Card[] = Object.values(cards).flat();
+  const {
+    totalCards,
+    totalMastered,
+    totalLearning,
+    totalNew,
+    totalDue,
+    masteryRate,
+    last7Days,
+    streakDays,
+  } = useMemo(() => {
+    const cardsList: Card[] = Object.values(cards).flat();
+    const countTotal = cardsList.length;
+    const countMastered = cardsList.filter((c) => c.srs && c.srs.repetitions >= 2).length;
+    const countLearning = cardsList.filter((c) => c.srs && c.srs.repetitions === 1).length;
+    const countNew = cardsList.filter((c) => !c.srs || c.srs.repetitions === 0).length;
+    const countDue = decks.reduce((s, d) => s + (d.dueCount || 0), 0);
+    const rate = countTotal > 0 ? Math.round((countMastered / countTotal) * 100) : 0;
 
-  const totalCards = allCards.length;
-  const totalMastered = allCards.filter(c => c.srs && c.srs.repetitions >= 2).length;
-  const totalLearning = allCards.filter(c => c.srs && c.srs.repetitions === 1).length;
-  const totalNew = allCards.filter(c => !c.srs || c.srs.repetitions === 0).length;
-  const totalDue = decks.reduce((s, d) => s + (d.dueCount || 0), 0);
+    const days7 = getLast7Days();
+    const reviewCountsByDate: Record<string, number> = {};
 
-  const masteryRate = totalCards > 0 ? Math.round((totalMastered / totalCards) * 100) : 0;
+    cardsList.forEach((c) => {
+      if (c.updatedAt) {
+        const datePart = c.updatedAt.split("T")[0];
+        reviewCountsByDate[datePart] = (reviewCountsByDate[datePart] || 0) + 1;
+      }
+    });
 
-  const last7Days = getLast7Days();
-  const reviewCountsByDate: Record<string, number> = {};
+    days7.forEach((day) => {
+      day.count = reviewCountsByDate[day.dateStr] || 0;
+    });
 
-  allCards.forEach(c => {
-    if (c.updatedAt) {
-      const datePart = c.updatedAt.split('T')[0];
-      reviewCountsByDate[datePart] = (reviewCountsByDate[datePart] || 0) + 1;
-    }
-  });
+    let streak = 0;
+    const todayStr = new Date().toISOString().split("T")[0];
+    const hasReviewedToday = (reviewCountsByDate[todayStr] || 0) > 0;
 
-  last7Days.forEach(day => {
-    day.count = reviewCountsByDate[day.dateStr] || 0;
-  });
-
-  let streakDays = 0;
-  const todayStr = new Date().toISOString().split('T')[0];
-  const hasReviewedToday = (reviewCountsByDate[todayStr] || 0) > 0;
-
-  let checkDate = new Date();
-  if (!hasReviewedToday) {
-    checkDate.setDate(checkDate.getDate() - 1);
-  }
-
-  while (true) {
-    const dStr = checkDate.toISOString().split('T')[0];
-    if (reviewCountsByDate[dStr] && reviewCountsByDate[dStr] > 0) {
-      streakDays++;
+    const checkDate = new Date();
+    if (!hasReviewedToday) {
       checkDate.setDate(checkDate.getDate() - 1);
-    } else {
-      break;
     }
-  }
+
+    for (let i = 0; i < 365; i++) {
+      const dStr = checkDate.toISOString().split("T")[0];
+      if (reviewCountsByDate[dStr] && reviewCountsByDate[dStr] > 0) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    return {
+      totalCards: countTotal,
+      totalMastered: countMastered,
+      totalLearning: countLearning,
+      totalNew: countNew,
+      totalDue: countDue,
+      masteryRate: rate,
+      last7Days: days7,
+      streakDays: streak,
+    };
+  }, [cards, decks]);
 
   if (loadingCards) {
     return (

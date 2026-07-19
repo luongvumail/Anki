@@ -26,6 +26,7 @@ export default function DecksScreen() {
 
   useEffect(() => {
     if (userId) fetchDecks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const handleCreate = async () => {

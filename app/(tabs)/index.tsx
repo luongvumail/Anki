@@ -48,14 +48,21 @@ export default function DashboardScreen() {
   // 1 single character for circular avatar
   const initials = displayName.slice(0, 1).toUpperCase();
 
+  const todayStr = new Date().toISOString().split("T")[0];
+  const allCardsInMemory = Object.values(useStore.getState().cards).flat();
+  const reviewedTodayCount = allCardsInMemory.filter(
+    (c) => c.updatedAt && c.updatedAt.split("T")[0] === todayStr,
+  ).length;
+
   const totalDue = decks.reduce((s, d) => s + (d.dueCount || 0), 0);
   const totalCards = decks.reduce((s, d) => s + (d.cardCount || 0), 0);
   const totalNew = decks.reduce((s, d) => s + (d.newCount || 0), 0);
-  const doneToday = Math.max(0, totalCards - totalDue - totalNew);
+  const doneToday = reviewedTodayCount > 0 ? reviewedTodayCount : Math.max(0, totalCards - totalDue - totalNew);
   const progressPct = totalCards > 0 ? Math.round((doneToday / totalCards) * 100) : 0;
 
   useEffect(() => {
     if (userId) fetchDecks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   // Load reminder settings on mount
@@ -96,14 +103,14 @@ export default function DashboardScreen() {
     }
   };
 
-  const handleHourChange = (h: number) => {
+  const handleHourChange = async (h: number) => {
     setReminderHour(h);
-    if (reminderEnabled) scheduleDailyStudyReminder(h, reminderMinute);
+    if (reminderEnabled) await scheduleDailyStudyReminder(h, reminderMinute);
   };
 
-  const handleMinuteChange = (m: number) => {
+  const handleMinuteChange = async (m: number) => {
     setReminderMinute(m);
-    if (reminderEnabled) scheduleDailyStudyReminder(reminderHour, m);
+    if (reminderEnabled) await scheduleDailyStudyReminder(reminderHour, m);
   };
 
   const handleSignOut = () => {
@@ -113,9 +120,10 @@ export default function DashboardScreen() {
       {
         text: 'Đăng xuất',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
           setShowAccountModal(false);
-          auth.signOut();
+          await auth.signOut();
+          useStore.setState({ decks: [], cards: {}, session: null, userId: null });
         },
       },
     ]);

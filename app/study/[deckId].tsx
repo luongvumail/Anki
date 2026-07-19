@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Dimensions,
+  useWindowDimensions,
   ActivityIndicator,
   ScrollView,
   PanResponder,
@@ -22,15 +22,16 @@ import { ProgressBar } from "../../components/ui/ProgressBar";
 import { SRSButtons } from "../../components/study/SRSButtons";
 import { SessionDoneScreen } from "../../components/study/SessionDoneScreen";
 
-const { width, height } = Dimensions.get("window");
-const CARD_WIDTH = width - Spacing.pageMargin * 2;
-const CARD_HEIGHT = height * 0.54;
 const SWIPE_THRESHOLD = 90;
 
 export default function StudyScreen() {
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const cardWidth = width - Spacing.pageMargin * 2;
+  const cardHeight = height * 0.54;
+
   const { deckId } = useLocalSearchParams<{ deckId: string }>();
-  const { session, startSession, endSession, gradeCard, decks } = useStore();
+  const { session, startSession, endSession, advanceSession, gradeCard, decks } = useStore();
 
   const [flipped, setFlipped] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -66,6 +67,7 @@ export default function StudyScreen() {
     return () => {
       Speech.stop();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deckId]);
 
   // Apple / Duolingo Style Reveal (Smooth Slide Up & Spring Expand)
@@ -114,22 +116,7 @@ export default function StudyScreen() {
 
       const updateDelay = isLastCard ? 150 : 0;
       setTimeout(() => {
-        useStore.setState((s) => {
-          if (!s.session) return { session: null };
-          const updatedQueue = [...s.session.queue];
-          if (grade === SRS_GRADES.AGAIN) {
-            updatedQueue.push(card);
-          }
-          return {
-            session: {
-              ...s.session,
-              queue: updatedQueue,
-              currentIndex: s.session.currentIndex + 1,
-              reviewedCount: s.session.reviewedCount + 1,
-              correctCount: grade >= 3 ? s.session.correctCount + 1 : s.session.correctCount,
-            },
-          };
-        });
+        advanceSession(card, grade);
       }, updateDelay);
     });
   };
@@ -322,7 +309,10 @@ export default function StudyScreen() {
 
       {/* Flashcard Area */}
       <View style={styles.cardArea}>
-        <Animated.View style={[styles.cardWrapper, cardRotateStyle]} {...panResponder.panHandlers}>
+        <Animated.View
+          style={[styles.cardWrapper, { width: cardWidth, height: cardHeight }, cardRotateStyle]}
+          {...panResponder.panHandlers}
+        >
           {/* Swipe badges */}
           {activeSwipeDirection === "left" && (
             <View
@@ -354,7 +344,7 @@ export default function StudyScreen() {
 
           {/* Unified Card Body (Apple / Duolingo Slide & Expand Style) */}
           <TouchableOpacity
-            style={styles.cardCardBody}
+            style={[styles.cardCardBody, { width: cardWidth, height: cardHeight }]}
             onPress={flipCard}
             activeOpacity={flipped ? 1 : 0.95}
           >
@@ -504,14 +494,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.primary,
   },
   cardWrapper: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
   },
   cardCardBody: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
     borderRadius: Radii.xl,
     backgroundColor: Colors.bg.secondary,
     borderWidth: 1,

@@ -20,6 +20,7 @@ export function SessionDoneScreen({ session, onDone }: SessionDoneScreenProps) {
       duration: 350,
       useNativeDriver: true,
     }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const accuracy = session.reviewedCount > 0

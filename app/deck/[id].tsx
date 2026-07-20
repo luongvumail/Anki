@@ -174,11 +174,6 @@ export default function DeckDetailScreen() {
                 <Text style={styles.cardPinyin} numberOfLines={1}>
                   {(card.pinyin || "").trim()}
                 </Text>
-                {card.hanviet ? (
-                  <Text style={styles.cardHanviet} numberOfLines={1}>
-                    {(card.hanviet || "").trim()}
-                  </Text>
-                ) : null}
               </View>
               <Text style={styles.cardTranslation} numberOfLines={1}>
                 {(card.translation || "").trim()}

@@ -274,7 +274,6 @@ export default function AddCardScreen() {
         character: item.data.character,
         traditional: item.data.traditional,
         pinyin: item.data.pinyin,
-        hanviet: item.data.hanviet,
         translation: item.data.translation,
         examples: item.data.examples || [],
         radical: item.data.radical,
@@ -321,7 +320,6 @@ export default function AddCardScreen() {
             character: item.data!.character,
             traditional: item.data!.traditional,
             pinyin: item.data!.pinyin,
-            hanviet: item.data!.hanviet,
             translation: item.data!.translation,
             examples: item.data!.examples || [],
             radical: item.data!.radical,
@@ -355,6 +353,7 @@ export default function AddCardScreen() {
 
   const doneItems = wordItems.filter((i) => i.status === "done" && !i.saved);
   const anyLoading = wordItems.some((i) => i.status === "loading");
+  const anySaving = wordItems.some((i) => i.saving);
 
   return (
     <KeyboardAvoidingView
@@ -517,7 +516,7 @@ export default function AddCardScreen() {
                 targetDeckName={decks.find((d) => d.id === selectedDeckId)?.name}
                 saving={item.saving}
                 onReGenerate={() => handleReGenerate(item.word)}
-                onSave={() => handleSaveOne(item)}
+                onSave={wordItems.length === 1 ? () => handleSaveOne(item) : undefined}
                 onRemove={wordItems.length > 1 ? () => handleRemoveItem(item.word) : undefined}
               />
             );
@@ -526,11 +525,24 @@ export default function AddCardScreen() {
           return null;
         })}
 
-        {/* Save All button — visible only when 2+ done cards, nothing still loading */}
-        {doneItems.length > 1 && !anyLoading && (
-          <TouchableOpacity style={styles.saveAllBtn} onPress={handleSaveAll} activeOpacity={0.85}>
-            <Ionicons name="checkmark-done" size={16} color="#FFF" style={{ marginRight: 6 }} />
-            <Text style={styles.saveAllText}>Lưu tất cả {doneItems.length} thẻ</Text>
+        {/* Save All button — visible when multiple words exist in batch and at least one is done */}
+        {wordItems.length > 1 && doneItems.length > 0 && !anyLoading && (
+          <TouchableOpacity
+            style={[styles.saveAllBtn, anySaving && styles.saveAllBtnDisabled]}
+            onPress={handleSaveAll}
+            disabled={anySaving}
+            activeOpacity={0.85}
+          >
+            {anySaving ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-done" size={16} color="#FFF" style={{ marginRight: 6 }} />
+                <Text style={styles.saveAllText}>
+                  {doneItems.length === 1 ? "Lưu 1 thẻ" : `Lưu tất cả ${doneItems.length} thẻ`}
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -706,6 +718,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: Spacing.lg,
+  },
+  saveAllBtnDisabled: {
+    opacity: 0.6,
   },
   saveAllText: {
     color: "#FFFFFF",

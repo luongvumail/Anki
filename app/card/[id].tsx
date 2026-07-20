@@ -110,8 +110,6 @@ export default function CardDetailScreen() {
 
         <View style={styles.subInfoRow}>
           <Text style={styles.pinyinText}>{card.pinyin}</Text>
-          <Text style={styles.dotSeparator}>•</Text>
-          <Text style={styles.hanvietText}>{card.hanviet}</Text>
         </View>
 
         <Text style={styles.translationText}>{card.translation}</Text>
@@ -130,7 +128,6 @@ export default function CardDetailScreen() {
       <SectionTitle>THÔNG TIN TỪ VỰNG</SectionTitle>
       <InsetGroup>
         <InsetRow label="Pinyin" value={card.pinyin} valueColor={Colors.neon.cyan} labelStyle={{ width: 100 }} />
-        <InsetRow label="Hán Việt" value={card.hanviet} isBorder labelStyle={{ width: 100 }} />
         <InsetRow label="Nghĩa TV" value={card.translation} isBorder labelStyle={{ width: 100 }} />
         {card.traditional && card.traditional !== card.character && (
           <InsetRow label="Phồn thể" value={card.traditional} isBorder labelStyle={{ width: 100 }} />

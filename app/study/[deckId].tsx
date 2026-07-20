@@ -400,7 +400,6 @@ export default function StudyScreen() {
                   scrollEnabled={true}
                 >
                   <Text style={[styles.pinyin, { color: pinyinColor }]}>{currentCard.pinyin}</Text>
-                  <Text style={styles.hanviet}>{currentCard.hanviet}</Text>
                   <View style={styles.divider} />
                   <Text style={styles.translation}>{currentCard.translation}</Text>
 

@@ -44,7 +44,7 @@ export interface CardData {
   character: string;
   traditional?: string;
   pinyin: string;
-  hanviet: string;
+  hanviet?: string;
   translation: string;
   examples: {
     chinese: string;
@@ -75,7 +75,6 @@ Trả về JSON (CHỈ JSON, không markdown):
   "character": "chữ giản thể",
   "traditional": "chữ phồn thể",
   "pinyin": "phiên âm có dấu",
-  "hanviet": "âm Hán Việt",
   "translation": "nghĩa tiếng Việt ngắn gọn (tối đa 3 nghĩa)",
   "examples": [
     {
@@ -125,7 +124,6 @@ Trả về JSON array (CHỈ JSON array, không markdown), với mỗi phần t�
     "character": "chữ giản thể",
     "traditional": "chữ phồn thể",
     "pinyin": "phiên âm có dấu",
-    "hanviet": "âm Hán Việt",
     "translation": "nghĩa tiếng Việt ngắn gọn (tối đa 3 nghĩa)",
     "examples": [
       {

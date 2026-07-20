@@ -401,16 +401,21 @@ const styles = StyleSheet.create({
   studyBtn: {
     backgroundColor: Colors.accent.primary,
     marginHorizontal: Spacing.pageMargin,
-    borderRadius: 12,
-    height: 46,
+    borderRadius: Radii.card,
+    height: 50,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     marginBottom: Spacing.md,
+    shadowColor: Colors.accent.indigo,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
   studyBtnDisabled: {
     backgroundColor: Colors.bg.tertiary,
     opacity: 0.6,
+    shadowOpacity: 0,
   },
   studyBtnText: {
     color: "#F0F3F6",

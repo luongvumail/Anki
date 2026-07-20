@@ -133,10 +133,14 @@ const styles = StyleSheet.create({
   doneBtn: {
     width: "100%",
     backgroundColor: Colors.accent.indigo,
-    borderRadius: 12,
-    height: 46,
+    borderRadius: Radii.card,
+    height: 50,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: Colors.accent.indigo,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
   doneBtnText: {
     color: "#F0F3F6",

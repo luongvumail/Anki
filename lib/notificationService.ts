@@ -1,8 +1,8 @@
 // Daily Study Reminder Notification Service for Anki
 // Uses lazy/safe initialization to prevent top-level crashes when ExpoPushTokenManager is absent.
 
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export interface ReminderSettings {
   enabled: boolean;
@@ -10,7 +10,7 @@ export interface ReminderSettings {
   minute: number;
 }
 
-const STORAGE_KEY = '@anki_daily_reminder_settings';
+const STORAGE_KEY = "@anki_daily_reminder_settings";
 const DEFAULT_SETTINGS: ReminderSettings = {
   enabled: false,
   hour: 20,
@@ -27,10 +27,10 @@ let pendingScheduleItem: { hour: number; minute: number } | null = null;
  * Safely imports and retrieves the expo-notifications module at runtime
  */
 function getNotificationsModule() {
-  if (Platform.OS === 'web') return null;
+  if (Platform.OS === "web") return null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Notifications = require('expo-notifications');
+    const Notifications = require("expo-notifications");
     if (Notifications && !notificationHandlerConfigured) {
       try {
         Notifications.setNotificationHandler({
@@ -43,12 +43,15 @@ function getNotificationsModule() {
         });
         notificationHandlerConfigured = true;
       } catch (err) {
-        console.warn('[notificationService] Failed to set notification handler:', err);
+        console.warn("[notificationService] Failed to set notification handler:", err);
       }
     }
     return Notifications;
   } catch (e) {
-    console.warn('[notificationService] expo-notifications native module not available in current environment:', e);
+    console.warn(
+      "[notificationService] expo-notifications native module not available in current environment:",
+      e,
+    );
     return null;
   }
 }
@@ -61,17 +64,18 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   if (!Notifications) return false;
 
   try {
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'Nhắc nhở học tập',
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "Nhắc nhở học tập",
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#6366F1',
+        lightColor: "#6366F1",
       });
     }
 
-    const { status: existingStatus, granted: existingGranted } = await Notifications.getPermissionsAsync();
-    if (existingGranted || existingStatus === 'granted') {
+    const { status: existingStatus, granted: existingGranted } =
+      await Notifications.getPermissionsAsync();
+    if (existingGranted || existingStatus === "granted") {
       return true;
     }
 
@@ -83,9 +87,9 @@ export async function requestNotificationPermissions(): Promise<boolean> {
       },
     });
 
-    return Boolean(granted || status === 'granted');
+    return Boolean(granted || status === "granted");
   } catch (e) {
-    console.warn('[notificationService] Permission request failed:', e);
+    console.warn("[notificationService] Permission request failed:", e);
     return false;
   }
 }
@@ -113,13 +117,13 @@ export async function scheduleDailyStudyReminder(hour: number, minute: number): 
     // Tiny pause to ensure iOS native daemon completes cancellation before adding new item
     await new Promise((r) => setTimeout(r, 120));
 
-    const dailyType = Notifications.SchedulableTriggerInputTypes?.DAILY || 'daily';
+    const dailyType = Notifications.SchedulableTriggerInputTypes?.DAILY || "daily";
 
     // 2. Schedule single new daily notification
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: '📚 Anki - Đến giờ ôn tập từ vựng!',
-        body: 'Hôm nay bạn có từ vựng cần ôn tập. Hãy dành 5 phút luyện tập ngay để duy trì trí nhớ nhé!',
+        title: "Anki - Đến giờ ôn tập từ vựng",
+        body: "Hôm nay bạn có từ vựng cần ôn tập. Hãy luyện tập ngay để duy trì trí nhớ nhé!",
         sound: true,
       },
       trigger: {
@@ -133,7 +137,7 @@ export async function scheduleDailyStudyReminder(hour: number, minute: number): 
     await saveReminderSettings({ enabled: true, hour, minute });
     return true;
   } catch (e) {
-    console.warn('[notificationService] Schedule notification failed:', e);
+    console.warn("[notificationService] Schedule notification failed:", e);
     return false;
   } finally {
     isSchedulingMutex = false;
@@ -156,12 +160,13 @@ export async function sendTestNotification(): Promise<boolean> {
   if (!hasPermission) return false;
 
   try {
-    const timeIntervalType = Notifications.SchedulableTriggerInputTypes?.TIME_INTERVAL || 'timeInterval';
+    const timeIntervalType =
+      Notifications.SchedulableTriggerInputTypes?.TIME_INTERVAL || "timeInterval";
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: '🔔 Thông báo thử nghiệm Anki',
-        body: 'Tính năng nhắc nhở thông báo đang hoạt động hoàn hảo trên iPhone của bạn!',
+        title: "🔔 Thông báo thử nghiệm Anki",
+        body: "Tính năng nhắc nhở thông báo đang hoạt động hoàn hảo trên iPhone của bạn!",
         sound: true,
       },
       trigger: {
@@ -172,7 +177,7 @@ export async function sendTestNotification(): Promise<boolean> {
     });
     return true;
   } catch (e) {
-    console.warn('[notificationService] Test notification failed:', e);
+    console.warn("[notificationService] Test notification failed:", e);
     return false;
   }
 }
@@ -189,7 +194,7 @@ export async function cancelDailyStudyReminder(): Promise<void> {
     const current = await getReminderSettings();
     await saveReminderSettings({ ...current, enabled: false });
   } catch (e) {
-    console.warn('[notificationService] Cancel notification failed:', e);
+    console.warn("[notificationService] Cancel notification failed:", e);
   }
 }
 
@@ -203,7 +208,7 @@ export async function getReminderSettings(): Promise<ReminderSettings> {
       return JSON.parse(json) as ReminderSettings;
     }
   } catch (e) {
-    console.warn('[notificationService] Read settings failed:', e);
+    console.warn("[notificationService] Read settings failed:", e);
   }
   return DEFAULT_SETTINGS;
 }
@@ -215,6 +220,6 @@ export async function saveReminderSettings(settings: ReminderSettings): Promise<
   try {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch (e) {
-    console.warn('[notificationService] Save settings failed:', e);
+    console.warn("[notificationService] Save settings failed:", e);
   }
 }

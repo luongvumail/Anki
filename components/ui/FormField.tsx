@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
+  Pressable,
   StyleSheet,
   TextInputProps,
   ViewStyle,
@@ -31,9 +32,10 @@ export function FormField({
   ...props
 }: FormFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   return (
-    <View style={[styles.fieldBox, containerStyle]}>
+    <Pressable style={[styles.fieldBox, containerStyle]} onPress={() => inputRef.current?.focus()}>
       <Text style={[styles.fieldLabel, labelStyle]}>{label}</Text>
       <View
         style={[
@@ -43,6 +45,7 @@ export function FormField({
         ]}
       >
         <TextInput
+          ref={inputRef}
           style={[styles.input, inputStyle]}
           placeholderTextColor={Colors.text.tertiary}
           onFocus={(e) => {
@@ -61,7 +64,7 @@ export function FormField({
       ) : helperText ? (
         <Text style={styles.helperText}>{helperText}</Text>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 

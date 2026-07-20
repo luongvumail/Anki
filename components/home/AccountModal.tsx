@@ -268,16 +268,19 @@ const styles = StyleSheet.create({
 
   actionBtn: {
     backgroundColor: Colors.accent.indigo,
-    borderRadius: 12,
-    height: 44,
+    borderRadius: Radii.card,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: Spacing.xs,
   },
-  btnDisabled: { opacity: 0.5 },
+  btnDisabled: {
+    backgroundColor: Colors.bg.tertiary,
+    opacity: 0.5,
+  },
   actionBtnText: {
     color: '#F0F3F6',
-    fontSize: Typography.text.subhead.fontSize,
+    fontSize: Typography.text.callout.fontSize,
     fontWeight: Typography.weight.semibold,
     letterSpacing: -0.2,
     textAlign: 'center',

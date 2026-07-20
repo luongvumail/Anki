@@ -223,8 +223,8 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: Colors.accent.indigo,
-    borderRadius: 12,
-    height: 46,
+    borderRadius: Radii.card,
+    height: 50,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

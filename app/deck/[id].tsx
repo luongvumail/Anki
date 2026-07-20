@@ -407,15 +407,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexDirection: "row",
     marginBottom: Spacing.md,
-    shadowColor: Colors.accent.indigo,
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
   },
   studyBtnDisabled: {
     backgroundColor: Colors.bg.tertiary,
     opacity: 0.6,
-    shadowOpacity: 0,
   },
   studyBtnText: {
     color: "#F0F3F6",

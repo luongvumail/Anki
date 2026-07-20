@@ -5,6 +5,7 @@ import {
   Image,
   TextInput,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -59,6 +60,7 @@ function Field({
 }: FieldProps) {
   const [focused, setFocused] = useState(false);
   const [showText, setShowText] = useState(false);
+  const inputRef = useRef<TextInput>(null);
   const borderAnim = useRef(new Animated.Value(0)).current;
 
   const handleFocus = () => {
@@ -85,44 +87,47 @@ function Field({
   });
 
   return (
-    <Animated.View style={[styles.fieldCard, { borderColor }]}>
-      <View style={styles.fieldIconWrap}>
-        <Ionicons
-          name={icon}
-          size={18}
-          color={focused ? Colors.accent.indigoLight : Colors.text.tertiary}
-        />
-      </View>
-      <View style={styles.fieldBody}>
-        <Text style={styles.fieldLabel}>{label}</Text>
-        <TextInput
-          style={styles.fieldInput}
-          placeholder={placeholder}
-          placeholderTextColor={Colors.text.quaternary}
-          value={value}
-          onChangeText={onChangeText}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          keyboardType={keyboardType}
-          autoCapitalize={autoCapitalize}
-          autoCorrect={autoCorrect}
-          secureTextEntry={secureTextEntry && !showText}
-        />
-      </View>
-      {secureTextEntry && (
-        <TouchableOpacity
-          onPress={() => setShowText((v) => !v)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={styles.eyeBtn}
-        >
+    <Pressable onPress={() => inputRef.current?.focus()}>
+      <Animated.View style={[styles.fieldCard, { borderColor }]}>
+        <View style={styles.fieldIconWrap}>
           <Ionicons
-            name={showText ? "eye-off-outline" : "eye-outline"}
+            name={icon}
             size={18}
-            color={Colors.text.tertiary}
+            color={focused ? Colors.accent.indigoLight : Colors.text.tertiary}
           />
-        </TouchableOpacity>
-      )}
-    </Animated.View>
+        </View>
+        <View style={styles.fieldBody}>
+          <Text style={styles.fieldLabel}>{label}</Text>
+          <TextInput
+            ref={inputRef}
+            style={styles.fieldInput}
+            placeholder={placeholder}
+            placeholderTextColor={Colors.text.quaternary}
+            value={value}
+            onChangeText={onChangeText}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+            autoCorrect={autoCorrect}
+            secureTextEntry={secureTextEntry && !showText}
+          />
+        </View>
+        {secureTextEntry && (
+          <TouchableOpacity
+            onPress={() => setShowText((v) => !v)}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={styles.eyeBtn}
+          >
+            <Ionicons
+              name={showText ? "eye-off-outline" : "eye-outline"}
+              size={18}
+              color={Colors.text.tertiary}
+            />
+          </TouchableOpacity>
+        )}
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -461,6 +466,7 @@ const styles = StyleSheet.create({
   },
   fieldBody: {
     flex: 1,
+    justifyContent: "center",
   },
   fieldLabel: {
     fontSize: 11,
@@ -474,6 +480,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.text.callout.fontSize,
     color: Colors.text.primary,
     padding: 0,
+    paddingVertical: 2,
+    minHeight: 24,
   },
   eyeBtn: {
     paddingLeft: 8,
@@ -499,10 +507,6 @@ const styles = StyleSheet.create({
     height: 50,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: Colors.accent.indigo,
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
   },
   btnDisabled: { opacity: 0.55 },
   actionBtnContent: {

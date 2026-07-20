@@ -14,7 +14,12 @@ import { SectionTitle } from '../../components/ui/SectionTitle';
 import { InsetGroup } from '../../components/ui/InsetGroup';
 import { FormField } from '../../components/ui/FormField';
 
-import { computeDueCount, computeNewCount, getDeckMasteryPct } from '../../lib/deckUtils';
+import {
+  computeDueCount,
+  computeNewCount,
+  computeReviewDueCount,
+  getDeckMasteryPct,
+} from '../../lib/deckUtils';
 
 export default function DecksScreen() {
   const insets = useSafeAreaInsets();
@@ -170,9 +175,10 @@ export default function DecksScreen() {
           <InsetGroup>
             {decks.map((deck, idx) => {
               const deckCards = useStore.getState().cards[deck.id];
-              const total = deck.cardCount || 0;
+              const total = deckCards ? deckCards.length : (deck.cardCount || 0);
               const due = deckCards ? computeDueCount(deckCards) : (deck.dueCount || 0);
               const newCount = deckCards ? computeNewCount(deckCards) : (deck.newCount || 0);
+              const reviewCount = deckCards ? computeReviewDueCount(deckCards) : Math.max(0, due - newCount);
               const masteryPct = getDeckMasteryPct(total, due, deckCards);
 
               return (
@@ -199,11 +205,13 @@ export default function DecksScreen() {
                         <Text style={styles.deckName}>{deck.name}</Text>
                         {due > 0 ? (
                           <View style={styles.dueBadge}>
-                            <Text style={styles.dueBadgeText}>{due} ôn</Text>
-                          </View>
-                        ) : newCount > 0 ? (
-                          <View style={styles.dueBadge}>
-                            <Text style={styles.dueBadgeText}>{newCount} mới</Text>
+                            <Text style={styles.dueBadgeText}>
+                              {reviewCount > 0 && newCount > 0
+                                ? `${due} cần học`
+                                : reviewCount > 0
+                                ? `${reviewCount} cần ôn`
+                                : `${newCount} thẻ mới`}
+                            </Text>
                           </View>
                         ) : null}
                       </View>
@@ -413,10 +421,6 @@ const styles = StyleSheet.create({
     borderRadius: Radii.card,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.accent.indigo,
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
   },
   emptyBtnText: {
     color: '#F8FAFC',

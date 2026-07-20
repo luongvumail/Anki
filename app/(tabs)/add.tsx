@@ -394,15 +394,18 @@ export default function AddCardScreen() {
           )}
         </InsetGroup>
 
+        {/* Global Loading Indicator */}
+        {(isGenerating || anyLoading) && (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={Colors.accent.indigoLight} size="small" />
+            <Text style={styles.loadingText}>AI đang phân tích...</Text>
+          </View>
+        )}
+
         {/* Per-word results */}
         {wordItems.map((item) => {
           if (item.status === "loading") {
-            return (
-              <View key={item.word} style={styles.loadingRow}>
-                <ActivityIndicator color={Colors.accent.indigoLight} size="small" />
-                <Text style={styles.loadingText}>Đang phân tích "{item.word}"</Text>
-              </View>
-            );
+            return null;
           }
 
           if (item.status === "error") {
@@ -626,10 +629,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: Spacing.xl,
-    shadowColor: Colors.accent.indigo,
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
   },
   saveAllText: {
     color: "#F0F3F6",

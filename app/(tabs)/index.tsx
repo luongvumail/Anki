@@ -22,7 +22,13 @@ import { ProgressBar } from '../../components/ui/ProgressBar';
 import { SectionTitle } from '../../components/ui/SectionTitle';
 import { AccountModal } from '../../components/home/AccountModal';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
-import { computeDueCount, computeNewCount, getDeckMasteryPct } from '../../lib/deckUtils';
+import {
+  computeDueCount,
+  computeNewCount,
+  computeReviewDueCount,
+  computeLearnedCount,
+  getDeckMasteryPct,
+} from '../../lib/deckUtils';
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -51,20 +57,59 @@ export default function DashboardScreen() {
 
   const cardsState = useStore((s) => s.cards);
 
+  const totalCards = decks.reduce((s, d) => {
+    const deckCards = cardsState[d.id];
+    return s + (deckCards ? deckCards.length : (d.cardCount || 0));
+  }, 0);
 
   const totalDue = decks.reduce((s, d) => {
     const deckCards = cardsState[d.id];
     return s + (deckCards ? computeDueCount(deckCards) : (d.dueCount || 0));
   }, 0);
 
-  const totalCards = decks.reduce((s, d) => s + (d.cardCount || 0), 0);
-
   const totalNew = decks.reduce((s, d) => {
     const deckCards = cardsState[d.id];
     return s + (deckCards ? computeNewCount(deckCards) : (d.newCount || 0));
   }, 0);
 
-  const progressPct = totalCards > 0 ? Math.round(((totalCards - totalDue) / totalCards) * 100) : 0;
+  const totalReview = decks.reduce((s, d) => {
+    const deckCards = cardsState[d.id];
+    return s + (deckCards ? computeReviewDueCount(deckCards) : Math.max(0, (d.dueCount || 0) - (d.newCount || 0)));
+  }, 0);
+
+  const totalLearned = decks.reduce((s, d) => {
+    const deckCards = cardsState[d.id];
+    if (deckCards) return s + computeLearnedCount(deckCards);
+    const count = d.cardCount || 0;
+    const due = d.dueCount || 0;
+    return s + Math.max(0, count - due);
+  }, 0);
+
+  const progressPct = totalCards > 0 ? Math.round((totalLearned / totalCards) * 100) : 0;
+
+  let heroTitleText = 'HOÀN THÀNH ÔN TẬP HÔM NAY';
+  if (totalDue > 0) {
+    if (totalReview > 0 && totalNew > 0) {
+      heroTitleText = `${totalDue} THẺ CẦN HỌC HÔM NAY`;
+    } else if (totalNew > 0) {
+      heroTitleText = `${totalNew} THẺ MỚI CẦN HỌC`;
+    } else {
+      heroTitleText = `${totalReview} THẺ CẦN ÔN TẬP`;
+    }
+  }
+
+  let subLabelText = '';
+  if (totalDue > 0) {
+    if (totalReview > 0 && totalNew > 0) {
+      subLabelText = `${totalNew} THẺ MỚI  •  ${totalReview} CẦN ÔN`;
+    } else if (totalNew > 0) {
+      subLabelText = `${totalNew} THẺ MỚI`;
+    } else {
+      subLabelText = `${totalReview} THẺ CẦN ÔN`;
+    }
+  } else {
+    subLabelText = `${totalLearned}/${totalCards} THẺ ĐÃ THUỘC`;
+  }
 
   useEffect(() => {
     // _layout.tsx already awaits fetchDecks() before navigating here on boot/login,
@@ -222,7 +267,7 @@ export default function DashboardScreen() {
       {/* Hero Card */}
       <View style={styles.heroCard}>
         <View style={styles.heroTop}>
-          <Text style={styles.heroSectionTitle}>{totalDue > 0 ? `${totalDue} THẺ CẦN ÔN TẬP` : 'HOÀN THÀNH ÔN TẬP'}</Text>
+          <Text style={styles.heroSectionTitle}>{heroTitleText}</Text>
           <View style={styles.heroBadge}>
             <Text style={styles.heroBadgeText}>{decks.length} BỘ THẺ</Text>
           </View>
@@ -231,7 +276,7 @@ export default function DashboardScreen() {
         <ProgressBar progress={progressPct} style={{ marginTop: Spacing.md }} />
 
         <View style={styles.progressLabels}>
-          <Text style={styles.progressText}>{totalDue} CẦN ÔN  •  {totalNew} THẺ MỚI</Text>
+          <Text style={styles.progressText}>{subLabelText}</Text>
           <Text style={styles.progressText}>{progressPct}% TỶ LỆ THUỘC</Text>
         </View>
 
@@ -501,15 +546,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.accent.indigo,
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
   },
   primaryBtnDisabled: {
     backgroundColor: Colors.bg.tertiary,
     opacity: 0.6,
-    shadowOpacity: 0,
   },
   primaryBtnText: {
     color: '#F0F3F6',

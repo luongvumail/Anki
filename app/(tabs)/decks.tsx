@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  Modal, Alert, ActivityIndicator,
+  Modal, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,10 +31,19 @@ export default function DecksScreen() {
   const [creating, setCreating] = useState(false);
   const [resettingDeckId, setResettingDeckId] = useState<string | null>(null);
 
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
-    if (userId) fetchDecks();
+    if (userId && decks.length === 0) fetchDecks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  const onRefresh = async () => {
+    triggerHaptic('light');
+    setRefreshing(true);
+    await fetchDecks();
+    setRefreshing(false);
+  };
 
   const handleCreate = async () => {
     if (!deckName.trim()) {
@@ -132,27 +141,32 @@ export default function DecksScreen() {
             paddingBottom: Math.max(insets.bottom + 90, 110),
           },
         ]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent.gray} />}
         showsVerticalScrollIndicator={false}
       >
-      {/* Linear Header Bar */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerSubhead}>{decks.length} BỘ THẺ LƯU TRỮ</Text>
-          <Text style={styles.headerTitle}>Bộ thẻ</Text>
+        {/* Linear Header Bar */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerSubhead}>{decks.length} BỘ THẺ LƯU TRỮ</Text>
+            <Text style={styles.headerTitle}>Bộ thẻ</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => {
+              triggerHaptic('selection');
+              setShowCreate(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={26} color={Colors.accent.indigoLight} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => {
-            triggerHaptic('selection');
-            setShowCreate(true);
-          }}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={26} color={Colors.accent.indigoLight} />
-        </TouchableOpacity>
-      </View>
 
-      {isLoading && <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 30 }} />}
+        {decks.length === 0 && isLoading && (
+          <View style={{ marginTop: 40, alignItems: 'center' }}>
+            <ActivityIndicator color={Colors.accent.indigoLight} size="small" />
+          </View>
+        )}
 
         {decks.length === 0 && !isLoading && (
           <View style={styles.emptyCard}>

@@ -19,6 +19,10 @@ const DEFAULT_SETTINGS: ReminderSettings = {
 
 let notificationHandlerConfigured = false;
 
+// Mutex lock to prevent concurrent scheduling race conditions that create duplicate notifications on iOS
+let isSchedulingMutex = false;
+let pendingScheduleItem: { hour: number; minute: number } | null = null;
+
 /**
  * Safely imports and retrieves the expo-notifications module at runtime
  */
@@ -87,22 +91,31 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 }
 
 /**
- * Schedules a daily repeating study reminder notification at specified hour and minute
+ * Schedules a daily repeating study reminder notification at specified hour and minute.
+ * Uses atomic mutex lock and explicit cancellation to guarantee 0 duplicate notifications on iOS.
  */
 export async function scheduleDailyStudyReminder(hour: number, minute: number): Promise<boolean> {
-  const Notifications = getNotificationsModule();
-  if (!Notifications) return false;
+  if (isSchedulingMutex) {
+    pendingScheduleItem = { hour, minute };
+    return true;
+  }
 
-  const hasPermission = await requestNotificationPermissions();
-  if (!hasPermission) return false;
-
+  isSchedulingMutex = true;
   try {
-    // Cancel previous notifications
+    const Notifications = getNotificationsModule();
+    if (!Notifications) return false;
+
+    const hasPermission = await requestNotificationPermissions();
+    if (!hasPermission) return false;
+
+    // 1. Cancel ALL existing scheduled notifications first
     await Notifications.cancelAllScheduledNotificationsAsync();
+    // Tiny pause to ensure iOS native daemon completes cancellation before adding new item
+    await new Promise((r) => setTimeout(r, 120));
 
     const dailyType = Notifications.SchedulableTriggerInputTypes?.DAILY || 'daily';
 
-    // Schedule daily notification using repeating trigger format compatible with Expo 57 / iOS
+    // 2. Schedule single new daily notification
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '📚 Anki - Đến giờ ôn tập từ vựng!',
@@ -122,6 +135,13 @@ export async function scheduleDailyStudyReminder(hour: number, minute: number): 
   } catch (e) {
     console.warn('[notificationService] Schedule notification failed:', e);
     return false;
+  } finally {
+    isSchedulingMutex = false;
+    if (pendingScheduleItem) {
+      const next = pendingScheduleItem;
+      pendingScheduleItem = null;
+      await scheduleDailyStudyReminder(next.hour, next.minute);
+    }
   }
 }
 

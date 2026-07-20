@@ -409,10 +409,14 @@ const styles = StyleSheet.create({
   emptyBtn: {
     backgroundColor: Colors.accent.primary,
     paddingHorizontal: Spacing.xl,
-    height: 44,
+    height: 50,
     borderRadius: Radii.card,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: Colors.accent.indigo,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
   emptyBtnText: {
     color: '#F8FAFC',

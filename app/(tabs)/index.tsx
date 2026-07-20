@@ -494,15 +494,20 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     backgroundColor: Colors.accent.indigo,
-    borderRadius: 12,
-    height: 46,
+    borderRadius: Radii.card,
+    height: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: Colors.accent.indigo,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
   primaryBtnDisabled: {
     backgroundColor: Colors.bg.tertiary,
     opacity: 0.6,
+    shadowOpacity: 0,
   },
   primaryBtnText: {
     color: '#F0F3F6',

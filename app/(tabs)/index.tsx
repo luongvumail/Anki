@@ -82,6 +82,11 @@ export default function DashboardScreen() {
     loadReminder();
   }, []);
 
+  // Safety check: If user is logging out, return a dark view immediately to avoid layout/white flash
+  if (!userId || !user) {
+    return <View style={{ flex: 1, backgroundColor: Colors.bg.primary }} />;
+  }
+
   const onRefresh = async () => {
     triggerHaptic('light');
     setRefreshing(true);
@@ -266,7 +271,7 @@ export default function DashboardScreen() {
       {/* Decks Section Header */}
       <SectionTitle>DANH SÁCH BỘ THẺ</SectionTitle>
 
-      {isLoading && !refreshing ? (
+      {isLoading && decks.length === 0 && !refreshing ? (
         <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 30 }} />
       ) : decks.length === 0 ? (
         <View style={styles.emptyCard}>

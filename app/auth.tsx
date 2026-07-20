@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -11,8 +11,10 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -28,6 +30,101 @@ import {
   Radii,
   triggerHaptic,
 } from "../constants/theme";
+
+// ─────────────────────────────────────────────
+// Reusable Input Field Component
+// ─────────────────────────────────────────────
+interface FieldProps {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  placeholder: string;
+  value: string;
+  onChangeText: (t: string) => void;
+  keyboardType?: "default" | "email-address";
+  autoCapitalize?: "none" | "words" | "sentences" | "characters";
+  autoCorrect?: boolean;
+  secureTextEntry?: boolean;
+}
+
+function Field({
+  label,
+  icon,
+  placeholder,
+  value,
+  onChangeText,
+  keyboardType = "default",
+  autoCapitalize = "sentences",
+  autoCorrect = true,
+  secureTextEntry = false,
+}: FieldProps) {
+  const [focused, setFocused] = useState(false);
+  const [showText, setShowText] = useState(false);
+  const borderAnim = useRef(new Animated.Value(0)).current;
+
+  const handleFocus = () => {
+    setFocused(true);
+    Animated.timing(borderAnim, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const handleBlur = () => {
+    setFocused(false);
+    Animated.timing(borderAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const borderColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [Colors.border.separator, Colors.accent.indigo],
+  });
+
+  return (
+    <Animated.View style={[styles.fieldCard, { borderColor }]}>
+      <View style={styles.fieldIconWrap}>
+        <Ionicons
+          name={icon}
+          size={18}
+          color={focused ? Colors.accent.indigoLight : Colors.text.tertiary}
+        />
+      </View>
+      <View style={styles.fieldBody}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        <TextInput
+          style={styles.fieldInput}
+          placeholder={placeholder}
+          placeholderTextColor={Colors.text.quaternary}
+          value={value}
+          onChangeText={onChangeText}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          autoCorrect={autoCorrect}
+          secureTextEntry={secureTextEntry && !showText}
+        />
+      </View>
+      {secureTextEntry && (
+        <TouchableOpacity
+          onPress={() => setShowText((v) => !v)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={styles.eyeBtn}
+        >
+          <Ionicons
+            name={showText ? "eye-off-outline" : "eye-outline"}
+            size={18}
+            color={Colors.text.tertiary}
+          />
+        </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+}
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
@@ -113,32 +210,34 @@ export default function AuthScreen() {
         contentContainerStyle={[
           styles.scroll,
           {
-            paddingTop: Math.max(insets.top + 20, 60),
-            paddingBottom: Math.max(insets.bottom + 20, 40),
+            paddingTop: Math.max(insets.top + 24, 64),
+            paddingBottom: Math.max(insets.bottom + 24, 48),
           },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* App Logo — actual app icon */}
+        {/* ── Header / Branding ── */}
         <View style={styles.header}>
-          <View style={styles.appIconBox}>
-            <Image
-              source={require("../assets/adaptive-icon.png")}
-              style={styles.appIconImage}
-              resizeMode="cover"
-            />
+          <View style={styles.glowRing}>
+            <View style={styles.appIconBox}>
+              <Image
+                source={require("../assets/adaptive-icon.png")}
+                style={styles.appIconImage}
+                resizeMode="cover"
+              />
+            </View>
           </View>
           <Text style={styles.appName}>Anki</Text>
           <Text style={styles.tagline}>HỆ THỐNG THẺ TỪ VỰNG TIẾNG TRUNG</Text>
         </View>
 
-        {/* Segmented Control — Việt hóa */}
+        {/* ── Segmented Control ── */}
         <View style={styles.segmentedControl}>
           <TouchableOpacity
             style={[styles.segmentBtn, mode === "login" && styles.segmentBtnActive]}
             onPress={() => toggleMode("login")}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             <Text style={[styles.segmentText, mode === "login" && styles.segmentTextActive]}>
               Đăng nhập
@@ -147,7 +246,7 @@ export default function AuthScreen() {
           <TouchableOpacity
             style={[styles.segmentBtn, mode === "register" && styles.segmentBtnActive]}
             onPress={() => toggleMode("register")}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             <Text style={[styles.segmentText, mode === "register" && styles.segmentTextActive]}>
               Tạo tài khoản
@@ -155,50 +254,39 @@ export default function AuthScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Form nhập liệu */}
-        <View style={styles.groupedForm}>
+        {/* ── Form Fields ── */}
+        <View style={styles.formGroup}>
           {mode === "register" && (
-            <View style={styles.formRow}>
-              <Text style={styles.fieldLabel}>Họ tên</Text>
-              <TextInput
-                style={styles.fieldInput}
-                placeholder="Nguyễn Văn A"
-                placeholderTextColor={Colors.text.tertiary}
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-              />
-            </View>
+            <Field
+              label="Họ tên"
+              icon="person-outline"
+              placeholder="Nguyễn Văn A"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+            />
           )}
-
-          <View style={[styles.formRow, mode === "register" && styles.rowBorderTop]}>
-            <Text style={styles.fieldLabel}>Email</Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder="example@icloud.com"
-              placeholderTextColor={Colors.text.tertiary}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={[styles.formRow, styles.rowBorderTop]}>
-            <Text style={styles.fieldLabel}>Mật khẩu</Text>
-            <TextInput
-              style={styles.fieldInput}
-              placeholder="••••••••"
-              placeholderTextColor={Colors.text.tertiary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-          </View>
+          <Field
+            label="Email"
+            icon="mail-outline"
+            placeholder="example@icloud.com"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Field
+            label="Mật khẩu"
+            icon="lock-closed-outline"
+            placeholder="••••••••"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
         </View>
 
-        {/* Quên mật khẩu */}
+        {/* ── Forgot Password ── */}
         {mode === "login" && (
           <TouchableOpacity
             style={styles.forgotBtn}
@@ -214,7 +302,7 @@ export default function AuthScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Nút hành động chính */}
+        {/* ── Primary Action Button ── */}
         <TouchableOpacity
           style={[styles.actionBtn, loading && styles.btnDisabled]}
           onPress={handleSubmit}
@@ -224,15 +312,45 @@ export default function AuthScreen() {
           {loading ? (
             <ActivityIndicator color="#F0F3F6" />
           ) : (
-            <Text style={styles.actionBtnText}>
-              {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
-            </Text>
+            <View style={styles.actionBtnContent}>
+              <Text style={styles.actionBtnText}>
+                {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
+              </Text>
+              <Ionicons
+                name={mode === "login" ? "arrow-forward" : "person-add-outline"}
+                size={16}
+                color="#F0F3F6"
+                style={{ marginLeft: 6 }}
+              />
+            </View>
           )}
         </TouchableOpacity>
+
+        {/* ── Footer toggle ── */}
+        <View style={styles.footerToggle}>
+          <Text style={styles.footerText}>
+            {mode === "login" ? "Chưa có tài khoản?" : "Đã có tài khoản?"}
+          </Text>
+          <TouchableOpacity
+            onPress={() => toggleMode(mode === "login" ? "register" : "login")}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          >
+            <Text style={styles.footerLink}>
+              {mode === "login" ? " Tạo ngay" : " Đăng nhập"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
+// ─────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────
+const SEGMENT_PADDING = 4;
+const SEGMENT_RADIUS = Radii.card; // 16
+const INNER_RADIUS = SEGMENT_RADIUS - SEGMENT_PADDING; // 12 — matches outer curve
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg.primary },
@@ -242,18 +360,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.pageMargin,
   },
 
-  header: { alignItems: "center", marginBottom: Spacing.xxl },
+  // ── Branding ──
+  header: { alignItems: "center", marginBottom: Spacing.xxl + 4 },
+  glowRing: {
+    width: 96,
+    height: 96,
+    borderRadius: 26,
+    backgroundColor: Colors.accent.indigoDim,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: "rgba(94, 106, 210, 0.30)",
+    shadowColor: Colors.accent.indigo,
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 4 },
+  },
   appIconBox: {
     width: 80,
     height: 80,
     borderRadius: 20,
     overflow: "hidden",
-    marginBottom: Spacing.md,
   },
-  appIconImage: {
-    width: 80,
-    height: 80,
-  },
+  appIconImage: { width: 80, height: 80 },
   appName: {
     fontSize: Typography.text.title1.fontSize,
     lineHeight: Typography.text.title1.lineHeight,
@@ -264,42 +394,43 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: Typography.text.caption2.fontSize,
     lineHeight: Typography.text.caption2.lineHeight,
-    color: Colors.text.secondary,
+    color: Colors.text.tertiary,
     textAlign: "center",
     marginTop: Spacing.xs,
-    letterSpacing: 1.2,
+    letterSpacing: 1.4,
     fontWeight: Typography.weight.semibold,
   },
 
-  // Segmented Control
+  // ── Segmented Control ──
   segmentedControl: {
     flexDirection: "row",
     backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: 3,
+    borderRadius: SEGMENT_RADIUS,
+    padding: SEGMENT_PADDING,
     marginBottom: Spacing.xl,
     borderWidth: 1,
-    borderColor: Colors.border.default,
+    borderColor: Colors.border.separator,
   },
   segmentBtn: {
     flex: 1,
-    height: 34,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: Radii.sm,
+    borderRadius: INNER_RADIUS,
   },
   segmentBtnActive: {
     backgroundColor: Colors.bg.tertiary,
     borderWidth: 1,
-    borderColor: Colors.border.default,
+    borderColor: Colors.border.strong,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
   },
   segmentText: {
     fontSize: Typography.text.footnote.fontSize,
-    color: Colors.text.secondary,
+    color: Colors.text.tertiary,
     fontWeight: Typography.weight.semibold,
-    letterSpacing: 0,
-    textAlign: "center",
-    textAlignVertical: "center",
     includeFontPadding: false,
   },
   segmentTextActive: {
@@ -307,43 +438,53 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.bold,
   },
 
-  // Inset Grouped Form
-  groupedForm: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    overflow: "hidden",
+  // ── Form Fields ──
+  formGroup: {
+    gap: 10,
     marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
-  formRow: {
+  fieldCard: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    borderWidth: 1,
+    borderColor: Colors.border.separator,
     paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: Spacing.cellVertical,
-    minHeight: Spacing.cellMinHeight,
+    paddingVertical: 10,
+    minHeight: 58,
   },
-  rowBorderTop: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border.separator,
+  fieldIconWrap: {
+    width: 32,
+    alignItems: "center",
+    marginRight: 8,
+  },
+  fieldBody: {
+    flex: 1,
   },
   fieldLabel: {
-    width: 100,
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.medium,
+    fontSize: 11,
+    color: Colors.text.tertiary,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginBottom: 2,
   },
   fieldInput: {
-    flex: 1,
-    fontSize: Typography.text.body.fontSize,
+    fontSize: Typography.text.callout.fontSize,
     color: Colors.text.primary,
+    padding: 0,
+  },
+  eyeBtn: {
+    paddingLeft: 8,
   },
 
+  // ── Forgot ──
   forgotBtn: {
     alignSelf: "flex-end",
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.lg + 4,
     paddingHorizontal: 4,
-    paddingVertical: 2,
+    paddingVertical: 4,
   },
   forgotBtnText: {
     fontSize: Typography.text.footnote.fontSize,
@@ -351,23 +492,45 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.medium,
   },
 
+  // ── Action Button ──
   actionBtn: {
     backgroundColor: Colors.accent.indigo,
-    borderRadius: 12,
-    height: 46,
-    flexDirection: "row",
+    borderRadius: Radii.card,
+    height: 50,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: Spacing.xs,
+    shadowColor: Colors.accent.indigo,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
   },
-  btnDisabled: { opacity: 0.6 },
+  btnDisabled: { opacity: 0.55 },
+  actionBtnContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   actionBtnText: {
     color: "#F0F3F6",
     fontSize: Typography.text.callout.fontSize,
     fontWeight: Typography.weight.semibold,
     letterSpacing: -0.2,
-    textAlign: "center",
-    textAlignVertical: "center",
     includeFontPadding: false,
+  },
+
+  // ── Footer Toggle ──
+  footerToggle: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: Spacing.xl,
+  },
+  footerText: {
+    fontSize: Typography.text.footnote.fontSize,
+    color: Colors.text.tertiary,
+  },
+  footerLink: {
+    fontSize: Typography.text.footnote.fontSize,
+    color: Colors.accent.indigoLight,
+    fontWeight: Typography.weight.semibold,
   },
 });

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   View,
   Text,
+  Image,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -12,7 +13,6 @@ import {
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -120,60 +120,42 @@ export default function AuthScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Vector Icon */}
+        {/* App Logo — actual app icon */}
         <View style={styles.header}>
           <View style={styles.appIconBox}>
-            <Ionicons
-              name="journal-outline"
-              size={30}
-              color={Colors.accent.indigoLight}
+            <Image
+              source={require("../assets/adaptive-icon.png")}
+              style={styles.appIconImage}
+              resizeMode="cover"
             />
           </View>
           <Text style={styles.appName}>Anki</Text>
-          <Text style={styles.tagline}>
-            INTELLIGENT CHINESE FLASHCARD SYSTEM
-          </Text>
+          <Text style={styles.tagline}>HỆ THỐNG THẺ TỪ VỰNG TIẾNG TRUNG</Text>
         </View>
 
-        {/* Linear Segmented Control */}
+        {/* Segmented Control — Việt hóa */}
         <View style={styles.segmentedControl}>
           <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              mode === "login" && styles.segmentBtnActive,
-            ]}
+            style={[styles.segmentBtn, mode === "login" && styles.segmentBtnActive]}
             onPress={() => toggleMode("login")}
             activeOpacity={0.8}
           >
-            <Text
-              style={[
-                styles.segmentText,
-                mode === "login" && styles.segmentTextActive,
-              ]}
-            >
-              SIGN IN
+            <Text style={[styles.segmentText, mode === "login" && styles.segmentTextActive]}>
+              Đăng nhập
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              mode === "register" && styles.segmentBtnActive,
-            ]}
+            style={[styles.segmentBtn, mode === "register" && styles.segmentBtnActive]}
             onPress={() => toggleMode("register")}
             activeOpacity={0.8}
           >
-            <Text
-              style={[
-                styles.segmentText,
-                mode === "register" && styles.segmentTextActive,
-              ]}
-            >
-              CREATE ACCOUNT
+            <Text style={[styles.segmentText, mode === "register" && styles.segmentTextActive]}>
+              Tạo tài khoản
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Inset Grouped Form */}
+        {/* Form nhập liệu */}
         <View style={styles.groupedForm}>
           {mode === "register" && (
             <View style={styles.formRow}>
@@ -189,9 +171,7 @@ export default function AuthScreen() {
             </View>
           )}
 
-          <View
-            style={[styles.formRow, mode === "register" && styles.rowBorderTop]}
-          >
+          <View style={[styles.formRow, mode === "register" && styles.rowBorderTop]}>
             <Text style={styles.fieldLabel}>Email</Text>
             <TextInput
               style={styles.fieldInput}
@@ -218,7 +198,7 @@ export default function AuthScreen() {
           </View>
         </View>
 
-        {/* Forgot Password Link in Login Mode */}
+        {/* Quên mật khẩu */}
         {mode === "login" && (
           <TouchableOpacity
             style={styles.forgotBtn}
@@ -234,7 +214,7 @@ export default function AuthScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Action Button */}
+        {/* Nút hành động chính */}
         <TouchableOpacity
           style={[styles.actionBtn, loading && styles.btnDisabled]}
           onPress={handleSubmit}
@@ -242,10 +222,10 @@ export default function AuthScreen() {
           activeOpacity={0.85}
         >
           {loading ? (
-            <ActivityIndicator color="#F3F4F6" />
+            <ActivityIndicator color="#F0F3F6" />
           ) : (
             <Text style={styles.actionBtnText}>
-              {mode === "login" ? "CONTINUE TO ANKI" : "REGISTER ACCOUNT"}
+              {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
             </Text>
           )}
         </TouchableOpacity>
@@ -264,15 +244,15 @@ const styles = StyleSheet.create({
 
   header: { alignItems: "center", marginBottom: Spacing.xxl },
   appIconBox: {
-    width: 60,
-    height: 60,
-    borderRadius: Radii.card,
-    backgroundColor: Colors.bg.secondary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.border.default,
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    overflow: "hidden",
     marginBottom: Spacing.md,
+  },
+  appIconImage: {
+    width: 80,
+    height: 80,
   },
   appName: {
     fontSize: Typography.text.title1.fontSize,
@@ -314,10 +294,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.border.default,
   },
   segmentText: {
-    fontSize: Typography.text.caption2.fontSize,
+    fontSize: Typography.text.footnote.fontSize,
     color: Colors.text.secondary,
     fontWeight: Typography.weight.semibold,
-    letterSpacing: 0.8,
+    letterSpacing: 0,
     textAlign: "center",
     textAlignVertical: "center",
     includeFontPadding: false,
@@ -373,21 +353,19 @@ const styles = StyleSheet.create({
 
   actionBtn: {
     backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.card,
-    height: 48,
+    borderRadius: 12,
+    height: 46,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     marginTop: Spacing.xs,
-    borderWidth: 1,
-    borderColor: Colors.accent.indigoLight,
   },
   btnDisabled: { opacity: 0.6 },
   actionBtnText: {
-    color: "#F3F4F6",
-    fontSize: Typography.text.footnote.fontSize,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 1,
+    color: "#F0F3F6",
+    fontSize: Typography.text.callout.fontSize,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: -0.2,
     textAlign: "center",
     textAlignVertical: "center",
     includeFontPadding: false,

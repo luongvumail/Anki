@@ -16,7 +16,5 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
 });

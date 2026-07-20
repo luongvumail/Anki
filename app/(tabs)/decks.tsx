@@ -14,6 +14,8 @@ import { SectionTitle } from '../../components/ui/SectionTitle';
 import { InsetGroup } from '../../components/ui/InsetGroup';
 import { FormField } from '../../components/ui/FormField';
 
+import { computeDueCount, computeNewCount, getDeckMasteryPct } from '../../lib/deckUtils';
+
 export default function DecksScreen() {
   const insets = useSafeAreaInsets();
   const { decks, fetchDecks, createDeck, deleteDeck, resetDeckProgress, isLoading, userId } = useStore();
@@ -117,11 +119,21 @@ export default function DecksScreen() {
 
   return (
     <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.list,
+          {
+            paddingTop: Math.max(insets.top + 16, 54),
+            paddingBottom: Math.max(insets.bottom + 90, 110),
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Linear Header Bar */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 16, 54) }]}>
+      <View style={styles.header}>
         <View>
-          <Text style={styles.largeTitle}>Bộ thẻ</Text>
-          <Text style={styles.subhead}>{decks.length} bộ thẻ lưu trữ</Text>
+          <Text style={styles.headerSubhead}>{decks.length} BỘ THẺ LƯU TRỮ</Text>
+          <Text style={styles.headerTitle}>Bộ thẻ</Text>
         </View>
         <TouchableOpacity
           style={styles.addBtn}
@@ -135,14 +147,7 @@ export default function DecksScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.list,
-          { paddingBottom: Math.max(insets.bottom + 90, 110) },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {isLoading && <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 30 }} />}
+      {isLoading && <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 30 }} />}
 
         {decks.length === 0 && !isLoading && (
           <View style={styles.emptyCard}>
@@ -164,9 +169,11 @@ export default function DecksScreen() {
         {decks.length > 0 && (
           <InsetGroup>
             {decks.map((deck, idx) => {
+              const deckCards = useStore.getState().cards[deck.id];
               const total = deck.cardCount || 0;
-              const due = deck.dueCount || 0;
-              const masteryPct = total > 0 ? Math.round(((total - due) / total) * 100) : 0;
+              const due = deckCards ? computeDueCount(deckCards) : (deck.dueCount || 0);
+              const newCount = deckCards ? computeNewCount(deckCards) : (deck.newCount || 0);
+              const masteryPct = getDeckMasteryPct(total, due, deckCards);
 
               return (
                 <React.Fragment key={deck.id}>
@@ -193,6 +200,10 @@ export default function DecksScreen() {
                         {due > 0 ? (
                           <View style={styles.dueBadge}>
                             <Text style={styles.dueBadgeText}>{due} ôn</Text>
+                          </View>
+                        ) : newCount > 0 ? (
+                          <View style={styles.dueBadge}>
+                            <Text style={styles.dueBadgeText}>{newCount} mới</Text>
                           </View>
                         ) : null}
                       </View>
@@ -283,22 +294,25 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg.primary },
   header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    paddingHorizontal: Spacing.pageMargin,
-    paddingBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
-  largeTitle: {
-    fontSize: Typography.text.largeTitle.fontSize,
-    lineHeight: Typography.text.largeTitle.lineHeight,
+  headerSubhead: {
+    fontSize: Typography.text.caption1.fontSize,
+    lineHeight: Typography.text.caption1.lineHeight,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.text.secondary,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  headerTitle: {
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: Typography.weight.bold,
     color: Colors.text.primary,
-    letterSpacing: 0.37,
-  },
-  subhead: {
-    fontSize: Typography.text.subhead.fontSize,
-    color: Colors.text.secondary,
-    marginTop: 2,
+    letterSpacing: -0.3,
   },
   addBtn: {
     padding: Spacing.xs,
@@ -364,12 +378,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   dueBadge: {
-    backgroundColor: Colors.bg.tertiary,
+    backgroundColor: Colors.accent.indigoDim,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   dueBadgeText: {
     fontSize: Typography.text.caption2.fontSize,
@@ -381,8 +393,6 @@ const styles = StyleSheet.create({
     borderRadius: Radii.card,
     padding: Spacing.xl,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   emptyTitle: {
     fontSize: Typography.text.headline.fontSize,
@@ -397,17 +407,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyBtn: {
-    backgroundColor: Colors.accent.indigo,
+    backgroundColor: Colors.accent.primary,
     paddingHorizontal: Spacing.xl,
     height: 44,
     borderRadius: Radii.card,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.accent.indigoLight,
   },
   emptyBtnText: {
-    color: '#F3F4F6',
+    color: '#F8FAFC',
     fontWeight: Typography.weight.bold,
     fontSize: Typography.text.subhead.fontSize,
     letterSpacing: 0.5,
@@ -449,15 +457,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   modalInsetGroupPadding: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   iconOption: {
@@ -467,8 +471,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.bg.tertiary,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   iconOptionActive: {
     borderWidth: 1,

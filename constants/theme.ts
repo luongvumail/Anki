@@ -4,66 +4,66 @@
 import * as Haptics from 'expo-haptics';
 
 export const Colors = {
-  // Authentic Linear.app Surface Hierarchy
+  // Authentic Linear.app & Notion Dark Surface Hierarchy
   bg: {
-    primary: '#08090C',                  // Linear Obsidian Main Canvas
-    secondary: '#121318',                // Linear Panel / Container Surface
-    tertiary: '#1A1C23',                 // Linear Input / Elevated Surface
-    quaternary: '#222530',               // Hover / Pressed Surface
-    card: '#000000',                     // Pure Jet-Black Card Body (High Depth Contrast)
-    glass: 'rgba(18, 19, 24, 0.92)',     // Linear Translucent Navigation Bar
-    overlay: 'rgba(8, 9, 12, 0.85)',     // Modal Backdrop Overlay
+    primary: '#0D0E12',                  // Linear Deep Obsidian Slate Canvas
+    secondary: '#16181D',                // Notion / Linear Panel Surface
+    tertiary: '#20232A',                 // Elevated Input & Chip Surface
+    quaternary: '#2A2E38',               // Hover & Active Selection Surface
+    card: '#16181D',                     // Panel Surface
+    glass: 'rgba(22, 24, 29, 0.94)',     // Translucent Bar Overlay
+    overlay: 'rgba(13, 14, 18, 0.82)',    // Backdrop Overlay
   },
 
-  // SINGLE UNIFIED LINEAR PRIMARY BRAND COLOR SYSTEM (#5E6AD2 / #707CE6)
+  // LINEAR SIGNATURE INDIGO ACCENT SYSTEM (#5E6AD2 / #707CE6)
   accent: {
-    primary: '#5E6AD2',                  // Linear Signature Indigo Primary Accent
-    primaryLight: '#707CE6',             // Linear Active Primary Indigo Glow
-    primaryDim: 'rgba(94, 106, 210, 0.18)',
-    indigo: '#5E6AD2',                   // Primary Indigo
-    indigoLight: '#707CE6',              // Active Indigo Glow
-    indigoDim: 'rgba(94, 106, 210, 0.18)',
-    blue: '#707CE6',                     // Unified to Primary Indigo Glow
-    blueDim: 'rgba(94, 106, 210, 0.18)',
-    gray: '#8B949E',                     // Linear Slate Gray
-    gray2: '#6E7681',                    // Linear Muted Gray
-    gray3: '#484F58',                    // Linear Dark Gray
-    gray4: '#30363D',                    // Linear Border Gray 4
-    gray5: '#1A1C23',                    // Linear Cell Gray 5
-    gray6: '#121318',                    // Linear Panel Gray 6
+    primary: '#5E6AD2',                  // Authentic Linear Signature Indigo
+    primaryLight: '#707CE6',             // Muted Linear Glow
+    primaryDim: 'rgba(94, 106, 210, 0.15)',
+    indigo: '#5E6AD2',                   // Linear Indigo
+    indigoLight: '#707CE6',              // Active Glow
+    indigoDim: 'rgba(94, 106, 210, 0.15)',
+    blue: '#707CE6',                     // Soft Linear Blue
+    blueDim: 'rgba(94, 106, 210, 0.15)',
+    gray: '#8B949E',                     // Slate Gray
+    gray2: '#6E7681',                    // Muted Slate
+    gray3: '#484F58',                    // Subtly Muted
+    gray4: '#30363D',                    // Muted Container
+    gray5: '#20232A',                    // Elevated Cell Surface
+    gray6: '#16181D',                    // Card Panel Surface
   },
 
-  // Soft Neon Color Palette (Semantic Status & SRS ONLY)
+  // Refined Muted Color Palette (Linear / Notion Style - NO NEON)
   neon: {
-    cyan: '#707CE6',                     // Unified to Primary Active Indigo Glow
-    emerald: '#34D399',                  // Semantic Good / Mastered - Emerald Green
-    purple: '#C084FC',                   // Semantic Hard - Soft Purple
-    coral: '#FB7185',                    // Semantic Again / Warning - Neon Coral
+    cyan: '#707CE6',                     // Soft Indigo Slate
+    emerald: '#3FB950',                  // Linear Muted Sage Emerald
+    purple: '#A371F7',                   // Linear Soft Lavender
+    coral: '#F85149',                    // Linear Muted Crimson
   },
 
-  // SRS Status Colors (Matching Soft Neon Palette)
+  // SRS Status Colors (Refined Linear Palette)
   srs: {
-    again: '#FB7185',                    // Neon Coral (Quên)
-    hard: '#C084FC',                     // Soft Purple (Khó)
-    good: '#34D399',                     // Emerald Green (Đã nhớ)
-    easy: '#707CE6',                     // Primary Indigo Glow (Dễ / Thuộc)
+    again: '#F85149',                    // Muted Crimson (Quên)
+    hard: '#A371F7',                     // Soft Lavender (Khó)
+    good: '#3FB950',                     // Soft Sage (Thuộc)
+    easy: '#707CE6',                     // Soft Indigo (Dễ / Thuộc)
   },
 
   // Eye-Care Anti-Halo Chinese Typography Labels
   text: {
-    primary: '#F3F4F6',                  // Milk White
-    secondary: '#8B949E',                // Linear Slate Gray
-    tertiary: '#6E7681',                 // Muted Label
-    quaternary: '#484F58',               // Faded Label
-    inverse: '#08090C',
+    primary: '#F0F3F6',                  // Crisp Slate White
+    secondary: '#8B949E',                // Muted Slate Gray
+    tertiary: '#6E7681',                 // Faded Muted Label
+    quaternary: '#484F58',               // Subtle Label
+    inverse: '#0D0E12',
   },
 
-  // Crisp Linear 1px Stroked Borders
+  // Subtle Linear Separators
   border: {
-    separator: '#1F212B',                // Linear Subtle Separator
-    default: '#232530',                  // Linear Panel 1px Border Stroke
-    strong: '#303648',
-    active: '#707CE6',                   // Active Indigo Border
+    separator: '#1F222B',                // Subtle Separator Line
+    default: 'transparent',              // Borderless
+    strong: '#2A2E38',
+    active: '#5E6AD2',                   // Linear Indigo Highlight
   },
 };
 
@@ -132,10 +132,10 @@ export const Spacing = {
 export const Radii = {
   xs: 4,
   sm: 6,
-  icon: 8,
-  card: 10,                              // Linear Panel Corner Radius
-  lg: 10,
-  xl: 14,
+  icon: 10,
+  card: 16,                              // Modern Smooth Apple Card Corner Radius
+  lg: 16,
+  xl: 20,
   full: 9999,
 };
 

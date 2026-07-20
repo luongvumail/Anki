@@ -14,22 +14,22 @@ export function SRSButtons({ cardSRS, onGrade }: SRSButtonsProps) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.srsArea, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
-      <Text style={styles.srsLabel}>SELECT RECALL DIFFICULTY:</Text>
+      <Text style={styles.srsLabel}>ĐÁNH GIÁ MỨC ĐỘ GHI NHỚ</Text>
       <View style={styles.srsRow}>
         <SRSButtonPropsItem
-          label="AGAIN (👈)"
+          label="QUÊN"
           sub={getIntervalLabel(SRS_GRADES.AGAIN, cardSRS)}
           color={Colors.srs.again}
           onPress={() => onGrade(SRS_GRADES.AGAIN, 'left')}
         />
         <SRSButtonPropsItem
-          label="HARD (👆)"
+          label="KHÓ"
           sub={getIntervalLabel(SRS_GRADES.HARD, cardSRS)}
           color={Colors.srs.hard}
           onPress={() => onGrade(SRS_GRADES.HARD, 'up')}
         />
         <SRSButtonPropsItem
-          label="GOOD (👉)"
+          label="THUỘC"
           sub={getIntervalLabel(SRS_GRADES.GOOD, cardSRS)}
           color={Colors.srs.good}
           onPress={() => onGrade(SRS_GRADES.GOOD, 'right')}
@@ -42,7 +42,7 @@ export function SRSButtons({ cardSRS, onGrade }: SRSButtonsProps) {
 function SRSButtonPropsItem({ label, sub, color, onPress }: { label: string; sub: string; color: string; onPress: () => void }) {
   return (
     <AnimatedButton
-      style={[styles.srsBtn, { borderColor: color + '60', backgroundColor: Colors.bg.secondary }]}
+      style={[styles.srsBtn, { backgroundColor: color + '15' }]}
       onPress={onPress}
       activeScale={0.93}
     >
@@ -62,7 +62,6 @@ const styles = StyleSheet.create({
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
   },
   srsBtnLabel: {
     fontSize: Typography.text.caption1.fontSize,

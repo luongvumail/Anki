@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,7 +22,16 @@ import { InsetGroup } from "../../components/ui/InsetGroup";
 export default function DeckDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { decks, cards, fetchCards, deleteCard, deleteDeck, resetDeckProgress, isLoading } = useStore();
+  const {
+    decks,
+    cards,
+    fetchCards,
+    deleteCard,
+    clearDeckCards,
+    deleteDeck,
+    resetDeckProgress,
+    isLoading,
+  } = useStore();
   const [resetting, setResetting] = useState(false);
   const deck = decks.find((d) => d.id === id);
   const deckCards = cards[id] || [];
@@ -84,9 +94,7 @@ export default function DeckDetailScreen() {
             triggerHaptic("heavy");
             setClearing(true);
             try {
-              for (const card of deckCards) {
-                await deleteCard(card.id, id);
-              }
+              await clearDeckCards(id);
               triggerHaptic("success");
             } catch {
               triggerHaptic("error");
@@ -126,6 +134,72 @@ export default function DeckDetailScreen() {
       ],
     );
   };
+
+  const renderCardItem = useCallback(
+    ({ item: card, index }: { item: Card; index: number }) => {
+      const isFirst = index === 0;
+      const isLast = index === deckCards.length - 1;
+
+      return (
+        <View
+          style={[
+            styles.cardItemWrapper,
+            isFirst && styles.cardItemFirst,
+            isLast && styles.cardItemLast,
+          ]}
+        >
+          {index > 0 && <View style={styles.cellDividerIndented} />}
+          <TouchableOpacity
+            style={styles.cardRow}
+            onPress={() => {
+              triggerHaptic("light");
+              router.push(`/card/${card.id}?deckId=${id}`);
+            }}
+            onLongPress={() => handleDeleteCard(card)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.cardLeft}>
+              <Text
+                style={styles.cardChar}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                {(card.character || "").trim()}
+              </Text>
+            </View>
+
+            <View style={styles.cardMid}>
+              <View style={styles.cardPinyinRow}>
+                <Text style={styles.cardPinyin} numberOfLines={1}>
+                  {(card.pinyin || "").trim()}
+                </Text>
+                {card.hanviet ? (
+                  <Text style={styles.cardHanviet} numberOfLines={1}>
+                    {(card.hanviet || "").trim()}
+                  </Text>
+                ) : null}
+              </View>
+              <Text style={styles.cardTranslation} numberOfLines={1}>
+                {(card.translation || "").trim()}
+              </Text>
+            </View>
+
+            <View style={styles.cardRight}>
+              <Text style={styles.intervalText}>{card.srs.interval}d</Text>
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={Colors.accent.gray3}
+                style={{ marginLeft: 4 }}
+              />
+            </View>
+          </TouchableOpacity>
+        </View>
+      );
+    },
+    [id, handleDeleteCard, deckCards.length],
+  );
 
   if (!deck)
     return (
@@ -247,83 +321,39 @@ export default function DeckDetailScreen() {
         </View>
       )}
 
-      {/* Card list */}
-      <ScrollView
+      {/* Card list - Virtualized FlatList for maximum performance with 100s/1000s of items */}
+      {deckCards.length > 0 && (
+        <View style={styles.sectionHeaderWrap}>
+          <SectionTitle>DANH SÁCH {deckCards.length} THẺ TRONG BỘ</SectionTitle>
+        </View>
+      )}
+
+      {isLoading && deckCards.length === 0 && (
+        <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 20 }} />
+      )}
+
+      <FlatList
+        data={deckCards}
+        keyExtractor={(item) => item.id}
+        renderItem={renderCardItem}
         contentContainerStyle={[
-          styles.cardList,
+          styles.cardListContent,
           { paddingBottom: Math.max(insets.bottom + 20, 40) },
         ]}
         showsVerticalScrollIndicator={false}
-      >
-        <SectionTitle>DANH SÁCH {deckCards.length} THẺ TRONG BỘ</SectionTitle>
-
-        {isLoading && (
-          <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 20 }} />
-        )}
-
-        {deckCards.length > 0 && (
-          <InsetGroup>
-            {deckCards.map((card, idx) => (
-              <React.Fragment key={card.id}>
-                {idx > 0 && <View style={styles.cellDividerIndented} />}
-                <TouchableOpacity
-                  style={styles.cardRow}
-                  onPress={() => {
-                    triggerHaptic("light");
-                    router.push(`/card/${card.id}?deckId=${id}`);
-                  }}
-                  onLongPress={() => handleDeleteCard(card)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.cardLeft}>
-                    <Text
-                      style={styles.cardChar}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.75}
-                    >
-                      {(card.character || "").trim()}
-                    </Text>
-                  </View>
-
-                  <View style={styles.cardMid}>
-                    <View style={styles.cardPinyinRow}>
-                      <Text style={styles.cardPinyin} numberOfLines={1}>
-                        {(card.pinyin || "").trim()}
-                      </Text>
-                      {card.hanviet ? (
-                        <Text style={styles.cardHanviet} numberOfLines={1}>
-                          {(card.hanviet || "").trim()}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <Text style={styles.cardTranslation} numberOfLines={1}>
-                      {(card.translation || "").trim()}
-                    </Text>
-                  </View>
-
-                  <View style={styles.cardRight}>
-                    <Text style={styles.intervalText}>{card.srs.interval}d</Text>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={16}
-                      color={Colors.accent.gray3}
-                      style={{ marginLeft: 4 }}
-                    />
-                  </View>
-                </TouchableOpacity>
-              </React.Fragment>
-            ))}
-          </InsetGroup>
-        )}
-
-        {deckCards.length === 0 && !isLoading && (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>Chưa có thẻ nào trong bộ này</Text>
-            <Text style={styles.emptySub}>Dùng tab "Thêm từ" để tự động tạo từ vựng bằng AI.</Text>
-          </View>
-        )}
-      </ScrollView>
+        initialNumToRender={15}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === "android"}
+        ListEmptyComponent={
+          !isLoading ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>Chưa có thẻ nào trong bộ này</Text>
+              <Text style={styles.emptySub}>Dùng tab "Thêm từ" để tự động tạo từ vựng bằng AI.</Text>
+            </View>
+          ) : null
+        }
+      />
     </View>
   );
 }
@@ -339,91 +369,81 @@ function StatChip({ label, value, color }: { label: string; value: number; color
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg.primary },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.bg.primary,
-  },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.bg.primary },
 
-  header: { paddingHorizontal: Spacing.pageMargin, paddingBottom: Spacing.lg },
+  header: {
+    paddingHorizontal: Spacing.pageMargin,
+    paddingBottom: Spacing.md,
+  },
   topNavRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: Spacing.md,
   },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 2 },
+  backBtn: { flexDirection: "row", alignItems: "center" },
   backText: {
-    color: Colors.accent.indigoLight,
     fontSize: Typography.text.body.fontSize,
+    color: Colors.accent.indigoLight,
     fontWeight: Typography.weight.medium,
   },
   deleteHeaderBtn: {
-    padding: Spacing.xs,
+    padding: 6,
   },
-
-  headerInfo: { flexDirection: "row", alignItems: "center", gap: Spacing.md },
+  headerInfo: { flexDirection: "row", alignItems: "center" },
   deckIconTile: {
     width: 44,
     height: 44,
-    borderRadius: Radii.card,
+    borderRadius: Radii.lg,
     backgroundColor: Colors.bg.secondary,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
     alignItems: "center",
     justifyContent: "center",
+    marginRight: Spacing.md,
   },
   deckName: {
     fontSize: Typography.text.title2.fontSize,
-    lineHeight: Typography.text.title2.lineHeight,
     fontWeight: Typography.weight.bold,
     color: Colors.text.primary,
   },
   deckDesc: {
-    fontSize: Typography.text.caption1.fontSize,
+    fontSize: Typography.text.footnote.fontSize,
     color: Colors.text.secondary,
-    marginTop: 1,
+    marginTop: 2,
   },
 
   statsRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
     paddingHorizontal: Spacing.pageMargin,
-    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   chip: {
     flex: 1,
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
-    padding: Spacing.cellHorizontal,
+    paddingVertical: Spacing.md,
     alignItems: "center",
   },
   chipValue: {
-    fontSize: Typography.text.title2.fontSize,
+    fontSize: Typography.text.title3.fontSize,
     fontWeight: Typography.weight.bold,
     color: Colors.text.primary,
   },
   chipLabel: {
-    fontSize: Typography.text.caption1.fontSize,
+    fontSize: Typography.text.caption2.fontSize,
     color: Colors.text.secondary,
     marginTop: 2,
-    fontWeight: Typography.weight.semibold,
   },
 
   studyBtn: {
-    backgroundColor: Colors.accent.primary,
+    backgroundColor: Colors.accent.indigo,
     marginHorizontal: Spacing.pageMargin,
     borderRadius: Radii.card,
     height: 50,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "row",
-    marginBottom: Spacing.md,
-  },
-  studyBtnDisabled: {
-    backgroundColor: Colors.bg.tertiary,
-    opacity: 0.6,
+    marginBottom: Spacing.sm,
   },
   studyBtnText: {
     color: "#F0F3F6",
@@ -455,8 +475,26 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
-  cardList: { paddingHorizontal: Spacing.pageMargin },
+  sectionHeaderWrap: {
+    paddingHorizontal: Spacing.pageMargin,
+  },
 
+  cardListContent: {
+    paddingHorizontal: Spacing.pageMargin,
+  },
+
+  cardItemWrapper: {
+    backgroundColor: Colors.bg.secondary,
+    overflow: "hidden",
+  },
+  cardItemFirst: {
+    borderTopLeftRadius: Radii.card,
+    borderTopRightRadius: Radii.card,
+  },
+  cardItemLast: {
+    borderBottomLeftRadius: Radii.card,
+    borderBottomRightRadius: Radii.card,
+  },
   cardRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -525,6 +563,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.card,
     padding: Spacing.xl,
     alignItems: "center",
+    marginTop: Spacing.sm,
   },
   emptyTitle: {
     fontSize: Typography.text.body.fontSize,

@@ -16,6 +16,7 @@ export interface CardSlice {
   addCard: (card: Omit<Card, "id" | "createdAt" | "updatedAt">) => Promise<void>;
   updateCard: (cardId: string, deckId: string, updates: Partial<Card>) => Promise<void>;
   deleteCard: (cardId: string, deckId: string) => Promise<void>;
+  clearDeckCards: (deckId: string) => Promise<void>;
   gradeCard: (card: Card, grade: SRSGrade) => Promise<void>;
   resetDeckProgress: (deckId: string) => Promise<void>;
   findExistingCard: (character: string, deckId?: string) => Card | undefined;
@@ -194,6 +195,43 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
           : deck,
       ),
     }));
+  },
+
+  clearDeckCards: async (deckId) => {
+    const uid = getUserId();
+    const existingCards = get().cards[deckId] || [];
+    if (existingCards.length === 0) return;
+
+    // Immediately update Zustand store in 1 single atomic state update
+    set((s) => ({
+      cards: {
+        ...s.cards,
+        [deckId]: [],
+      },
+      decks: s.decks.map((deck) =>
+        deck.id === deckId
+          ? {
+              ...deck,
+              cardCount: 0,
+              dueCount: 0,
+              newCount: 0,
+            }
+          : deck,
+      ),
+    }));
+
+    // Perform parallel bulk deletion in Firestore
+    try {
+      await Promise.all(existingCards.map((c) => deleteDoc(cardRef(uid, deckId, c.id))));
+      const deckDocRef = doc(decksRef(uid), deckId);
+      await updateDoc(deckDocRef, {
+        cardCount: 0,
+        dueCount: 0,
+        newCount: 0,
+      });
+    } catch (e: any) {
+      console.warn("[clearDeckCards] Firestore bulk delete warning:", e);
+    }
   },
 
   gradeCard: async (card, grade) => {

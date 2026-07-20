@@ -3,8 +3,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// List of models to try in order if free quota/rate-limits occur
-const CANDIDATE_MODELS = ["gemini-3.5-flash"];
+// gemini-3.5-flash: latest GA model, fast & capable (July 2026)
+// gemini-3.1-flash-lite: cheapest fallback ($0.25/$1.50 per 1M tokens)
+const CANDIDATE_MODELS = ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
 
 async function generateWithFallback(prompt: string): Promise<string> {
   let lastError: any = null;
@@ -36,7 +37,7 @@ function sanitizeInput(input: string): string {
   return input
     .trim()
     .slice(0, 50)
-    .replace(/["'\\\n\r]/g, " ");
+    .replace(/["'\\n\r]/g, " ");
 }
 
 export interface CardData {
@@ -57,8 +58,7 @@ export interface CardData {
 }
 
 /**
- * Uses Gemini to auto-fill vocabulary card details for a Chinese word.
- * Returns structured JSON with all fields needed for a flashcard.
+ * Uses Gemini to auto-fill vocabulary card details for a single Chinese word.
  */
 export async function generateCardData(input: string): Promise<CardData> {
   const cleanInput = sanitizeInput(input);
@@ -84,12 +84,66 @@ Trả về JSON (CHỈ JSON, không markdown):
 }`;
 
   const text = (await generateWithFallback(prompt)).trim();
-  // Strip markdown code fences if present
   const jsonText = text
     .replace(/^```json?\s*/i, "")
     .replace(/```\s*$/, "")
     .trim();
   return JSON.parse(jsonText) as CardData;
+}
+
+/**
+ * Uses a SINGLE Gemini request to generate card data for multiple Chinese words at once.
+ * Much faster and cheaper than calling generateCardData() separately for each word.
+ * Falls back to parallel individual calls if the batch prompt fails.
+ */
+export async function generateCardDataBatch(inputs: string[]): Promise<CardData[]> {
+  if (inputs.length === 0) return [];
+  if (inputs.length === 1) return [await generateCardData(inputs[0])];
+
+  const cleanInputs = inputs.map(sanitizeInput);
+  const wordList = cleanInputs.map((w, i) => `${i + 1}. "${w}"`).join("\n");
+
+  const prompt = `Bạn là chuyên gia Hán-Việt. Phân tích các từ tiếng Trung sau đây:
+${wordList}
+
+Trả về JSON array (CHỈ JSON array, không markdown), với mỗi phần tử theo thứ tự tương ứng:
+[
+  {
+    "character": "chữ giản thể",
+    "traditional": "chữ phồn thể",
+    "pinyin": "phiên âm có dấu",
+    "hanviet": "âm Hán Việt",
+    "translation": "nghĩa ngắn gọn (tối đa 3 nghĩa)",
+    "examples": [
+      {
+        "chinese": "câu ví dụ ngắn",
+        "pinyin": "phiên âm câu ví dụ",
+        "vietnamese": "dịch nghĩa"
+      }
+    ],
+    "radical": "bộ thủ",
+    "strokeCount": 0,
+    "hskLevel": 1,
+    "tags": ["loại từ"]
+  }
+]`;
+
+  try {
+    const text = (await generateWithFallback(prompt)).trim();
+    const jsonText = text
+      .replace(/^```json?\s*/i, "")
+      .replace(/```\s*$/, "")
+      .trim();
+    const results = JSON.parse(jsonText) as CardData[];
+    if (!Array.isArray(results) || results.length !== inputs.length) {
+      throw new Error(`Expected ${inputs.length} results, got ${results.length}`);
+    }
+    return results;
+  } catch (err) {
+    // Fallback: parallel individual calls if batch fails
+    console.warn("[Gemini] Batch failed, falling back to parallel individual calls:", err);
+    return Promise.all(inputs.map((input) => generateCardData(input)));
+  }
 }
 
 /**

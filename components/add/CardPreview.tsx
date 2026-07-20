@@ -11,6 +11,7 @@ import { CardData } from "../../lib/gemini";
 import { Colors, Typography, Spacing, Radii } from "../../constants/theme";
 import { SectionTitle } from "../ui/SectionTitle";
 import { AnimatedButton } from "../ui/AnimatedButton";
+import { Ionicons } from "@expo/vector-icons";
 
 interface CardPreviewProps {
   cardData: CardData;
@@ -18,9 +19,11 @@ interface CardPreviewProps {
   saving: boolean;
   onReGenerate: () => void;
   onSave: () => void;
+  /** Optional: show an X button to remove this card from the batch list */
+  onRemove?: () => void;
 }
 
-export function CardPreview({ cardData, targetDeckName, saving, onReGenerate, onSave }: CardPreviewProps) {
+export function CardPreview({ cardData, targetDeckName, saving, onReGenerate, onSave, onRemove }: CardPreviewProps) {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -42,9 +45,16 @@ export function CardPreview({ cardData, targetDeckName, saving, onReGenerate, on
     <Animated.View style={{ opacity: slideAnim, transform: [{ translateY }] }}>
       <View style={styles.previewHeaderRow}>
         <SectionTitle>XEM TRƯỚC THẺ BÀI</SectionTitle>
-        <TouchableOpacity onPress={onReGenerate}>
-          <Text style={styles.reGenLink}>Tạo lại ↻</Text>
-        </TouchableOpacity>
+        <View style={styles.previewHeaderActions}>
+          <TouchableOpacity onPress={onReGenerate}>
+            <Text style={styles.reGenLink}>Tạo lại ↻</Text>
+          </TouchableOpacity>
+          {onRemove && (
+            <TouchableOpacity onPress={onRemove} style={styles.removeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close" size={16} color={Colors.text.tertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <View style={styles.previewCard}>
@@ -124,10 +134,18 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sectionBottom,
     paddingHorizontal: 4,
   },
+  previewHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   reGenLink: {
     fontSize: Typography.text.footnote.fontSize,
     color: Colors.accent.indigoLight,
     fontWeight: Typography.weight.medium,
+  },
+  removeBtn: {
+    padding: 2,
   },
   previewCard: {
     backgroundColor: Colors.bg.secondary,
@@ -205,8 +223,8 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: Colors.accent.indigo,
-    borderRadius: 12,
-    height: 46,
+    borderRadius: Radii.card,
+    height: 50,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

@@ -1,11 +1,13 @@
 import { StateCreator } from 'zustand';
 import { getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { auth } from '../../lib/firebase';
-import { DEFAULT_SRS_STATE, SRSGrade, calculateSRS } from '../../lib/srs';
+import { DEFAULT_SRS_STATE, SRSGrade, calculateSRS, isDue } from '../../lib/srs';
 import { Card, Deck } from './types';
 import { getUserId, cardsRef, cardRef, decksRef } from './firestoreHelpers';
 import { UISlice } from './uiSlice';
 import { DeckSlice } from './deckSlice';
+
+import { recordReviewToday } from '../../lib/reviewTracker';
 
 export interface CardSlice {
   cards: Record<string, Card[]>; // deckId → cards
@@ -47,18 +49,28 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     };
     await setDoc(ref, card);
 
-    // Update deck card count & new count
+    // Update deck card count, new count, and due count
     const deckDocRef = doc(decksRef(uid), cardData.deckId);
     const deckSnap = await getDoc(deckDocRef);
     if (deckSnap.exists()) {
       const d = deckSnap.data() as Deck;
       const newCardCount = (d.cardCount || 0) + 1;
       const newNewCount = (d.newCount || 0) + 1;
-      await updateDoc(deckDocRef, { cardCount: newCardCount, newCount: newNewCount });
+      const newDueCount = (d.dueCount || 0) + 1;
+      await updateDoc(deckDocRef, {
+        cardCount: newCardCount,
+        newCount: newNewCount,
+        dueCount: newDueCount,
+      });
       set((s) => ({
         decks: s.decks.map((deck) =>
           deck.id === cardData.deckId
-            ? { ...deck, cardCount: newCardCount, newCount: newNewCount }
+            ? {
+                ...deck,
+                cardCount: newCardCount,
+                newCount: newNewCount,
+                dueCount: newDueCount,
+              }
             : deck,
         ),
       }));
@@ -89,18 +101,37 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
 
   deleteCard: async (cardId, deckId) => {
     const uid = getUserId();
+    const existingCards = get().cards[deckId] || [];
+    const targetCard = existingCards.find((c) => c.id === cardId);
+    const wasDue = targetCard ? isDue(targetCard.srs) : false;
+    const wasNew = targetCard ? targetCard.srs.repetitions === 0 : false;
+
     await deleteDoc(cardRef(uid, deckId, cardId));
 
-    // Update deck card count
+    // Update deck card count, due count & new count
     const deckDocRef = doc(decksRef(uid), deckId);
     const deckSnap = await getDoc(deckDocRef);
     if (deckSnap.exists()) {
       const d = deckSnap.data() as Deck;
       const newCardCount = Math.max(0, (d.cardCount || 0) - 1);
-      await updateDoc(deckDocRef, { cardCount: newCardCount });
+      const newDueCount = wasDue ? Math.max(0, (d.dueCount || 0) - 1) : d.dueCount || 0;
+      const newNewCount = wasNew ? Math.max(0, (d.newCount || 0) - 1) : d.newCount || 0;
+
+      await updateDoc(deckDocRef, {
+        cardCount: newCardCount,
+        dueCount: newDueCount,
+        newCount: newNewCount,
+      });
       set((s) => ({
         decks: s.decks.map((deck) =>
-          deck.id === deckId ? { ...deck, cardCount: newCardCount } : deck,
+          deck.id === deckId
+            ? {
+                ...deck,
+                cardCount: newCardCount,
+                dueCount: newDueCount,
+                newCount: newNewCount,
+              }
+            : deck,
         ),
       }));
     }
@@ -117,6 +148,35 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     const newSRS = calculateSRS(grade, card.srs);
     const now = new Date().toISOString();
     await get().updateCard(card.id, card.deckId, { srs: newSRS, lastReviewedAt: now });
+    await recordReviewToday();
+
+    // Update deck dueCount & newCount if card is no longer due today
+    const wasDue = isDue(card.srs);
+    const isNowDue = isDue(newSRS);
+    const wasNew = card.srs.repetitions === 0;
+
+    if (wasDue && !isNowDue) {
+      const uid = getUserId();
+      const deckDocRef = doc(decksRef(uid), card.deckId);
+      const deckSnap = await getDoc(deckDocRef);
+      if (deckSnap.exists()) {
+        const d = deckSnap.data() as Deck;
+        const newDueCount = Math.max(0, (d.dueCount || 0) - 1);
+        const newNewCount = wasNew ? Math.max(0, (d.newCount || 0) - 1) : d.newCount || 0;
+
+        await updateDoc(deckDocRef, {
+          dueCount: newDueCount,
+          newCount: newNewCount,
+        });
+        set((s) => ({
+          decks: s.decks.map((deck) =>
+            deck.id === card.deckId
+              ? { ...deck, dueCount: newDueCount, newCount: newNewCount }
+              : deck,
+          ),
+        }));
+      }
+    }
   },
 
   resetDeckProgress: async (deckId) => {
@@ -127,11 +187,21 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
       updateDoc(d.ref, { srs: DEFAULT_SRS_STATE, updatedAt: now })
     );
     await Promise.all(resets);
+
+    const cardCount = snap.docs.length;
+    const deckDocRef = doc(decksRef(uid), deckId);
+    await updateDoc(deckDocRef, {
+      dueCount: cardCount,
+      newCount: cardCount,
+      updatedAt: now,
+    });
+
     set(s => ({
       cards: {
         ...s.cards,
         [deckId]: (s.cards[deckId] || []).map(c => ({ ...c, srs: DEFAULT_SRS_STATE, updatedAt: now })),
       },
+      decks: s.decks.map(d => d.id === deckId ? { ...d, dueCount: cardCount, newCount: cardCount, updatedAt: now } : d),
     }));
   },
 

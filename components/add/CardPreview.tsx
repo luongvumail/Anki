@@ -14,12 +14,13 @@ import { AnimatedButton } from "../ui/AnimatedButton";
 
 interface CardPreviewProps {
   cardData: CardData;
+  targetDeckName?: string;
   saving: boolean;
   onReGenerate: () => void;
   onSave: () => void;
 }
 
-export function CardPreview({ cardData, saving, onReGenerate, onSave }: CardPreviewProps) {
+export function CardPreview({ cardData, targetDeckName, saving, onReGenerate, onSave }: CardPreviewProps) {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -40,9 +41,7 @@ export function CardPreview({ cardData, saving, onReGenerate, onSave }: CardPrev
   return (
     <Animated.View style={{ opacity: slideAnim, transform: [{ translateY }] }}>
       <View style={styles.previewHeaderRow}>
-        <SectionTitle style={{ marginBottom: 0, marginTop: 0, marginLeft: 0 }}>
-          XEM TRƯỚC THẺ BÀI
-        </SectionTitle>
+        <SectionTitle>XEM TRƯỚC THẺ BÀI</SectionTitle>
         <TouchableOpacity onPress={onReGenerate}>
           <Text style={styles.reGenLink}>Tạo lại ↻</Text>
         </TouchableOpacity>
@@ -51,11 +50,6 @@ export function CardPreview({ cardData, saving, onReGenerate, onSave }: CardPrev
       <View style={styles.previewCard}>
         {/* Hanzi Header */}
         <View style={styles.previewTop}>
-          {cardData.hskLevel ? (
-            <View style={styles.hskBadge}>
-              <Text style={styles.hskText}>HSK {cardData.hskLevel}</Text>
-            </View>
-          ) : null}
           <Text style={styles.characterBig}>{cardData.character}</Text>
           {cardData.traditional && cardData.traditional !== cardData.character && (
             <Text style={styles.traditional}>{cardData.traditional} (phồn thể)</Text>
@@ -67,6 +61,7 @@ export function CardPreview({ cardData, saving, onReGenerate, onSave }: CardPrev
           <InfoRow label="Pinyin" value={cardData.pinyin} color={Colors.neon.cyan} />
           <InfoRow label="Hán Việt" value={cardData.hanviet} />
           <InfoRow label="Nghĩa TV" value={cardData.translation} />
+          {cardData.hskLevel ? <InfoRow label="Cấp HSK" value={`HSK ${cardData.hskLevel}`} /> : null}
           {cardData.radical ? <InfoRow label="Bộ thủ" value={cardData.radical} /> : null}
           {cardData.strokeCount ? (
             <InfoRow label="Số nét" value={`${cardData.strokeCount} nét`} />
@@ -97,7 +92,9 @@ export function CardPreview({ cardData, saving, onReGenerate, onSave }: CardPrev
           {saving ? (
             <ActivityIndicator color="#F3F4F6" size="small" />
           ) : (
-            <Text style={styles.saveBtnText}>Lưu vào bộ thẻ</Text>
+            <Text style={styles.saveBtnText}>
+              {targetDeckName ? `Lưu vào bộ "${targetDeckName}"` : "Lưu vào bộ thẻ"}
+            </Text>
           )}
         </AnimatedButton>
       </View>
@@ -136,8 +133,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   previewTop: {
     alignItems: "center",
@@ -145,22 +140,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border.separator,
     marginBottom: Spacing.md,
-  },
-  hskBadge: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    backgroundColor: Colors.bg.tertiary,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
-  },
-  hskText: {
-    fontSize: Typography.text.caption2.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.bold,
   },
   characterBig: {
     fontSize: Typography.hanzi.lg,
@@ -208,8 +187,6 @@ const styles = StyleSheet.create({
     borderRadius: Radii.card,
     padding: Spacing.md,
     marginBottom: Spacing.xs,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   exCn: {
     fontSize: Typography.text.body.fontSize,
@@ -228,20 +205,21 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.card,
-    height: 48,
+    borderRadius: 12,
+    height: 46,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.accent.indigoLight,
   },
-  saveBtnDisabled: { opacity: 0.6 },
+  saveBtnDisabled: {
+    backgroundColor: Colors.bg.tertiary,
+    opacity: 0.6,
+  },
   saveBtnText: {
-    color: "#F3F4F6",
-    fontSize: Typography.text.footnote.fontSize,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 0.5,
+    color: "#F0F3F6",
+    fontSize: Typography.text.callout.fontSize,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: -0.2,
     textAlign: "center",
     textAlignVertical: "center",
     includeFontPadding: false,

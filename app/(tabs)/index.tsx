@@ -13,7 +13,7 @@ import {
 import { auth } from '../../lib/firebase';
 import { getAuthErrorMessage } from '../../lib/errorHandler';
 import {
-  getReminderSettings, scheduleDailyStudyReminder, cancelDailyStudyReminder,
+  getReminderSettings, scheduleDailyStudyReminder, cancelDailyStudyReminder, sendTestNotification,
 } from '../../lib/notificationService';
 import { useStore } from '../../store/useStore';
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
@@ -22,6 +22,7 @@ import { ProgressBar } from '../../components/ui/ProgressBar';
 import { SectionTitle } from '../../components/ui/SectionTitle';
 import { AccountModal } from '../../components/home/AccountModal';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
+import { computeDueCount, computeNewCount, getDeckMasteryPct } from '../../lib/deckUtils';
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -48,17 +49,22 @@ export default function DashboardScreen() {
   // 1 single character for circular avatar
   const initials = displayName.slice(0, 1).toUpperCase();
 
-  const todayStr = new Date().toISOString().split("T")[0];
-  const allCardsInMemory = Object.values(useStore.getState().cards).flat();
-  const reviewedTodayCount = allCardsInMemory.filter(
-    (c) => c.updatedAt && c.updatedAt.split("T")[0] === todayStr,
-  ).length;
+  const cardsState = useStore((s) => s.cards);
 
-  const totalDue = decks.reduce((s, d) => s + (d.dueCount || 0), 0);
+
+  const totalDue = decks.reduce((s, d) => {
+    const deckCards = cardsState[d.id];
+    return s + (deckCards ? computeDueCount(deckCards) : (d.dueCount || 0));
+  }, 0);
+
   const totalCards = decks.reduce((s, d) => s + (d.cardCount || 0), 0);
-  const totalNew = decks.reduce((s, d) => s + (d.newCount || 0), 0);
-  const doneToday = reviewedTodayCount > 0 ? reviewedTodayCount : Math.max(0, totalCards - totalDue - totalNew);
-  const progressPct = totalCards > 0 ? Math.round((doneToday / totalCards) * 100) : 0;
+
+  const totalNew = decks.reduce((s, d) => {
+    const deckCards = cardsState[d.id];
+    return s + (deckCards ? computeNewCount(deckCards) : (d.newCount || 0));
+  }, 0);
+
+  const progressPct = totalCards > 0 ? Math.round(((totalCards - totalDue) / totalCards) * 100) : 0;
 
   useEffect(() => {
     if (userId) fetchDecks();
@@ -91,7 +97,17 @@ export default function DashboardScreen() {
       if (success) {
         triggerHaptic('success');
         const formattedTime = `${reminderHour < 10 ? '0' : ''}${reminderHour}:${reminderMinute < 10 ? '0' : ''}${reminderMinute}`;
-        Alert.alert('Đã bật nhắc nhở hàng ngày', `Ứng dụng Anki sẽ nhắc bạn vào học lúc ${formattedTime} hàng ngày.`);
+        Alert.alert(
+          'Đã bật nhắc nhở hàng ngày',
+          `Ứng dụng Anki sẽ nhắc bạn vào học lúc ${formattedTime} hàng ngày.`,
+          [
+            { text: 'Đóng', style: 'cancel' },
+            {
+              text: 'Thử thông báo (3s)',
+              onPress: () => sendTestNotification(),
+            },
+          ]
+        );
       } else {
         triggerHaptic('error');
         setReminderEnabled(false);
@@ -180,14 +196,8 @@ export default function DashboardScreen() {
       {/* Linear App Header Bar */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.dateSubhead}>{todayDateStr}</Text>
-          <View style={styles.brandRow}>
-            <Text style={styles.largeTitle}>Anki</Text>
-            <View style={styles.linearBadge}>
-              <View style={styles.liveDot} />
-              <Text style={styles.linearBadgeText}>v1.0</Text>
-            </View>
-          </View>
+          <Text style={styles.headerSubhead}>{todayDateStr}</Text>
+          <Text style={styles.headerTitle}>Xin chào, {displayName}</Text>
         </View>
 
         {/* 1 Single Character Circular Avatar */}
@@ -202,74 +212,59 @@ export default function DashboardScreen() {
         </AnimatedButton>
       </View>
 
-      {/* Linear Hero Panel Card (100% Vietnamese) */}
+      {/* Hero Card */}
       <View style={styles.heroCard}>
         <View style={styles.heroTop}>
-          <Text style={styles.heroSectionTitle}>CẦN ÔN HÔM NAY</Text>
+          <Text style={styles.heroSectionTitle}>{totalDue > 0 ? `${totalDue} THẺ CẦN ÔN TẬP` : 'HOÀN THÀNH ÔN TẬP'}</Text>
           <View style={styles.heroBadge}>
             <Text style={styles.heroBadgeText}>{decks.length} BỘ THẺ</Text>
           </View>
         </View>
 
-        <View style={styles.heroCountRow}>
-          <Text style={styles.heroCount}>{totalDue}</Text>
-          <Text style={styles.heroUnit}> THẺ CẦN ÔN</Text>
-        </View>
-
-        <ProgressBar progress={progressPct} style={{ marginTop: Spacing.xs }} />
+        <ProgressBar progress={progressPct} style={{ marginTop: Spacing.md }} />
 
         <View style={styles.progressLabels}>
-          <Text style={styles.progressText}>{progressPct}% HOÀN THÀNH</Text>
-          <Text style={styles.progressText}>{doneToday} / {totalCards} THẺ</Text>
+          <Text style={styles.progressText}>{totalDue} CẦN ÔN  •  {totalNew} THẺ MỚI</Text>
+          <Text style={styles.progressText}>{progressPct}% TỶ LỆ THUỘC</Text>
         </View>
 
         <AnimatedButton
-          style={[styles.primaryBtn, totalDue === 0 && styles.primaryBtnDisabled]}
+          style={[styles.primaryBtn, totalCards > 0 && totalDue === 0 && styles.primaryBtnDisabled]}
           onPress={() => {
-            const firstDue = decks.find(d => (d.dueCount || 0) > 0) || decks[0];
+            if (totalCards === 0) {
+              router.push('/add' as any);
+              return;
+            }
+            const firstDue =
+              decks.find((d) => {
+                const deckCards = cardsState[d.id];
+                const due = deckCards ? computeDueCount(deckCards) : (d.dueCount || 0);
+                return due > 0;
+              }) || decks[0];
             if (firstDue) router.push(`/study/${firstDue.id}`);
           }}
-          disabled={totalDue === 0 && decks.length === 0}
+          disabled={totalCards > 0 && totalDue === 0}
           hapticType="medium"
           activeScale={0.97}
         >
-          <Ionicons name={totalDue > 0 ? "play" : "checkmark-circle"} size={17} color="#F3F4F6" style={{ marginRight: 6 }} />
+          <Ionicons
+            name={totalCards === 0 ? "add-circle" : totalDue > 0 ? "play" : "checkmark-circle"}
+            size={18}
+            color="#F0F3F6"
+            style={{ marginRight: 6 }}
+          />
           <Text style={styles.primaryBtnText}>
-            {totalDue > 0 ? 'BẮT ĐẦU HỌC NGAY' : totalCards > 0 ? 'ĐÃ HOÀN THÀNH TẤT CẢ' : 'TẠO BỘ THẺ ĐỂ BẮT ĐẦU'}
+            {totalCards === 0
+              ? 'Thêm từ vựng mới với AI'
+              : totalDue > 0
+              ? 'Bắt đầu học ngay'
+              : 'Đã hoàn thành ôn tập hôm nay ✓'}
           </Text>
         </AnimatedButton>
       </View>
 
-      {/* Linear Grid Metrics (100% Vietnamese) */}
-      <View style={styles.metricsGroup}>
-        <View style={styles.metricCol}>
-          <Text style={styles.metricValue}>{totalDue}</Text>
-          <Text style={styles.metricLabel}>CẦN ÔN</Text>
-        </View>
-        <View style={styles.metricSeparator} />
-        <View style={styles.metricCol}>
-          <Text style={styles.metricValue}>{totalNew}</Text>
-          <Text style={styles.metricLabel}>THẺ MỚI</Text>
-        </View>
-        <View style={styles.metricSeparator} />
-        <View style={styles.metricCol}>
-          <Text style={[styles.metricValue, { color: Colors.neon.emerald }]}>{doneToday}</Text>
-          <Text style={styles.metricLabel}>ĐÃ THUỘC</Text>
-        </View>
-      </View>
-
       {/* Decks Section Header */}
-      <View style={styles.sectionHeader}>
-        <SectionTitle style={{ marginBottom: 0, marginTop: 0, marginLeft: 0 }}>BỘ THẺ LƯU TRỮ</SectionTitle>
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic('selection');
-            router.push('/decks' as any);
-          }}
-        >
-          <Text style={styles.sectionLink}>Xem tất cả ›</Text>
-        </TouchableOpacity>
-      </View>
+      <SectionTitle>DANH SÁCH BỘ THẺ</SectionTitle>
 
       {isLoading && !refreshing ? (
         <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 30 }} />
@@ -291,9 +286,11 @@ export default function DashboardScreen() {
       ) : (
         <View style={styles.decksGroup}>
           {decks.map((deck, idx) => {
-            const due = deck.dueCount || 0;
+            const deckCards = useStore.getState().cards[deck.id];
+            const due = deckCards ? computeDueCount(deckCards) : (deck.dueCount || 0);
+            const newCount = deckCards ? computeNewCount(deckCards) : (deck.newCount || 0);
             const total = deck.cardCount || 0;
-            const pct = total > 0 ? Math.round(((total - due) / total) * 100) : 0;
+            const pct = getDeckMasteryPct(total, due, deckCards);
             return (
               <React.Fragment key={deck.id}>
                 {idx > 0 && <View style={styles.cellDividerIndented} />}
@@ -301,7 +298,7 @@ export default function DashboardScreen() {
                   style={styles.deckRow}
                   onPress={() => {
                     triggerHaptic('light');
-                    router.push(`/study/${deck.id}` as any);
+                    router.push(`/deck/${deck.id}` as any);
                   }}
                   activeOpacity={0.7}
                 >
@@ -310,11 +307,19 @@ export default function DashboardScreen() {
                   </View>
                   <View style={styles.deckMeta}>
                     <Text style={styles.deckName} numberOfLines={1}>{deck.name}</Text>
-                    <Text style={styles.deckSub}>{total} thẻ  •  {pct}% thuộc</Text>
+                    <Text style={styles.deckSub}>
+                      {total > 0 ? `${total} thẻ  •  ${pct}% thuộc` : 'Chưa có thẻ vựng'}
+                    </Text>
                   </View>
-                  {due > 0 ? (
+                  {total === 0 ? (
+                    <Text style={styles.emptyDeckText}>CHƯA CÓ THẺ</Text>
+                  ) : due > 0 ? (
                     <View style={styles.dueBadge}>
                       <Text style={styles.dueBadgeText}>{due} ÔN</Text>
+                    </View>
+                  ) : newCount > 0 ? (
+                    <View style={styles.dueBadge}>
+                      <Text style={styles.dueBadgeText}>{newCount} MỚI</Text>
                     </View>
                   ) : (
                     <Text style={styles.doneText}>HOÀN THÀNH</Text>
@@ -353,21 +358,25 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
     marginBottom: Spacing.lg,
   },
-  dateSubhead: {
+  headerSubhead: {
     fontSize: Typography.text.caption1.fontSize,
+    lineHeight: Typography.text.caption1.lineHeight,
     fontWeight: Typography.weight.semibold,
     color: Colors.text.secondary,
     letterSpacing: 1.2,
-    marginBottom: 4,
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  headerTitle: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: Typography.weight.bold,
+    color: Colors.text.primary,
+    letterSpacing: -0.3,
   },
   largeTitle: {
     fontSize: Typography.text.largeTitle.fontSize,
@@ -441,8 +450,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   heroBadgeText: {
     fontSize: Typography.text.caption2.fontSize,
@@ -482,23 +489,21 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.card,
-    height: 48,
+    borderRadius: 12,
+    height: 46,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.accent.indigoLight,
   },
   primaryBtnDisabled: {
     backgroundColor: Colors.bg.tertiary,
-    borderColor: Colors.border.default,
+    opacity: 0.6,
   },
   primaryBtnText: {
-    color: '#F3F4F6',
-    fontSize: Typography.text.footnote.fontSize,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 0.5,
+    color: '#F0F3F6',
+    fontSize: Typography.text.callout.fontSize,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: -0.2,
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,
@@ -509,8 +514,6 @@ const styles = StyleSheet.create({
     borderRadius: Radii.card,
     paddingVertical: Spacing.cellVertical,
     marginBottom: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   metricCol: { flex: 1, alignItems: 'center' },
   metricValue: {
@@ -543,8 +546,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   deckRow: {
     flexDirection: 'row',
@@ -563,8 +564,6 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: Radii.icon,
     backgroundColor: Colors.bg.tertiary,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -586,8 +585,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   dueBadgeText: {
     fontSize: Typography.text.caption2.fontSize,
@@ -601,13 +598,17 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.bold,
     letterSpacing: 0.5,
   },
+  emptyDeckText: {
+    fontSize: Typography.text.caption2.fontSize,
+    color: Colors.text.tertiary,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: 0.5,
+  },
   emptyCard: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.xl,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   emptyTitle: {
     fontSize: Typography.text.headline.fontSize,

@@ -21,10 +21,31 @@ import { InsetGroup } from "../../components/ui/InsetGroup";
 export default function DeckDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { decks, cards, fetchCards, deleteCard, resetDeckProgress, isLoading } = useStore();
+  const { decks, cards, fetchCards, deleteCard, deleteDeck, resetDeckProgress, isLoading } = useStore();
   const [resetting, setResetting] = useState(false);
   const deck = decks.find((d) => d.id === id);
   const deckCards = cards[id] || [];
+
+  const handleDeleteDeck = () => {
+    if (!deck) return;
+    triggerHaptic("warning");
+    Alert.alert(
+      "Xóa bộ thẻ",
+      `Bạn có chắc chắn muốn xóa bộ thẻ "${deck.name}" cùng toàn bộ từ vựng bên trong không?`,
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xóa bộ thẻ",
+          style: "destructive",
+          onPress: async () => {
+            triggerHaptic("heavy");
+            await deleteDeck(id);
+            router.back();
+          },
+        },
+      ],
+    );
+  };
 
   useEffect(() => {
     if (id) fetchCards(id);
@@ -46,26 +67,54 @@ export default function DeckDetailScreen() {
     ]);
   };
 
-  const handleResetProgress = () => {
+  const [clearing, setClearing] = useState(false);
+
+  const handleClearAllCards = () => {
+    if (deckCards.length === 0) return;
     triggerHaptic("warning");
     Alert.alert(
-      "Reset tiến độ?",
-      `Toàn bộ tiến độ SRS của bộ thẻ “${deck?.name}” sẽ về 0.\nTừ vựng vẫn được giữ nguyên.`,
+      "Xóa toàn bộ thẻ",
+      `Bạn có chắc chắn muốn xóa toàn bộ ${deckCards.length} thẻ vựng trong bộ "${deck?.name}" không?`,
       [
         { text: "Hủy", style: "cancel" },
         {
-          text: "Reset tiến độ",
+          text: "Xóa tất cả",
           style: "destructive",
           onPress: async () => {
-            triggerHaptic("error");
+            triggerHaptic("heavy");
+            setClearing(true);
+            try {
+              for (const card of deckCards) {
+                await deleteCard(card.id, id);
+              }
+              triggerHaptic("success");
+            } catch {
+              triggerHaptic("error");
+            } finally {
+              setClearing(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleResetProgress = () => {
+    triggerHaptic("warning");
+    Alert.alert(
+      "Reset tiến độ học",
+      "Tất cả từ vựng trong bộ thẻ này sẽ quay về trạng thái MỚI (chưa học). Bạn có chắc chắn không?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: async () => {
+            triggerHaptic("medium");
             setResetting(true);
             try {
               await resetDeckProgress(id);
               triggerHaptic("success");
-              Alert.alert(
-                "Đã reset",
-                "Tiến độ học đã được đưa về 0. Bạn có thể bắt đầu học lại từ đầu.",
-              );
             } catch (e: any) {
               triggerHaptic("error");
               Alert.alert("Lỗi", e.message || "Không thể reset tiến độ.");
@@ -93,16 +142,23 @@ export default function DeckDetailScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 48) }]}>
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic("light");
-            router.back();
-          }}
-          style={styles.backBtn}
-        >
-          <Ionicons name="chevron-back" size={24} color={Colors.accent.indigoLight} />
-          <Text style={styles.backText}>Bộ thẻ</Text>
-        </TouchableOpacity>
+        <View style={styles.topNavRow}>
+          <TouchableOpacity
+            onPress={() => {
+              triggerHaptic("light");
+              router.back();
+            }}
+            style={styles.backBtn}
+          >
+            <Ionicons name="chevron-back" size={24} color={Colors.accent.indigoLight} />
+            <Text style={styles.backText}>Bộ thẻ</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleDeleteDeck} style={styles.deleteHeaderBtn} activeOpacity={0.7}>
+            <Ionicons name="trash-outline" size={20} color={Colors.neon.coral} />
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.headerInfo}>
           <View style={styles.deckIconTile}>
             <DeckIcon name={deck.icon} size={22} color={Colors.accent.indigoLight} />
@@ -125,50 +181,71 @@ export default function DeckDetailScreen() {
         <StatChip label="Đã học" value={learnedCards.length} color={Colors.neon.emerald} />
       </View>
 
-      {/* Centered Study button */}
+      {/* Main Action Button */}
       <TouchableOpacity
-        style={[styles.studyBtn, dueCards.length === 0 && styles.studyBtnDisabled]}
+        style={styles.studyBtn}
         onPress={() => {
+          if (deckCards.length === 0) {
+            triggerHaptic("medium");
+            router.push(`/add?deckId=${id}` as any);
+            return;
+          }
           if (dueCards.length === 0) return;
           triggerHaptic("medium");
           router.push(`/study/${id}`);
         }}
-        disabled={dueCards.length === 0}
         activeOpacity={0.8}
       >
         <Ionicons
-          name={dueCards.length > 0 ? "play" : "checkmark-circle"}
-          size={16}
-          color="#F3F4F6"
+          name={deckCards.length === 0 ? "add-circle" : dueCards.length > 0 ? "play" : "checkmark-circle"}
+          size={18}
+          color="#F0F3F6"
           style={{ marginRight: 6 }}
         />
         <Text style={styles.studyBtnText}>
-          {dueCards.length > 0
+          {deckCards.length === 0
+            ? "Thêm từ vựng với AI"
+            : dueCards.length > 0
             ? `Bắt đầu ôn tập (${dueCards.length} thẻ)`
             : "Đã hoàn thành ôn tập hôm nay ✓"}
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.resetBtn, resetting && styles.resetBtnDisabled]}
-        onPress={handleResetProgress}
-        disabled={resetting}
-        activeOpacity={0.8}
-      >
-        {resetting ? (
-          <ActivityIndicator size="small" color={Colors.neon.coral} />
-        ) : (
-          <>
-            <Ionicons
-              name="refresh-outline"
-              size={15}
-              color={Colors.neon.coral}
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.resetBtnText}>Reset Tiến Độ Học</Text>
-          </>
-        )}
-      </TouchableOpacity>
+      {deckCards.length > 0 && (
+        <View style={styles.actionBtnsRow}>
+          <TouchableOpacity
+            style={[styles.actionSubBtn, resetting && styles.actionBtnDisabled]}
+            onPress={handleResetProgress}
+            disabled={resetting}
+            activeOpacity={0.8}
+          >
+            {resetting ? (
+              <ActivityIndicator size="small" color={Colors.accent.primaryLight} />
+            ) : (
+              <>
+                <Ionicons name="refresh-outline" size={15} color={Colors.accent.primaryLight} style={{ marginRight: 4 }} />
+                <Text style={styles.actionSubBtnText}>Reset tiến độ</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionSubBtn, clearing && styles.actionBtnDisabled]}
+            onPress={handleClearAllCards}
+            disabled={clearing}
+            activeOpacity={0.8}
+          >
+            {clearing ? (
+              <ActivityIndicator size="small" color={Colors.neon.coral} />
+            ) : (
+              <>
+                <Ionicons name="trash-outline" size={15} color={Colors.neon.coral} style={{ marginRight: 4 }} />
+                <Text style={[styles.actionSubBtnText, { color: Colors.neon.coral }]}>Xóa tất cả thẻ</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Card list */}
       <ScrollView
@@ -178,9 +255,7 @@ export default function DeckDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <SectionTitle style={{ marginLeft: 4, marginBottom: Spacing.sectionBottom }}>
-          DANH SÁCH {deckCards.length} THẺ TRONG BỘ
-        </SectionTitle>
+        <SectionTitle>DANH SÁCH {deckCards.length} THẺ TRONG BỘ</SectionTitle>
 
         {isLoading && (
           <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 20 }} />
@@ -258,12 +333,21 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.primary,
   },
 
-  header: { paddingHorizontal: Spacing.pageMargin, paddingBottom: Spacing.md },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 2, marginBottom: Spacing.md },
+  header: { paddingHorizontal: Spacing.pageMargin, paddingBottom: Spacing.lg },
+  topNavRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.md,
+  },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 2 },
   backText: {
     color: Colors.accent.indigoLight,
     fontSize: Typography.text.body.fontSize,
     fontWeight: Typography.weight.medium,
+  },
+  deleteHeaderBtn: {
+    padding: Spacing.xs,
   },
 
   headerInfo: { flexDirection: "row", alignItems: "center", gap: Spacing.md },
@@ -301,8 +385,6 @@ const styles = StyleSheet.create({
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   chipValue: {
     fontSize: Typography.text.title2.fontSize,
@@ -317,26 +399,24 @@ const styles = StyleSheet.create({
   },
 
   studyBtn: {
-    backgroundColor: Colors.accent.indigo,
+    backgroundColor: Colors.accent.primary,
     marginHorizontal: Spacing.pageMargin,
-    borderRadius: Radii.card,
-    height: 48,
+    borderRadius: 12,
+    height: 46,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.accent.indigoLight,
+    marginBottom: Spacing.md,
   },
   studyBtnDisabled: {
     backgroundColor: Colors.bg.tertiary,
-    borderColor: Colors.border.default,
+    opacity: 0.6,
   },
   studyBtnText: {
-    color: "#F3F4F6",
-    fontWeight: Typography.weight.bold,
-    fontSize: Typography.text.footnote.fontSize,
-    letterSpacing: 0.5,
+    color: "#F0F3F6",
+    fontWeight: Typography.weight.semibold,
+    fontSize: Typography.text.callout.fontSize,
+    letterSpacing: -0.2,
     textAlign: "center",
     textAlignVertical: "center",
     includeFontPadding: false,
@@ -349,8 +429,6 @@ const styles = StyleSheet.create({
     borderRadius: Radii.card,
     height: 40,
     marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.neon.coral + "50",
     backgroundColor: Colors.bg.secondary,
   },
   resetBtnDisabled: { opacity: 0.5 },
@@ -404,13 +482,33 @@ const styles = StyleSheet.create({
   cardRight: { flexDirection: "row", alignItems: "center", gap: 4 },
   intervalText: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary },
 
+  actionBtnsRow: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.pageMargin,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  actionSubBtn: {
+    flex: 1,
+    height: 40,
+    borderRadius: Radii.card,
+    backgroundColor: Colors.bg.secondary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionBtnDisabled: { opacity: 0.5 },
+  actionSubBtnText: {
+    fontSize: Typography.text.footnote.fontSize,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.accent.primaryLight,
+  },
   emptyCard: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.xl,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   emptyTitle: {
     fontSize: Typography.text.body.fontSize,

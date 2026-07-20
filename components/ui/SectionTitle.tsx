@@ -17,8 +17,8 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     fontWeight: Typography.weight.semibold,
     letterSpacing: -0.08,
-    marginBottom: Spacing.sectionBottom,
-    marginTop: Spacing.sectionTop,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.xs,
     marginLeft: 4,
   },
 });

@@ -74,10 +74,10 @@ export function AccountModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={[styles.modalContainer, { paddingTop: Math.max(insets.top + 12, 20) }]}>
+      <View style={styles.modalContainer}>
         {/* Header */}
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>TÀI KHOẢN & CÀI ĐẶT</Text>
+          <Text style={styles.modalTitle}>Tài khoản & Cài đặt</Text>
           <TouchableOpacity
             onPress={() => {
               triggerHaptic('light');
@@ -85,11 +85,11 @@ export function AccountModal({
             }}
             style={styles.doneBtn}
           >
-            <Text style={styles.doneBtnText}>Xong</Text>
+            <Text style={styles.doneBtnText}>Đóng</Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={[styles.modalScroll, { paddingBottom: Math.max(insets.bottom + 40, 50) }]} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.modalScroll, { paddingBottom: Math.max(insets.bottom + 30, 40) }]} showsVerticalScrollIndicator={false}>
           {/* Profile Section */}
           <SectionTitle>THÔNG TIN CÁ NHÂN</SectionTitle>
           <View style={styles.insetGroup}>
@@ -137,7 +137,7 @@ export function AccountModal({
           <View style={styles.insetGroup}>
             <View style={{ padding: Spacing.cellHorizontal, gap: Spacing.md }}>
               <FormField
-                label="MẬT KHẨU HIỆN TẠI"
+                label="Mật khẩu hiện tại"
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 placeholder="Nhập mật khẩu hiện tại"
@@ -145,7 +145,7 @@ export function AccountModal({
               />
 
               <FormField
-                label="MẬT KHẨU MỚI"
+                label="Mật khẩu mới"
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholder="Tối thiểu 6 ký tự"
@@ -161,7 +161,7 @@ export function AccountModal({
                 {loadingPass ? (
                   <ActivityIndicator size="small" color="#F3F4F6" />
                 ) : (
-                  <Text style={styles.actionBtnText}>CẬP NHẬT MẬT KHẨU</Text>
+                  <Text style={styles.actionBtnText}>Cập nhật mật khẩu</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -206,21 +206,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.pageMargin,
-    paddingBottom: Spacing.sm,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border.separator,
   },
   modalTitle: {
-    fontSize: Typography.text.caption1.fontSize,
+    fontSize: Typography.text.headline.fontSize,
     fontWeight: Typography.weight.bold,
     color: Colors.text.primary,
-    letterSpacing: 1,
   },
   doneBtn: { padding: Spacing.xs },
   doneBtnText: {
-    fontSize: Typography.text.footnote.fontSize,
+    fontSize: Typography.text.subhead.fontSize,
     color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.bold,
+    fontWeight: Typography.weight.semibold,
   },
   modalScroll: { paddingHorizontal: Spacing.pageMargin },
 
@@ -268,20 +268,18 @@ const styles = StyleSheet.create({
 
   actionBtn: {
     backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.card,
-    height: 48,
+    borderRadius: 12,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.accent.indigoLight,
     marginTop: Spacing.xs,
   },
   btnDisabled: { opacity: 0.5 },
   actionBtnText: {
-    color: '#F3F4F6',
-    fontSize: Typography.text.footnote.fontSize,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 0.8,
+    color: '#F0F3F6',
+    fontSize: Typography.text.subhead.fontSize,
+    fontWeight: Typography.weight.semibold,
+    letterSpacing: -0.2,
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,

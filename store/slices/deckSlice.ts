@@ -41,6 +41,10 @@ export const createDeckSlice: StateCreator<DeckSlice & UISlice & CardSlice, [], 
       const decks = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Deck);
       console.log("[fetchDecks] Success, got", decks.length, "decks");
       set({ decks, isLoading: false });
+      // Pre-fetch cards for all decks in parallel so SRS due states are accurate everywhere immediately
+      Promise.all(decks.map((d) => get().fetchCards(d.id))).catch((err) =>
+        console.warn("[fetchDecks] Card pre-fetch error:", err),
+      );
     } catch (e: any) {
       console.error("[fetchDecks] ERROR:", e.message || e);
       set({ error: e.message, isLoading: false });

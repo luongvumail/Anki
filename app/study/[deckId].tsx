@@ -91,6 +91,12 @@ export default function StudyScreen() {
     setActiveSwipeDirection(null);
   };
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    resetCardPosition();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.currentIndex]);
+
   const handleGrade = async (grade: number, direction: "left" | "right" | "up" | "down") => {
     const card = currentCardRef.current;
     const sess = sessionRef.current;
@@ -105,19 +111,12 @@ export default function StudyScreen() {
     const targetX = direction === "left" ? -width * 1.3 : direction === "right" ? width * 1.3 : 0;
     const targetY = direction === "up" ? -height * 1.3 : direction === "down" ? height * 1.3 : 0;
 
-    const isLastCard = sess.currentIndex + 1 >= sess.queue.length && grade !== SRS_GRADES.AGAIN;
-
     Animated.timing(pan, {
       toValue: { x: targetX, y: targetY },
-      duration: 260,
+      duration: 220,
       useNativeDriver: true,
     }).start(() => {
-      resetCardPosition();
-
-      const updateDelay = isLastCard ? 150 : 0;
-      setTimeout(() => {
-        advanceSession(card, grade);
-      }, updateDelay);
+      advanceSession(card, grade);
     });
   };
 
@@ -156,16 +155,6 @@ export default function StudyScreen() {
             flipCard();
           }
           Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
-          return;
-        }
-
-        if (!flippedRef.current) {
-          setActiveSwipeDirection(null);
-          Animated.spring(pan, {
-            toValue: { x: 0, y: 0 },
-            friction: 5,
-            useNativeDriver: true,
-          }).start();
           return;
         }
 
@@ -302,9 +291,17 @@ export default function StudyScreen() {
       {/* Progress Bar */}
       <ProgressBar progress={progress} style={{ marginHorizontal: Spacing.pageMargin }} />
 
-      {/* Gesture hints (100% Vietnamese) */}
-      <View style={styles.gestureHintRow}>
-        <Text style={styles.gestureHintText}>👈 QUÊN • 👆 KHÓ • 👉 THUỘC</Text>
+      {/* Gesture hints pills (100% compact & responsive) */}
+      <View style={styles.gesturePillRow}>
+        <View style={styles.gesturePill}>
+          <Text style={[styles.gesturePillText, { color: Colors.srs.again }]}>← QUÊN</Text>
+        </View>
+        <View style={styles.gesturePill}>
+          <Text style={[styles.gesturePillText, { color: Colors.srs.hard }]}>↑ KHÓ</Text>
+        </View>
+        <View style={styles.gesturePill}>
+          <Text style={[styles.gesturePillText, { color: Colors.srs.good }]}>→ THUỘC</Text>
+        </View>
       </View>
 
       {/* Flashcard Area */}
@@ -479,12 +476,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
 
-  gestureHintRow: { alignItems: "center", marginTop: Spacing.sm },
-  gestureHintText: {
+  gesturePillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: Spacing.xs,
+  },
+  gesturePill: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.full,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  gesturePillText: {
     fontSize: Typography.text.caption2.fontSize,
-    color: Colors.text.secondary,
-    letterSpacing: 0.8,
-    fontWeight: Typography.weight.semibold,
+    fontWeight: Typography.weight.bold,
+    letterSpacing: 0.5,
   },
 
   cardArea: {
@@ -500,8 +508,6 @@ const styles = StyleSheet.create({
   cardCardBody: {
     borderRadius: Radii.xl,
     backgroundColor: Colors.bg.secondary,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
     padding: Spacing.lg,
     overflow: "hidden",
     position: "relative",
@@ -516,7 +522,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   swipeBadgeText: {
-    color: "#08090C",
+    color: "#090A0F",
     fontSize: Typography.text.footnote.fontSize,
     fontWeight: Typography.weight.bold,
     letterSpacing: 0.8,
@@ -526,9 +532,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: Spacing.lg,
     right: Spacing.lg,
-    backgroundColor: Colors.bg.tertiary,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
+    backgroundColor: Colors.accent.indigoDim,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -565,8 +569,6 @@ const styles = StyleSheet.create({
     height: 32,
     paddingHorizontal: Spacing.md,
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   speakBtnText: {
     color: Colors.accent.indigoLight,
@@ -619,12 +621,10 @@ const styles = StyleSheet.create({
   },
   exampleBox: {
     backgroundColor: Colors.bg.tertiary,
-    borderRadius: 10,
+    borderRadius: Radii.card,
     padding: Spacing.md,
     marginTop: Spacing.md,
     width: "100%",
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   exampleCn: {
     fontSize: Typography.text.body.fontSize,
@@ -645,8 +645,6 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   revealBtnText: {
     color: Colors.text.primary,

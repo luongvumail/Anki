@@ -81,10 +81,10 @@ const styles = StyleSheet.create({
   inputWrapper: {
     backgroundColor: Colors.bg.tertiary,
     borderRadius: Radii.card,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
     minHeight: 46,
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   inputWrapperFocused: {
     borderColor: Colors.accent.indigo,

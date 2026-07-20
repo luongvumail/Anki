@@ -17,7 +17,9 @@ import { useStore } from "../../store/useStore";
 import { generateCardData, CardData } from "../../lib/gemini";
 import { DEFAULT_SRS_STATE } from "../../lib/srs";
 import { getGeminiErrorMessage, getFirestoreErrorMessage } from "../../lib/errorHandler";
+import { useLocalSearchParams } from "expo-router";
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { Ionicons } from "@expo/vector-icons";
 import { SectionTitle } from "../../components/ui/SectionTitle";
 import { InsetGroup } from "../../components/ui/InsetGroup";
 import { DeckPicker } from "../../components/add/DeckPicker";
@@ -25,6 +27,7 @@ import { CardPreview } from "../../components/add/CardPreview";
 
 export default function AddCardScreen() {
   const insets = useSafeAreaInsets();
+  const { deckId } = useLocalSearchParams<{ deckId?: string }>();
   const { decks, cards, addCard, updateCard, findExistingCard, fetchCards } = useStore();
   const [input, setInput] = useState("");
   const [selectedDeckId, setSelectedDeckId] = useState("");
@@ -34,15 +37,24 @@ export default function AddCardScreen() {
   const [existingCardId, setExistingCardId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Restore last selected deck from storage once decks are loaded
+  // Restore or set selected deck from params/storage once decks are loaded
   useEffect(() => {
-    if (decks.length === 0) return;
-    AsyncStorage.getItem("lastSelectedDeckId").then((saved) => {
-      if (saved && decks.some((d) => d.id === saved)) {
-        setSelectedDeckId(saved);
+    const initSelectedDeck = async () => {
+      if (decks.length === 0) return;
+      if (deckId && decks.some((d) => d.id === deckId)) {
+        setSelectedDeckId(deckId);
+        await AsyncStorage.setItem("lastSelectedDeckId", deckId);
+      } else {
+        const saved = await AsyncStorage.getItem("lastSelectedDeckId");
+        if (saved && decks.some((d) => d.id === saved)) {
+          setSelectedDeckId(saved);
+        } else if (decks.length > 0) {
+          setSelectedDeckId((prev) => prev || decks[0].id);
+        }
       }
-    });
-  }, [decks]);
+    };
+    initSelectedDeck();
+  }, [decks, deckId]);
 
   useEffect(() => {
     if (selectedDeckId && (!cards[selectedDeckId] || cards[selectedDeckId].length === 0)) {
@@ -193,8 +205,8 @@ export default function AddCardScreen() {
       >
         {/* Linear Header */}
         <View style={styles.header}>
-          <Text style={styles.subhead}>TỰ ĐỘNG PHÂN TÍCH TỪ VỰNG</Text>
-          <Text style={styles.largeTitle}>Thêm từ AI</Text>
+          <Text style={styles.headerSubhead}>TỰ ĐỘNG PHÂN TÍCH TỪ VỰNG</Text>
+          <Text style={styles.headerTitle}>Thêm từ AI</Text>
         </View>
 
         {/* Section 1: Deck Selection */}
@@ -232,11 +244,15 @@ export default function AddCardScreen() {
               ]}
               onPress={() => handleGenerate()}
               disabled={loading || !input.trim() || !selectedDeckId}
+              activeOpacity={0.8}
             >
               {loading ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.genBtnText}>Tạo AI</Text>
+                <>
+                  <Ionicons name="sparkles" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
+                  <Text style={styles.genBtnText}>Tạo AI</Text>
+                </>
               )}
             </TouchableOpacity>
           </View>
@@ -244,11 +260,9 @@ export default function AddCardScreen() {
 
         {/* Loading Indicator */}
         {loading && (
-          <View style={styles.loadingCard}>
-            <ActivityIndicator color={Colors.accent.indigoLight} size="small" />
-            <Text style={styles.loadingText}>
-              AI đang phân tích âm Hán Việt & ví dụ cho "{input}"...
-            </Text>
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={Colors.accent.primaryLight} size="small" />
+            <Text style={styles.loadingText}>Đang phân tích "{input}"</Text>
           </View>
         )}
 
@@ -256,6 +270,7 @@ export default function AddCardScreen() {
         {cardData && (
           <CardPreview
             cardData={cardData}
+            targetDeckName={decks.find((d) => d.id === selectedDeckId)?.name}
             saving={saving}
             onReGenerate={() => handleGenerate(true)}
             onSave={handleSave}
@@ -270,21 +285,22 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg.primary },
   content: { paddingHorizontal: Spacing.pageMargin },
 
-  header: { marginBottom: Spacing.lg },
-  subhead: {
+  header: { marginBottom: 0 },
+  headerSubhead: {
     fontSize: Typography.text.caption1.fontSize,
     lineHeight: Typography.text.caption1.lineHeight,
     fontWeight: Typography.weight.semibold,
     color: Colors.text.secondary,
     letterSpacing: 1.2,
+    textTransform: "uppercase",
     marginBottom: 2,
   },
-  largeTitle: {
-    fontSize: Typography.text.largeTitle.fontSize,
-    lineHeight: Typography.text.largeTitle.lineHeight,
+  headerTitle: {
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: Typography.weight.bold,
     color: Colors.text.primary,
-    letterSpacing: 0.37,
+    letterSpacing: -0.3,
   },
 
   inputCell: {
@@ -302,39 +318,38 @@ const styles = StyleSheet.create({
   },
   genBtn: {
     backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.card,
-    paddingHorizontal: 16,
-    height: 36,
+    borderRadius: Radii.full,
+    paddingHorizontal: 14,
+    height: 34,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.accent.indigoLight,
   },
-  genBtnDisabled: { opacity: 0.5 },
+  genBtnDisabled: {
+    backgroundColor: Colors.bg.tertiary,
+    opacity: 0.5,
+  },
   genBtnText: {
-    color: "#F3F4F6",
-    fontWeight: Typography.weight.bold,
+    color: "#FFFFFF",
+    fontWeight: Typography.weight.semibold,
     fontSize: Typography.text.footnote.fontSize,
+    letterSpacing: 0.2,
     textAlign: "center",
     textAlignVertical: "center",
     includeFontPadding: false,
   },
 
-  loadingCard: {
+  loadingRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.md,
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: Spacing.cellHorizontal,
-    marginTop: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
+    justifyContent: "center",
+    gap: Spacing.sm,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.md,
   },
   loadingText: {
-    flex: 1,
-    fontSize: Typography.text.footnote.fontSize,
+    fontSize: Typography.text.subhead.fontSize,
     color: Colors.text.secondary,
+    fontWeight: Typography.weight.medium,
   },
 });

@@ -58,11 +58,26 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   if (!Notifications) return false;
 
   try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Nhắc nhở học tập',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#6366F1',
+      });
+    }
+
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
     if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } = await Notifications.requestPermissionsAsync({
+        ios: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true,
+        },
+      });
       finalStatus = status;
     }
 
@@ -87,7 +102,7 @@ export async function scheduleDailyStudyReminder(hour: number, minute: number): 
     // Cancel previous notifications
     await Notifications.cancelAllScheduledNotificationsAsync();
 
-    // Schedule daily notification using Expo DAILY trigger
+    // Schedule daily notification using repeating trigger
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '📚 Anki - Đến giờ ôn tập từ vựng!',
@@ -95,9 +110,9 @@ export async function scheduleDailyStudyReminder(hour: number, minute: number): 
         sound: true,
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour,
         minute,
+        repeats: true,
       },
     });
 
@@ -105,6 +120,34 @@ export async function scheduleDailyStudyReminder(hour: number, minute: number): 
     return true;
   } catch (e) {
     console.warn('[notificationService] Schedule notification failed:', e);
+    return false;
+  }
+}
+
+/**
+ * Sends a test notification after 3 seconds to verify notifications work on device
+ */
+export async function sendTestNotification(): Promise<boolean> {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) return false;
+
+  const hasPermission = await requestNotificationPermissions();
+  if (!hasPermission) return false;
+
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '🔔 Thông báo thử nghiệm Anki',
+        body: 'Tính năng nhắc nhở thông báo đang hoạt động hoàn hảo trên iPhone của bạn!',
+        sound: true,
+      },
+      trigger: {
+        seconds: 3,
+      },
+    });
+    return true;
+  } catch (e) {
+    console.warn('[notificationService] Test notification failed:', e);
     return false;
   }
 }

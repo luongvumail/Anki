@@ -10,6 +10,10 @@ import { DeckIcon } from '../../components/ui/DeckIcon';
 import { SectionTitle } from '../../components/ui/SectionTitle';
 import { InsetGroup } from '../../components/ui/InsetGroup';
 
+import { getReviewHistory } from '../../lib/reviewTracker';
+import { computeDueCount, getDeckMasteryPct } from '../../lib/deckUtils';
+import { isDue } from '../../lib/srs';
+
 const { width } = Dimensions.get('window');
 
 interface DayActivity {
@@ -41,6 +45,7 @@ export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const { decks, cards, fetchDecks, fetchCards, userId } = useStore();
   const [loadingCards, setLoadingCards] = useState(true);
+  const [reviewHistory, setReviewHistory] = useState<Record<string, number>>({});
 
   // Staggered entrance animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -49,6 +54,8 @@ export default function StatsScreen() {
     async function loadAllData() {
       if (!userId) return;
       setLoadingCards(true);
+      const history = await getReviewHistory();
+      setReviewHistory(history);
       await fetchDecks();
       const currentDecks = useStore.getState().decks;
       await Promise.all(currentDecks.map(d => fetchCards(d.id)));
@@ -76,29 +83,35 @@ export default function StatsScreen() {
   } = useMemo(() => {
     const cardsList: Card[] = Object.values(cards).flat();
     const countTotal = cardsList.length;
-    const countMastered = cardsList.filter((c) => c.srs && c.srs.repetitions >= 2).length;
+    const countMastered = cardsList.filter((c) => c.srs && c.srs.repetitions > 0 && !isDue(c.srs)).length;
     const countLearning = cardsList.filter((c) => c.srs && c.srs.repetitions === 1).length;
     const countNew = cardsList.filter((c) => !c.srs || c.srs.repetitions === 0).length;
-    const countDue = decks.reduce((s, d) => s + (d.dueCount || 0), 0);
+
+    const countDue = decks.reduce((s, d) => {
+      const deckCards = cards[d.id];
+      return s + (deckCards ? computeDueCount(deckCards) : (d.dueCount || 0));
+    }, 0);
+
     const rate = countTotal > 0 ? Math.round((countMastered / countTotal) * 100) : 0;
 
     const days7 = getLast7Days();
-    const reviewCountsByDate: Record<string, number> = {};
+    const mergedHistory: Record<string, number> = { ...reviewHistory };
 
     cardsList.forEach((c) => {
-      if (c.updatedAt) {
-        const datePart = c.updatedAt.split("T")[0];
-        reviewCountsByDate[datePart] = (reviewCountsByDate[datePart] || 0) + 1;
+      const dateVal = c.lastReviewedAt || c.updatedAt;
+      if (dateVal) {
+        const datePart = dateVal.split("T")[0];
+        mergedHistory[datePart] = (mergedHistory[datePart] || 0) + 1;
       }
     });
 
     days7.forEach((day) => {
-      day.count = reviewCountsByDate[day.dateStr] || 0;
+      day.count = mergedHistory[day.dateStr] || 0;
     });
 
     let streak = 0;
     const todayStr = new Date().toISOString().split("T")[0];
-    const hasReviewedToday = (reviewCountsByDate[todayStr] || 0) > 0;
+    const hasReviewedToday = (mergedHistory[todayStr] || 0) > 0;
 
     const checkDate = new Date();
     if (!hasReviewedToday) {
@@ -107,7 +120,7 @@ export default function StatsScreen() {
 
     for (let i = 0; i < 365; i++) {
       const dStr = checkDate.toISOString().split("T")[0];
-      if (reviewCountsByDate[dStr] && reviewCountsByDate[dStr] > 0) {
+      if (mergedHistory[dStr] && mergedHistory[dStr] > 0) {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1);
       } else {
@@ -125,7 +138,7 @@ export default function StatsScreen() {
       last7Days: days7,
       streakDays: streak,
     };
-  }, [cards, decks]);
+  }, [cards, decks, reviewHistory]);
 
   if (loadingCards) {
     return (
@@ -152,7 +165,8 @@ export default function StatsScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.largeTitle}>Thống kê</Text>
+        <Text style={styles.headerSubhead}>THEO DÕI TIẾN TRÌNH HỌC TẬP</Text>
+        <Text style={styles.headerTitle}>Thống kê</Text>
       </View>
 
       <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY }] }}>
@@ -160,8 +174,12 @@ export default function StatsScreen() {
         <View style={styles.heroCard}>
           <View style={styles.heroLeft}>
             <Text style={styles.heroSectionTitle}>TỶ LỆ THUỘC BÀI DÀI HẠN</Text>
-            <Text style={styles.heroPercentage}>{masteryRate}%</Text>
-            <Text style={styles.heroSub}>{totalMastered} / {totalCards} từ vựng đã thuộc vĩnh viễn</Text>
+            <Text style={styles.heroPercentage}>{totalCards > 0 ? `${masteryRate}%` : '—'}</Text>
+            <Text style={styles.heroSub}>
+              {totalCards > 0
+                ? `${totalMastered} / ${totalCards} từ vựng đã thuộc vĩnh viễn`
+                : 'Chưa có từ vựng để theo dõi tiến độ'}
+            </Text>
           </View>
           <View style={styles.heroIconBox}>
             <Ionicons name="checkmark-circle-outline" size={32} color={Colors.accent.indigoLight} />
@@ -222,10 +240,9 @@ export default function StatsScreen() {
           <InsetGroup>
             {decks.map((deck, idx) => {
               const deckCards = cards[deck.id] || [];
-              const count = deckCards.length;
-              const due = deck.dueCount || 0;
-              const done = deckCards.filter(c => c.srs && c.srs.repetitions >= 2).length;
-              const deckMastery = count > 0 ? Math.round((done / count) * 100) : 0;
+              const count = deck.cardCount || deckCards.length;
+              const due = deckCards.length > 0 ? computeDueCount(deckCards) : (deck.dueCount || 0);
+              const deckMastery = getDeckMasteryPct(count, due, deckCards);
 
               return (
                 <React.Fragment key={deck.id}>
@@ -238,15 +255,15 @@ export default function StatsScreen() {
                     <View style={styles.deckMeta}>
                       <View style={styles.deckNameRow}>
                         <Text style={styles.deckName}>{deck.name}</Text>
-                        <Text style={styles.deckPctText}>{deckMastery}%</Text>
+                        <Text style={styles.deckPctText}>{count > 0 ? `${deckMastery}%` : '—'}</Text>
                       </View>
 
                       <View style={styles.progressTrack}>
-                        <View style={[styles.progressFill, { width: `${deckMastery}%` }]} />
+                        <View style={[styles.progressFill, { width: `${count > 0 ? deckMastery : 0}%` }]} />
                       </View>
 
                       <Text style={styles.deckSubText}>
-                        {count} thẻ  •  {due} cần ôn hôm nay
+                        {count > 0 ? `${count} thẻ  •  ${due} cần ôn hôm nay` : 'Chưa có thẻ vựng'}
                       </Text>
                     </View>
                   </View>
@@ -256,15 +273,48 @@ export default function StatsScreen() {
           </InsetGroup>
         )}
 
-        {/* SRS Tip */}
-        <View style={[styles.insetCard, { marginTop: Spacing.lg }]}>
-          <View style={styles.tipHeader}>
-            <Ionicons name="information-circle-outline" size={18} color={Colors.accent.indigoLight} />
-            <Text style={styles.tipTitle}>Thuật toán Spaced Repetition (SM-2)</Text>
+        {/* SRS Detailed Science Card */}
+        <SectionTitle>NGUYÊN LÝ HỌC TẬP THÔNG MINH</SectionTitle>
+        <View style={styles.algoCard}>
+          <View style={styles.algoHeader}>
+            <View style={styles.algoBadge}>
+              <Ionicons name="sparkles" size={14} color={Colors.accent.indigoLight} />
+              <Text style={styles.algoBadgeText}>THUẬT TOÁN SM-2</Text>
+            </View>
+            <Text style={styles.algoTitle}>Cách Anki giúp bạn ghi nhớ từ vựng vĩnh viễn</Text>
           </View>
-          <Text style={styles.tipBody}>
-            Hệ thống tự động tính toán khoảng thời gian xem lại dựa trên mức độ ghi nhớ của bạn, giúp duy trì trí nhớ dài hạn vĩnh viễn.
-          </Text>
+
+          <View style={styles.algoStepList}>
+            <View style={styles.algoStepItem}>
+              <View style={styles.algoStepNumberBox}><Text style={styles.algoStepNumber}>1</Text></View>
+              <View style={styles.algoStepContent}>
+                <Text style={styles.algoStepTitle}>Ôn tập đúng ngưỡng chuẩn bị quên (Spaced Intervals)</Text>
+                <Text style={styles.algoStepDesc}>
+                  Thay vì học lặp lại liên tục, hệ thống tính toán chính xác mốc thời gian bộ não bắt đầu suy giảm trí nhớ (1 ngày ➔ 6 ngày ➔ 2 tuần ➔ 1 tháng) để nhắc bạn ôn đúng thời điểm vàng.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.algoStepItem}>
+              <View style={styles.algoStepNumberBox}><Text style={styles.algoStepNumber}>2</Text></View>
+              <View style={styles.algoStepContent}>
+                <Text style={styles.algoStepTitle}>Hệ số ghi nhớ cá nhân hóa (Ease Factor)</Text>
+                <Text style={styles.algoStepDesc}>
+                  Mỗi từ vựng có độ khó riêng. Từ nào bạn đánh giá "QUÊN" hoặc "KHÓ" sẽ tự động lặp lại thường xuyên hơn. Từ bạn chọn "THUỘC" sẽ kéo dài mốc ôn tập tiếp theo.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.algoStepItem}>
+              <View style={styles.algoStepNumberBox}><Text style={styles.algoStepNumber}>3</Text></View>
+              <View style={styles.algoStepContent}>
+                <Text style={styles.algoStepTitle}>Tiết kiệm 80% thời gian học tập</Text>
+                <Text style={styles.algoStepDesc}>
+                  Bằng cách tập trung ôn đúng những thẻ cần ôn mỗi ngày, bạn chuyển từ vựng từ bộ nhớ ngắn hạn sang trí nhớ dài hạn vĩnh viễn với nỗ lực tối thiểu.
+                </Text>
+              </View>
+            </View>
+          </View>
         </View>
       </Animated.View>
     </ScrollView>
@@ -289,13 +339,22 @@ const styles = StyleSheet.create({
   loadingText: { color: Colors.text.secondary, marginTop: Spacing.md, fontSize: Typography.text.footnote.fontSize },
   content: { paddingHorizontal: Spacing.pageMargin },
 
-  header: { marginBottom: Spacing.md },
-  largeTitle: {
-    fontSize: Typography.text.largeTitle.fontSize,
-    lineHeight: Typography.text.largeTitle.lineHeight,
+  header: { marginBottom: Spacing.lg },
+  headerSubhead: {
+    fontSize: Typography.text.caption1.fontSize,
+    lineHeight: Typography.text.caption1.lineHeight,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.text.secondary,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  headerTitle: {
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: Typography.weight.bold,
     color: Colors.text.primary,
-    letterSpacing: 0.37,
+    letterSpacing: -0.3,
   },
 
   heroCard: {
@@ -305,8 +364,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   heroLeft: { flex: 1 },
   heroSectionTitle: {
@@ -330,16 +387,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
 
   insetCard: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   streakHeaderRow: {
     flexDirection: 'row',
@@ -353,12 +406,10 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
   },
   streakBadge: {
-    backgroundColor: Colors.bg.tertiary,
+    backgroundColor: Colors.accent.indigoDim,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   streakBadgeText: {
     fontSize: Typography.text.caption1.fontSize,
@@ -371,7 +422,7 @@ const styles = StyleSheet.create({
   heatmapSquare: {
     width: 32,
     height: 32,
-    borderRadius: 6,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
@@ -387,8 +438,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.cellHorizontal,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
   metricTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   metricValue: { fontSize: Typography.text.title2.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary },
@@ -411,8 +460,6 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: Radii.icon,
     backgroundColor: Colors.bg.tertiary,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
@@ -450,7 +497,61 @@ const styles = StyleSheet.create({
 
   emptyText: { color: Colors.text.secondary, fontSize: Typography.text.subhead.fontSize },
 
-  tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  tipTitle: { fontSize: Typography.text.footnote.fontSize, fontWeight: Typography.weight.semibold, color: Colors.text.primary },
-  tipBody: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, lineHeight: 18 },
+  algoCard: {
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    padding: Spacing.cellHorizontal,
+    marginTop: 4,
+  },
+  algoHeader: { marginBottom: Spacing.md },
+  algoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.accent.indigoDim,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  algoBadgeText: {
+    fontSize: Typography.text.caption2.fontSize,
+    fontWeight: Typography.weight.bold,
+    color: Colors.accent.indigoLight,
+    letterSpacing: 0.5,
+  },
+  algoTitle: {
+    fontSize: Typography.text.headline.fontSize,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.text.primary,
+  },
+  algoStepList: { gap: 14 },
+  algoStepItem: { flexDirection: 'row', gap: 12 },
+  algoStepNumberBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.bg.tertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  algoStepNumber: {
+    fontSize: 12,
+    fontWeight: Typography.weight.bold,
+    color: Colors.accent.indigoLight,
+  },
+  algoStepContent: { flex: 1 },
+  algoStepTitle: {
+    fontSize: Typography.text.subhead.fontSize,
+    fontWeight: Typography.weight.semibold,
+    color: Colors.text.primary,
+    marginBottom: 2,
+  },
+  algoStepDesc: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    lineHeight: 18,
+  },
 });

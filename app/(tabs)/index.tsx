@@ -1,38 +1,47 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl, ActivityIndicator, Alert,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import {
-  updatePassword, reauthenticateWithCredential, EmailAuthProvider,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
   sendPasswordResetEmail,
-} from 'firebase/auth';
-import { auth } from '../../lib/firebase';
-import { getAuthErrorMessage } from '../../lib/errorHandler';
+} from "firebase/auth";
+import { auth } from "../../lib/firebase";
+import { getAuthErrorMessage } from "../../lib/errorHandler";
 import {
   getReminderSettings,
   scheduleDailyStudyReminder,
   cancelDailyStudyReminder,
   sendTestNotification,
   requestNotificationPermissions,
-} from '../../lib/notificationService';
-import { useStore } from '../../store/useStore';
-import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
-import { DeckIcon } from '../../components/ui/DeckIcon';
-import { ProgressBar } from '../../components/ui/ProgressBar';
-import { SectionTitle } from '../../components/ui/SectionTitle';
-import { AccountModal } from '../../components/home/AccountModal';
-import { AnimatedButton } from '../../components/ui/AnimatedButton';
+} from "../../lib/notificationService";
+import { useStore } from "../../store/useStore";
+import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { DeckIcon } from "../../components/ui/DeckIcon";
+import { ProgressBar } from "../../components/ui/ProgressBar";
+import { SectionTitle } from "../../components/ui/SectionTitle";
+import { AccountModal } from "../../components/home/AccountModal";
+import { AnimatedButton } from "../../components/ui/AnimatedButton";
 import {
   computeDueCount,
   computeNewCount,
   computeReviewDueCount,
   computeLearnedCount,
   getDeckMasteryPct,
-} from '../../lib/deckUtils';
+} from "../../lib/deckUtils";
+import { useRef } from "react";
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -49,13 +58,15 @@ export default function DashboardScreen() {
 
   const user = auth.currentUser;
 
-  const todayDateStr = new Date().toLocaleDateString('vi-VN', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  }).toUpperCase();
+  const todayDateStr = new Date()
+    .toLocaleDateString("vi-VN", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    })
+    .toUpperCase();
 
-  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Học viên';
+  const displayName = user?.displayName || user?.email?.split("@")[0] || "Học viên";
   // 1 single character for circular avatar
   const initials = displayName.slice(0, 1).toUpperCase();
 
@@ -63,22 +74,27 @@ export default function DashboardScreen() {
 
   const totalCards = decks.reduce((s, d) => {
     const deckCards = cardsState[d.id];
-    return s + (deckCards ? deckCards.length : (d.cardCount || 0));
+    return s + (deckCards ? deckCards.length : d.cardCount || 0);
   }, 0);
 
   const totalDue = decks.reduce((s, d) => {
     const deckCards = cardsState[d.id];
-    return s + (deckCards ? computeDueCount(deckCards) : (d.dueCount || 0));
+    return s + (deckCards ? computeDueCount(deckCards) : d.dueCount || 0);
   }, 0);
 
   const totalNew = decks.reduce((s, d) => {
     const deckCards = cardsState[d.id];
-    return s + (deckCards ? computeNewCount(deckCards) : (d.newCount || 0));
+    return s + (deckCards ? computeNewCount(deckCards) : d.newCount || 0);
   }, 0);
 
   const totalReview = decks.reduce((s, d) => {
     const deckCards = cardsState[d.id];
-    return s + (deckCards ? computeReviewDueCount(deckCards) : Math.max(0, (d.dueCount || 0) - (d.newCount || 0)));
+    return (
+      s +
+      (deckCards
+        ? computeReviewDueCount(deckCards)
+        : Math.max(0, (d.dueCount || 0) - (d.newCount || 0)))
+    );
   }, 0);
 
   const totalLearned = decks.reduce((s, d) => {
@@ -91,7 +107,7 @@ export default function DashboardScreen() {
 
   const progressPct = totalCards > 0 ? Math.round((totalLearned / totalCards) * 100) : 0;
 
-  let heroTitleText = 'HOÀN THÀNH ÔN TẬP HÔM NAY';
+  let heroTitleText = "HOÀN THÀNH ÔN TẬP HÔM NAY";
   if (totalDue > 0) {
     if (totalReview > 0 && totalNew > 0) {
       heroTitleText = `${totalDue} THẺ CẦN HỌC HÔM NAY`;
@@ -102,7 +118,7 @@ export default function DashboardScreen() {
     }
   }
 
-  let subLabelText = '';
+  let subLabelText = "";
   if (totalDue > 0) {
     if (totalReview > 0 && totalNew > 0) {
       subLabelText = `${totalNew} THẺ MỚI  •  ${totalReview} CẦN ÔN`;
@@ -139,22 +155,22 @@ export default function DashboardScreen() {
   }
 
   const onRefresh = async () => {
-    triggerHaptic('light');
+    triggerHaptic("light");
     setRefreshing(true);
     await fetchDecks();
     setRefreshing(false);
   };
 
   const handleToggleReminder = async (value: boolean) => {
-    triggerHaptic('selection');
+    triggerHaptic("selection");
     setReminderEnabled(value);
     if (value) {
       const hasPermission = await requestNotificationPermissions();
       if (!hasPermission) {
-        triggerHaptic('error');
+        triggerHaptic("error");
         setReminderEnabled(false);
         Alert.alert(
-          'Quyền thông báo',
+          "Quyền thông báo",
           'Vui lòng mở Cài đặt iPhone > Anki > Thông báo và bật "Cho phép thông báo" để nhận nhắc nhở hàng ngày.',
         );
         return;
@@ -162,40 +178,55 @@ export default function DashboardScreen() {
 
       const success = await scheduleDailyStudyReminder(reminderHour, reminderMinute);
       if (success) {
-        triggerHaptic('success');
-        const formattedTime = `${reminderHour < 10 ? '0' : ''}${reminderHour}:${reminderMinute < 10 ? '0' : ''}${reminderMinute}`;
+        triggerHaptic("success");
+        const formattedTime = `${reminderHour < 10 ? "0" : ""}${reminderHour}:${reminderMinute < 10 ? "0" : ""}${reminderMinute}`;
         Alert.alert(
-          'Đã bật nhắc nhở hàng ngày',
+          "Đã bật nhắc nhở hàng ngày",
           `Ứng dụng Anki sẽ nhắc bạn vào học lúc ${formattedTime} hàng ngày.`,
         );
       } else {
-        triggerHaptic('error');
+        triggerHaptic("error");
         setReminderEnabled(false);
-        Alert.alert('Không thể tạo nhắc nhở', 'Đã xảy ra lỗi khi tạo lịch nhắc nhở. Vui lòng thử lại sau.');
+        Alert.alert(
+          "Không thể tạo nhắc nhở",
+          "Đã xảy ra lỗi khi tạo lịch nhắc nhở. Vui lòng thử lại sau.",
+        );
       }
     } else {
       await cancelDailyStudyReminder();
-      triggerHaptic('light');
+      triggerHaptic("light");
     }
   };
 
-  const handleHourChange = async (h: number) => {
+  const scheduleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleHourChange = (h: number) => {
     setReminderHour(h);
-    if (reminderEnabled) await scheduleDailyStudyReminder(h, reminderMinute);
+    if (reminderEnabled) {
+      if (scheduleDebounceRef.current) clearTimeout(scheduleDebounceRef.current);
+      scheduleDebounceRef.current = setTimeout(() => {
+        scheduleDailyStudyReminder(h, reminderMinute);
+      }, 400);
+    }
   };
 
-  const handleMinuteChange = async (m: number) => {
+  const handleMinuteChange = (m: number) => {
     setReminderMinute(m);
-    if (reminderEnabled) await scheduleDailyStudyReminder(reminderHour, m);
+    if (reminderEnabled) {
+      if (scheduleDebounceRef.current) clearTimeout(scheduleDebounceRef.current);
+      scheduleDebounceRef.current = setTimeout(() => {
+        scheduleDailyStudyReminder(reminderHour, m);
+      }, 400);
+    }
   };
 
   const handleSignOut = () => {
-    triggerHaptic('warning');
-    Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất tài khoản?', [
-      { text: 'Hủy', style: 'cancel' },
+    triggerHaptic("warning");
+    Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất tài khoản?", [
+      { text: "Hủy", style: "cancel" },
       {
-        text: 'Đăng xuất',
-        style: 'destructive',
+        text: "Đăng xuất",
+        style: "destructive",
         onPress: async () => {
           setShowAccountModal(false);
           await auth.signOut();
@@ -208,37 +239,40 @@ export default function DashboardScreen() {
   const handleChangePassword = async (currentPassword: string, newPassword: string) => {
     if (!user || !user.email) return;
     if (!newPassword || newPassword.length < 6) {
-      triggerHaptic('warning');
-      Alert.alert('Thông báo', 'Mật khẩu mới cần ít nhất 6 ký tự');
+      triggerHaptic("warning");
+      Alert.alert("Thông báo", "Mật khẩu mới cần ít nhất 6 ký tự");
       return;
     }
 
-    triggerHaptic('medium');
+    triggerHaptic("medium");
     try {
       if (currentPassword) {
         const credential = EmailAuthProvider.credential(user.email, currentPassword);
         await reauthenticateWithCredential(user, credential);
       }
       await updatePassword(user, newPassword);
-      triggerHaptic('success');
-      Alert.alert('Thành công', 'Mật khẩu của bạn đã được cập nhật thành công!');
+      triggerHaptic("success");
+      Alert.alert("Thành công", "Mật khẩu của bạn đã được cập nhật thành công!");
     } catch (e: any) {
-      triggerHaptic('error');
-      Alert.alert('Đổi mật khẩu thất bại', getAuthErrorMessage(e));
+      triggerHaptic("error");
+      Alert.alert("Đổi mật khẩu thất bại", getAuthErrorMessage(e));
       throw e;
     }
   };
 
   const handleSendResetEmail = async () => {
     if (!user || !user.email) return;
-    triggerHaptic('medium');
+    triggerHaptic("medium");
     try {
       await sendPasswordResetEmail(auth, user.email);
-      triggerHaptic('success');
-      Alert.alert('Đã gửi email khôi phục', `Hướng dẫn đặt lại mật khẩu đã được gửi tới ${user.email}.\nVui lòng kiểm tra hộp thư của bạn.`);
+      triggerHaptic("success");
+      Alert.alert(
+        "Đã gửi email khôi phục",
+        `Hướng dẫn đặt lại mật khẩu đã được gửi tới ${user.email}.\nVui lòng kiểm tra hộp thư của bạn.`,
+      );
     } catch (e: any) {
-      triggerHaptic('error');
-      Alert.alert('Không thể gửi email', getAuthErrorMessage(e));
+      triggerHaptic("error");
+      Alert.alert("Không thể gửi email", getAuthErrorMessage(e));
       throw e;
     }
   };
@@ -248,9 +282,18 @@ export default function DashboardScreen() {
       style={styles.container}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: Math.max(insets.top + 16, 54), paddingBottom: Math.max(insets.bottom + 90, 110) },
+        {
+          paddingTop: Math.max(insets.top + 16, 54),
+          paddingBottom: Math.max(insets.bottom + 90, 110),
+        },
       ]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent.gray} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={Colors.accent.gray}
+        />
+      }
       showsVerticalScrollIndicator={false}
     >
       {/* Linear App Header Bar */}
@@ -292,13 +335,13 @@ export default function DashboardScreen() {
           style={[styles.primaryBtn, totalCards > 0 && totalDue === 0 && styles.primaryBtnDisabled]}
           onPress={() => {
             if (totalCards === 0) {
-              router.push('/add' as any);
+              router.push("/add" as any);
               return;
             }
             const firstDue =
               decks.find((d) => {
                 const deckCards = cardsState[d.id];
-                const due = deckCards ? computeDueCount(deckCards) : (d.dueCount || 0);
+                const due = deckCards ? computeDueCount(deckCards) : d.dueCount || 0;
                 return due > 0;
               }) || decks[0];
             if (firstDue) router.push(`/study/${firstDue.id}`);
@@ -315,10 +358,10 @@ export default function DashboardScreen() {
           />
           <Text style={styles.primaryBtnText}>
             {totalCards === 0
-              ? 'Thêm từ vựng mới với AI'
+              ? "Thêm từ vựng mới với AI"
               : totalDue > 0
-              ? 'Bắt đầu học ngay'
-              : 'Đã hoàn thành ôn tập hôm nay ✓'}
+                ? "Bắt đầu học ngay"
+                : "Đã hoàn thành ôn tập hôm nay ✓"}
           </Text>
         </AnimatedButton>
       </View>
@@ -330,13 +373,20 @@ export default function DashboardScreen() {
         <ActivityIndicator color={Colors.accent.indigoLight} style={{ marginTop: 30 }} />
       ) : decks.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Ionicons name="journal-outline" size={36} color={Colors.text.secondary} style={{ marginBottom: Spacing.sm }} />
+          <Ionicons
+            name="journal-outline"
+            size={36}
+            color={Colors.text.secondary}
+            style={{ marginBottom: Spacing.sm }}
+          />
           <Text style={styles.emptyTitle}>Chưa có bộ thẻ nào</Text>
-          <Text style={styles.emptySub}>Tạo bộ thẻ đầu tiên để bắt đầu lưu từ vựng Tiếng Trung</Text>
+          <Text style={styles.emptySub}>
+            Tạo bộ thẻ đầu tiên để bắt đầu lưu từ vựng Tiếng Trung
+          </Text>
           <AnimatedButton
             style={styles.emptyBtn}
             onPress={() => {
-              router.push('/decks' as any);
+              router.push("/decks" as any);
             }}
             hapticType="medium"
           >
@@ -347,8 +397,8 @@ export default function DashboardScreen() {
         <View style={styles.decksGroup}>
           {decks.map((deck, idx) => {
             const deckCards = useStore.getState().cards[deck.id];
-            const due = deckCards ? computeDueCount(deckCards) : (deck.dueCount || 0);
-            const newCount = deckCards ? computeNewCount(deckCards) : (deck.newCount || 0);
+            const due = deckCards ? computeDueCount(deckCards) : deck.dueCount || 0;
+            const newCount = deckCards ? computeNewCount(deckCards) : deck.newCount || 0;
             const total = deck.cardCount || 0;
             const pct = getDeckMasteryPct(total, due, deckCards);
             return (
@@ -357,7 +407,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   style={styles.deckRow}
                   onPress={() => {
-                    triggerHaptic('light');
+                    triggerHaptic("light");
                     router.push(`/deck/${deck.id}` as any);
                   }}
                   activeOpacity={0.7}
@@ -366,9 +416,11 @@ export default function DashboardScreen() {
                     <DeckIcon name={deck.icon} size={16} color={Colors.accent.indigoLight} />
                   </View>
                   <View style={styles.deckMeta}>
-                    <Text style={styles.deckName} numberOfLines={1}>{deck.name}</Text>
+                    <Text style={styles.deckName} numberOfLines={1}>
+                      {deck.name}
+                    </Text>
                     <Text style={styles.deckSub}>
-                      {total > 0 ? `${total} thẻ  •  ${pct}% thuộc` : 'Chưa có thẻ vựng'}
+                      {total > 0 ? `${total} thẻ  •  ${pct}% thuộc` : "Chưa có thẻ vựng"}
                     </Text>
                   </View>
                   {total === 0 ? (
@@ -384,7 +436,12 @@ export default function DashboardScreen() {
                   ) : (
                     <Text style={styles.doneText}>HOÀN THÀNH</Text>
                   )}
-                  <Ionicons name="chevron-forward" size={15} color={Colors.accent.gray3} style={{ marginLeft: 6 }} />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={15}
+                    color={Colors.accent.gray3}
+                    style={{ marginLeft: 6 }}
+                  />
                 </TouchableOpacity>
               </React.Fragment>
             );
@@ -417,9 +474,9 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: Spacing.pageMargin },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: Spacing.lg,
   },
   headerSubhead: {
@@ -428,7 +485,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.semibold,
     color: Colors.text.secondary,
     letterSpacing: 1.2,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     marginBottom: 2,
   },
   headerTitle: {
@@ -446,8 +503,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.37,
   },
   linearBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
     backgroundColor: Colors.bg.secondary,
     borderWidth: 1,
@@ -470,19 +527,19 @@ const styles = StyleSheet.create({
   avatarBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,                   // Perfect Circle for 1-char avatar
+    borderRadius: 18, // Perfect Circle for 1-char avatar
     backgroundColor: Colors.bg.secondary,
     borderWidth: 1,
     borderColor: Colors.border.default,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarText: {
     fontSize: Typography.text.subhead.fontSize,
     fontWeight: Typography.weight.bold,
     color: Colors.accent.indigoLight,
-    textAlign: 'center',
-    textAlignVertical: 'center',
+    textAlign: "center",
+    textAlignVertical: "center",
     includeFontPadding: false,
   },
   heroCard: {
@@ -494,9 +551,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.border.default,
   },
   heroTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 2,
   },
   heroSectionTitle: {
@@ -518,8 +575,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   heroCountRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+    flexDirection: "row",
+    alignItems: "baseline",
     marginVertical: 6,
   },
   heroCount: {
@@ -536,8 +593,8 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 6,
     marginBottom: Spacing.lg,
   },
@@ -551,31 +608,31 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent.indigo,
     borderRadius: Radii.card,
     height: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   primaryBtnDisabled: {
     backgroundColor: Colors.bg.tertiary,
     opacity: 0.6,
   },
   primaryBtnText: {
-    color: '#F0F3F6',
+    color: "#F0F3F6",
     fontSize: Typography.text.callout.fontSize,
     fontWeight: Typography.weight.semibold,
     letterSpacing: -0.2,
-    textAlign: 'center',
-    textAlignVertical: 'center',
+    textAlign: "center",
+    textAlignVertical: "center",
     includeFontPadding: false,
   },
   metricsGroup: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     paddingVertical: Spacing.cellVertical,
     marginBottom: Spacing.xl,
   },
-  metricCol: { flex: 1, alignItems: 'center' },
+  metricCol: { flex: 1, alignItems: "center" },
   metricValue: {
     fontSize: Typography.text.title2.fontSize,
     lineHeight: Typography.text.title2.lineHeight,
@@ -591,9 +648,9 @@ const styles = StyleSheet.create({
   },
   metricSeparator: { width: 1, backgroundColor: Colors.border.separator },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: Spacing.sectionBottom,
     paddingHorizontal: 4,
   },
@@ -605,11 +662,11 @@ const styles = StyleSheet.create({
   decksGroup: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   deckRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: Spacing.cellHorizontal,
     paddingVertical: Spacing.cellVertical,
     minHeight: Spacing.cellMinHeight,
@@ -624,8 +681,8 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: Radii.icon,
     backgroundColor: Colors.bg.tertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: Spacing.md,
   },
   deckMeta: { flex: 1 },
@@ -668,7 +725,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.xl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyTitle: {
     fontSize: Typography.text.headline.fontSize,
@@ -680,25 +737,25 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     marginTop: 4,
     marginBottom: Spacing.lg,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyBtn: {
     backgroundColor: Colors.accent.indigo,
     paddingHorizontal: Spacing.xl,
     height: 44,
     borderRadius: Radii.card,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: Colors.accent.indigoLight,
   },
   emptyBtnText: {
-    color: '#F3F4F6',
+    color: "#F3F4F6",
     fontWeight: Typography.weight.bold,
     fontSize: Typography.text.subhead.fontSize,
     letterSpacing: 0.5,
-    textAlign: 'center',
-    textAlignVertical: 'center',
+    textAlign: "center",
+    textAlignVertical: "center",
     includeFontPadding: false,
   },
 });

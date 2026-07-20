@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -14,19 +13,21 @@ import {
   Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useStore } from "../../store/useStore";
-import { generateCardData, generateCardDataBatch, CardData } from "../../lib/gemini";
-import { DEFAULT_SRS_STATE } from "../../lib/srs";
-import { getGeminiErrorMessage, getFirestoreErrorMessage } from "../../lib/errorHandler";
-import { useLocalSearchParams } from "expo-router";
-import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { generateCardData, generateCardDataBatch, CardData } from "../../lib/gemini";
+import { createDefaultSRSState } from "../../lib/srs";
+import { useStore } from "../../store/useStore";
+import { getFirestoreErrorMessage, getGeminiErrorMessage } from "../../lib/errorHandler";
+import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
 import { SectionTitle } from "../../components/ui/SectionTitle";
 import { InsetGroup } from "../../components/ui/InsetGroup";
 import { DeckPicker } from "../../components/add/DeckPicker";
 import { CardPreview } from "../../components/add/CardPreview";
 
-const MAX_WORDS = 10; // Optimal: Gemini handles 10-word JSON array reliably in ~2-3s
+const MAX_WORDS = 10;
 
 type WordItemStatus = "loading" | "done" | "error";
 
@@ -34,29 +35,28 @@ interface WordItem {
   word: string;
   status: WordItemStatus;
   data: CardData | null;
-  existingCardId: string | null;
   saving: boolean;
   saved: boolean;
   errorMsg?: string;
 }
 
-/** Split input by comma / Chinese comma / Japanese comma / semicolons / newlines */
-function parseWords(text: string): string[] {
-  return text
-    .split(/[,，、;；\n\r]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
+function parseWords(raw: string): string[] {
+  return raw
+    .split(/[,，\n]/)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 0)
     .slice(0, MAX_WORDS);
 }
 
 export default function AddCardScreen() {
   const insets = useSafeAreaInsets();
   const { deckId } = useLocalSearchParams<{ deckId?: string }>();
-  const { decks, cards, addCard, updateCard, findExistingCard, fetchCards } = useStore();
+  const { decks, cards, addCard, findExistingCard, fetchCards } = useStore();
   const [input, setInput] = useState("");
   const [selectedDeckId, setSelectedDeckId] = useState("");
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
   const [wordItems, setWordItems] = useState<WordItem[]>([]);
+  const [skippedWords, setSkippedWords] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const parsedWords = parseWords(input);
@@ -100,7 +100,6 @@ export default function AddCardScreen() {
         word,
         status: "loading" as WordItemStatus,
         data: null,
-        existingCardId: null,
         saving: false,
         saved: false,
       })),
@@ -111,13 +110,11 @@ export default function AddCardScreen() {
       const results = await generateCardDataBatch(words);
       setWordItems(
         words.map((word, i) => {
-          const existing = findExistingCard(word, selectedDeckId);
           const data = results[i] || null;
           return {
             word,
             status: data ? ("done" as WordItemStatus) : ("error" as WordItemStatus),
             data,
-            existingCardId: existing?.id || null,
             saving: false,
             saved: false,
             errorMsg: data ? undefined : "Không nhận được dữ liệu từ AI",
@@ -142,6 +139,7 @@ export default function AddCardScreen() {
 
   const handleGenerate = async () => {
     Keyboard.dismiss();
+    setSkippedWords([]);
 
     if (!input.trim()) {
       triggerHaptic("warning");
@@ -157,55 +155,88 @@ export default function AddCardScreen() {
     const words = parsedWords;
     if (words.length === 0) return;
 
-    // For single word: check if already exists and prompt user
+    // Always pre-fetch cards for the selected deck so findExistingCard has 100% accurate data
+    await fetchCards(selectedDeckId);
+
+    const selectedDeckName = decks.find((d) => d.id === selectedDeckId)?.name || "Bộ thẻ";
+
+    // 1. Single Word Flow
     if (words.length === 1) {
-      await fetchCards(selectedDeckId);
       const existing = findExistingCard(words[0], selectedDeckId);
       if (existing) {
         triggerHaptic("warning");
         Alert.alert(
           "Từ vựng đã có sẵn!",
-          `Từ "${existing.character}" (${existing.pinyin})\nNghĩa: ${existing.translation}\n\nBạn muốn làm gì?`,
+          `Từ "${existing.character}" (${existing.pinyin}) đã có sẵn trong bộ thẻ "${selectedDeckName}".`,
           [
-            { text: "Hủy", style: "cancel" },
             {
-              text: "Dùng thẻ cũ",
+              text: "Đóng",
+              style: "cancel",
               onPress: () => {
-                triggerHaptic("light");
-                setWordItems([
-                  {
-                    word: words[0],
-                    status: "done",
-                    data: {
-                      character: existing.character,
-                      traditional: existing.traditional,
-                      pinyin: existing.pinyin,
-                      hanviet: existing.hanviet,
-                      translation: existing.translation,
-                      examples: existing.examples || [],
-                      radical: existing.radical,
-                      strokeCount: existing.strokeCount,
-                      hskLevel: existing.hskLevel,
-                      tags: existing.tags,
-                    },
-                    existingCardId: existing.id,
-                    saving: false,
-                    saved: false,
-                  },
-                ]);
+                setInput("");
               },
             },
             {
-              text: "Tạo lại & Ghi đè",
-              onPress: () => startGeneration(words),
+              text: "Học ngay 📚",
+              onPress: () => {
+                setInput("");
+                router.push(`/study/${selectedDeckId}`);
+              },
             },
           ],
         );
         return;
       }
+      startGeneration([words[0]]);
+      return;
     }
 
-    startGeneration(words);
+    // 2. Batch Words Flow: Filter out duplicate words that already exist in the deck
+    const existingWords: string[] = [];
+    const newWords: string[] = [];
+
+    for (const w of words) {
+      const match = findExistingCard(w, selectedDeckId);
+      if (match) {
+        existingWords.push(match.character || w);
+      } else {
+        newWords.push(w);
+      }
+    }
+
+    // If ALL words already exist in deck
+    if (newWords.length === 0) {
+      triggerHaptic("warning");
+      Alert.alert(
+        "Tất cả từ vựng đã có sẵn!",
+        `Tất cả ${words.length} từ vựng bạn nhập đều đã có sẵn trong bộ thẻ "${selectedDeckName}".`,
+        [
+          {
+            text: "Đóng",
+            style: "cancel",
+            onPress: () => {
+              setInput("");
+            },
+          },
+          {
+            text: "Học ngay 📚",
+            onPress: () => {
+              setInput("");
+              router.push(`/study/${selectedDeckId}`);
+            },
+          },
+        ],
+      );
+      return;
+    }
+
+    // If SOME words exist and SOME are new
+    if (existingWords.length > 0) {
+      setSkippedWords(existingWords);
+    }
+
+    // Generate AI ONLY for newWords!
+    startGeneration(newWords);
   };
 
   const handleReGenerate = async (word: string) => {
@@ -238,38 +269,33 @@ export default function AddCardScreen() {
     triggerHaptic("medium");
 
     try {
-      if (item.existingCardId) {
-        await updateCard(item.existingCardId, selectedDeckId, {
-          character: item.data.character,
-          traditional: item.data.traditional,
-          pinyin: item.data.pinyin,
-          hanviet: item.data.hanviet,
-          translation: item.data.translation,
-          examples: item.data.examples || [],
-          radical: item.data.radical,
-          strokeCount: item.data.strokeCount,
-          hskLevel: item.data.hskLevel,
-          tags: item.data.tags || [],
-        });
-      } else {
-        await addCard({
-          deckId: selectedDeckId,
-          character: item.data.character,
-          traditional: item.data.traditional,
-          pinyin: item.data.pinyin,
-          hanviet: item.data.hanviet,
-          translation: item.data.translation,
-          examples: item.data.examples || [],
-          radical: item.data.radical,
-          strokeCount: item.data.strokeCount,
-          hskLevel: item.data.hskLevel,
-          tags: item.data.tags || [],
-          srs: DEFAULT_SRS_STATE,
-        });
-      }
+      await addCard({
+        deckId: selectedDeckId,
+        character: item.data.character,
+        traditional: item.data.traditional,
+        pinyin: item.data.pinyin,
+        hanviet: item.data.hanviet,
+        translation: item.data.translation,
+        examples: item.data.examples || [],
+        radical: item.data.radical,
+        strokeCount: item.data.strokeCount,
+        hskLevel: item.data.hskLevel,
+        tags: item.data.tags || [],
+        srs: createDefaultSRSState(),
+      });
+
       triggerHaptic("success");
-      setWordItems((prev) =>
-        prev.map((i) => (i.word === item.word ? { ...i, saving: false, saved: true } : i)),
+
+      const remaining = wordItems.filter((i) => i.word !== item.word);
+      setWordItems(remaining);
+      if (remaining.length === 0) {
+        setInput("");
+        setSkippedWords([]);
+      }
+
+      Alert.alert(
+        "Thành công",
+        `Đã lưu từ "${item.data.character}" vào bộ thẻ thành công!`,
       );
     } catch (e: any) {
       triggerHaptic("error");
@@ -283,13 +309,44 @@ export default function AddCardScreen() {
   const handleSaveAll = async () => {
     const toSave = wordItems.filter((i) => i.status === "done" && !i.saved && i.data);
     if (toSave.length === 0) return;
+
     triggerHaptic("medium");
-    await Promise.all(toSave.map((item) => handleSaveOne(item)));
-    setTimeout(() => {
-      setWordItems([]);
-      setInput("");
+    setWordItems((prev) => prev.map((i) => ({ ...i, saving: true })));
+
+    try {
+      await Promise.all(
+        toSave.map((item) =>
+          addCard({
+            deckId: selectedDeckId,
+            character: item.data!.character,
+            traditional: item.data!.traditional,
+            pinyin: item.data!.pinyin,
+            hanviet: item.data!.hanviet,
+            translation: item.data!.translation,
+            examples: item.data!.examples || [],
+            radical: item.data!.radical,
+            strokeCount: item.data!.strokeCount,
+            hskLevel: item.data!.hskLevel,
+            tags: item.data!.tags || [],
+            srs: createDefaultSRSState(),
+          }),
+        ),
+      );
+
       triggerHaptic("success");
-    }, 600);
+      setInput("");
+      setWordItems([]);
+      setSkippedWords([]);
+
+      Alert.alert(
+        "Thành công",
+        `Đã lưu tất cả ${toSave.length} từ vựng vào bộ thẻ thành công!`,
+      );
+    } catch (e: any) {
+      triggerHaptic("error");
+      Alert.alert("Lỗi lưu thẻ", getFirestoreErrorMessage(e));
+      setWordItems((prev) => prev.map((i) => ({ ...i, saving: false })));
+    }
   };
 
   const handleRemoveItem = (word: string) => {
@@ -332,6 +389,8 @@ export default function AddCardScreen() {
             triggerHaptic("selection");
             setSelectedDeckId(id);
             setDeckPickerOpen(false);
+            setWordItems([]);
+            setSkippedWords([]);
             AsyncStorage.setItem("lastSelectedDeckId", id);
           }}
         />
@@ -394,6 +453,22 @@ export default function AddCardScreen() {
           )}
         </InsetGroup>
 
+        {/* Skipped duplicate words notice banner */}
+        {skippedWords.length > 0 && !isGenerating && (
+          <View style={styles.skippedBanner}>
+            <Ionicons
+              name="information-circle-outline"
+              size={16}
+              color={Colors.accent.indigoLight}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={styles.skippedText}>
+              Tự động bỏ qua {skippedWords.length} từ đã có sẵn trong bộ thẻ:{" "}
+              <Text style={{ fontWeight: Typography.weight.bold }}>{skippedWords.join(", ")}</Text>
+            </Text>
+          </View>
+        )}
+
         {/* Global Loading Indicator */}
         {(isGenerating || anyLoading) && (
           <View style={styles.loadingRow}>
@@ -422,7 +497,12 @@ export default function AddCardScreen() {
                   onPress={() => handleReGenerate(item.word)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="refresh" size={13} color={Colors.accent.indigoLight} style={{ marginRight: 3 }} />
+                  <Ionicons
+                    name="refresh"
+                    size={13}
+                    color={Colors.accent.indigoLight}
+                    style={{ marginRight: 3 }}
+                  />
                   <Text style={styles.retryBtnText}>Thử lại</Text>
                 </TouchableOpacity>
               </View>
@@ -440,17 +520,6 @@ export default function AddCardScreen() {
                 onSave={() => handleSaveOne(item)}
                 onRemove={wordItems.length > 1 ? () => handleRemoveItem(item.word) : undefined}
               />
-            );
-          }
-
-          if (item.saved) {
-            return (
-              <View key={item.word} style={styles.savedRow}>
-                <Ionicons name="checkmark-circle" size={16} color={Colors.neon.emerald} />
-                <Text style={styles.savedText}>
-                  "{item.data?.character || item.word}" đã lưu thành công
-                </Text>
-              </View>
             );
           }
 
@@ -500,31 +569,27 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: Typography.text.body.fontSize,
+    fontSize: Typography.text.subhead.fontSize,
     color: Colors.text.primary,
-    paddingHorizontal: 8,
+    paddingVertical: 8,
+    marginRight: 8,
   },
   genBtn: {
     backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.full,
+    borderRadius: Radii.card,
+    height: 36,
     paddingHorizontal: 14,
-    height: 34,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
   },
   genBtnDisabled: {
-    backgroundColor: Colors.bg.tertiary,
-    opacity: 0.5,
+    opacity: 0.4,
   },
   genBtnText: {
     color: "#FFFFFF",
+    fontSize: Typography.text.caption1.fontSize,
     fontWeight: Typography.weight.semibold,
-    fontSize: Typography.text.footnote.fontSize,
-    letterSpacing: 0.2,
-    textAlign: "center",
-    textAlignVertical: "center",
-    includeFontPadding: false,
   },
 
   chipsRow: {
@@ -533,40 +598,52 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingBottom: 10,
+    paddingTop: 2,
   },
   chip: {
-    backgroundColor: Colors.accent.indigoDim,
-    borderRadius: Radii.full,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: "rgba(94, 106, 210, 0.3)",
+    backgroundColor: Colors.bg.tertiary,
+    borderRadius: Radii.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   chipText: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.accent.indigoLight,
+    fontSize: Typography.text.caption2.fontSize,
+    color: Colors.text.secondary,
     fontWeight: Typography.weight.medium,
   },
   chipWarning: {
-    backgroundColor: "rgba(248, 81, 73, 0.1)",
-    borderColor: "rgba(248, 81, 73, 0.3)",
+    backgroundColor: "rgba(248, 81, 73, 0.15)",
   },
   chipWarningText: {
     color: Colors.neon.coral,
+  },
+
+  skippedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(94, 106, 210, 0.12)",
+    borderRadius: Radii.card,
+    paddingHorizontal: Spacing.cellHorizontal,
+    paddingVertical: 10,
+    marginTop: Spacing.md,
+  },
+  skippedText: {
+    flex: 1,
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.accent.indigoLight,
+    fontWeight: Typography.weight.medium,
   },
 
   loadingRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.sm,
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.md,
+    paddingVertical: Spacing.xl,
+    gap: 10,
   },
   loadingText: {
-    fontSize: Typography.text.subhead.fontSize,
+    fontSize: Typography.text.footnote.fontSize,
     color: Colors.text.secondary,
-    fontWeight: Typography.weight.medium,
   },
 
   errorRow: {
@@ -576,34 +653,32 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
     padding: Spacing.md,
-    marginTop: Spacing.lg,
+    marginTop: Spacing.md,
     borderWidth: 1,
     borderColor: "rgba(248, 81, 73, 0.2)",
   },
   errorContent: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    flex: 1,
     marginRight: 8,
   },
   errorText: {
-    flex: 1,
     fontSize: Typography.text.footnote.fontSize,
     color: Colors.neon.coral,
+    marginLeft: 6,
+    flex: 1,
   },
   retryBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.accent.indigoDim,
-    borderRadius: Radii.full,
+    backgroundColor: Colors.bg.tertiary,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: "rgba(94, 106, 210, 0.3)",
+    paddingVertical: 6,
+    borderRadius: Radii.sm,
   },
   retryBtnText: {
-    fontSize: Typography.text.caption1.fontSize,
+    fontSize: Typography.text.caption2.fontSize,
     color: Colors.accent.indigoLight,
     fontWeight: Typography.weight.medium,
   },
@@ -611,14 +686,16 @@ const styles = StyleSheet.create({
   savedRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    backgroundColor: Colors.bg.secondary,
+    borderRadius: Radii.card,
+    padding: Spacing.md,
     marginTop: Spacing.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: 4,
   },
   savedText: {
     fontSize: Typography.text.subhead.fontSize,
-    color: Colors.text.secondary,
+    color: Colors.neon.emerald,
+    marginLeft: 8,
+    fontWeight: Typography.weight.medium,
   },
 
   saveAllBtn: {
@@ -628,12 +705,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: Spacing.xl,
+    marginTop: Spacing.lg,
   },
   saveAllText: {
-    color: "#F0F3F6",
+    color: "#FFFFFF",
     fontSize: Typography.text.callout.fontSize,
     fontWeight: Typography.weight.semibold,
-    letterSpacing: -0.2,
   },
 });

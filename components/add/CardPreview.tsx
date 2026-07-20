@@ -23,7 +23,14 @@ interface CardPreviewProps {
   onRemove?: () => void;
 }
 
-export function CardPreview({ cardData, targetDeckName, saving, onReGenerate, onSave, onRemove }: CardPreviewProps) {
+export function CardPreview({
+  cardData,
+  targetDeckName,
+  saving,
+  onReGenerate,
+  onSave,
+  onRemove,
+}: CardPreviewProps) {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -50,7 +57,11 @@ export function CardPreview({ cardData, targetDeckName, saving, onReGenerate, on
             <Text style={styles.reGenLink}>Tạo lại ↻</Text>
           </TouchableOpacity>
           {onRemove && (
-            <TouchableOpacity onPress={onRemove} style={styles.removeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity
+              onPress={onRemove}
+              style={styles.removeBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
               <Ionicons name="close" size={16} color={Colors.text.tertiary} />
             </TouchableOpacity>
           )}

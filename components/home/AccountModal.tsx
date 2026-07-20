@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
-  View, Text, TouchableOpacity, Modal, StyleSheet,
-  ScrollView, Switch, ActivityIndicator,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
-import { FormField } from '../ui/FormField';
-import { WheelTimePicker } from './WheelTimePicker';
-import { SectionTitle } from '../ui/SectionTitle';
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  StyleSheet,
+  ScrollView,
+  Switch,
+  ActivityIndicator,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { FormField } from "../ui/FormField";
+import { WheelTimePicker } from "./WheelTimePicker";
+import { SectionTitle } from "../ui/SectionTitle";
 
 interface AccountModalProps {
   visible: boolean;
@@ -42,8 +48,8 @@ export function AccountModal({
   onSignOut,
 }: AccountModalProps) {
   const insets = useSafeAreaInsets();
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [loadingPass, setLoadingPass] = useState(false);
   const [loadingReset, setLoadingReset] = useState(false);
 
@@ -52,8 +58,8 @@ export function AccountModal({
     setLoadingPass(true);
     try {
       await onChangePassword(currentPassword, newPassword);
-      setCurrentPassword('');
-      setNewPassword('');
+      setCurrentPassword("");
+      setNewPassword("");
     } catch {
       // Handled in parent
     } finally {
@@ -73,14 +79,19 @@ export function AccountModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
       <View style={styles.modalContainer}>
         {/* Header */}
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Tài khoản & Cài đặt</Text>
           <TouchableOpacity
             onPress={() => {
-              triggerHaptic('light');
+              triggerHaptic("light");
               onClose();
             }}
             style={styles.doneBtn}
@@ -89,7 +100,13 @@ export function AccountModal({
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={[styles.modalScroll, { paddingBottom: Math.max(insets.bottom + 30, 40) }]} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.modalScroll,
+            { paddingBottom: Math.max(insets.bottom + 30, 40) },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Profile Section */}
           <SectionTitle>THÔNG TIN CÁ NHÂN</SectionTitle>
           <View style={styles.insetGroup}>
@@ -99,7 +116,7 @@ export function AccountModal({
             </View>
             <View style={[styles.infoRow, styles.cellBorderTop]}>
               <Text style={styles.infoLabel}>Địa chỉ Email</Text>
-              <Text style={styles.infoValue}>{email || 'Chưa cập nhật'}</Text>
+              <Text style={styles.infoValue}>{email || "Chưa cập nhật"}</Text>
             </View>
           </View>
 
@@ -121,7 +138,6 @@ export function AccountModal({
 
             {reminderEnabled && (
               <View style={[styles.pickerContainer, styles.cellBorderTop]}>
-                <Text style={styles.pickerTitle}>CHỌN GIỜ NHẮC NHỞ HÀNG NGÀY</Text>
                 <WheelTimePicker
                   hour={reminderHour}
                   minute={reminderMinute}
@@ -177,7 +193,12 @@ export function AccountModal({
                   <ActivityIndicator size="small" color={Colors.accent.indigoLight} />
                 ) : (
                   <>
-                    <Ionicons name="mail-outline" size={18} color={Colors.accent.indigoLight} style={{ marginRight: 8 }} />
+                    <Ionicons
+                      name="mail-outline"
+                      size={18}
+                      color={Colors.accent.indigoLight}
+                      style={{ marginRight: 8 }}
+                    />
                     <Text style={styles.textActionLabel}>Gửi email đặt lại mật khẩu</Text>
                   </>
                 )}
@@ -189,7 +210,12 @@ export function AccountModal({
           <SectionTitle>THAO TÁC TÀI KHOẢN</SectionTitle>
           <View style={styles.insetGroup}>
             <TouchableOpacity style={styles.signOutRow} onPress={onSignOut} activeOpacity={0.7}>
-              <Ionicons name="log-out-outline" size={18} color={Colors.neon.coral} style={{ marginRight: 8 }} />
+              <Ionicons
+                name="log-out-outline"
+                size={18}
+                color={Colors.neon.coral}
+                style={{ marginRight: 8 }}
+              />
               <Text style={styles.signOutText}>Đăng xuất tài khoản</Text>
             </TouchableOpacity>
           </View>
@@ -202,9 +228,9 @@ export function AccountModal({
 const styles = StyleSheet.create({
   modalContainer: { flex: 1, backgroundColor: Colors.bg.primary },
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: Spacing.pageMargin,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
@@ -227,7 +253,7 @@ const styles = StyleSheet.create({
   insetGroup: {
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: Colors.border.default,
   },
@@ -236,27 +262,39 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.border.separator,
   },
   infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: Spacing.cellHorizontal,
     paddingVertical: Spacing.cellVertical,
   },
   infoLabel: { fontSize: Typography.text.body.fontSize, color: Colors.text.primary },
-  infoValue: { fontSize: Typography.text.body.fontSize, color: Colors.text.secondary, fontWeight: Typography.weight.medium },
+  infoValue: {
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weight.medium,
+  },
 
   switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: Spacing.cellHorizontal,
     paddingVertical: Spacing.cellVertical,
   },
-  switchLabel: { fontSize: Typography.text.body.fontSize, color: Colors.text.primary, fontWeight: Typography.weight.semibold },
-  switchSub: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: 2 },
+  switchLabel: {
+    fontSize: Typography.text.body.fontSize,
+    color: Colors.text.primary,
+    fontWeight: Typography.weight.semibold,
+  },
+  switchSub: {
+    fontSize: Typography.text.caption1.fontSize,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
 
   pickerContainer: {
     padding: Spacing.cellHorizontal,
-    alignItems: 'center',
+    alignItems: "center",
   },
   pickerTitle: {
     fontSize: Typography.text.caption2.fontSize,
@@ -270,8 +308,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent.indigo,
     borderRadius: Radii.card,
     height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: Spacing.xs,
   },
   btnDisabled: {
@@ -279,19 +317,19 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   actionBtnText: {
-    color: '#F0F3F6',
+    color: "#F0F3F6",
     fontSize: Typography.text.callout.fontSize,
     fontWeight: Typography.weight.semibold,
     letterSpacing: -0.2,
-    textAlign: 'center',
-    textAlignVertical: 'center',
+    textAlign: "center",
+    textAlignVertical: "center",
     includeFontPadding: false,
   },
 
   textActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: Spacing.cellVertical,
   },
   textActionLabel: {
@@ -301,9 +339,9 @@ const styles = StyleSheet.create({
   },
 
   signOutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: Spacing.cellVertical,
   },
   signOutText: {

@@ -167,13 +167,6 @@ export default function DashboardScreen() {
         Alert.alert(
           'Đã bật nhắc nhở hàng ngày',
           `Ứng dụng Anki sẽ nhắc bạn vào học lúc ${formattedTime} hàng ngày.`,
-          [
-            { text: 'Đóng', style: 'cancel' },
-            {
-              text: 'Thử thông báo (3s)',
-              onPress: () => sendTestNotification(),
-            },
-          ]
         );
       } else {
         triggerHaptic('error');

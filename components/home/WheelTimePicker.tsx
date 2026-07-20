@@ -1,9 +1,9 @@
-import React, { useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
+import React, { useRef, useCallback } from "react";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
 
-const ITEM_HEIGHT = 44;
+const ITEM_HEIGHT = 48;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 
@@ -37,7 +37,7 @@ export function WheelTimePicker({
       const clamped = Math.max(0, Math.min(23, h));
       onHourChange(clamped);
     },
-    [onHourChange]
+    [onHourChange],
   );
 
   const handleMinuteScroll = useCallback(
@@ -46,10 +46,10 @@ export function WheelTimePicker({
       const clamped = Math.max(0, Math.min(59, m));
       onMinuteChange(clamped);
     },
-    [onMinuteChange]
+    [onMinuteChange],
   );
 
-  const formattedTime = `${hour < 10 ? '0' : ''}${hour}:${minute < 10 ? '0' : ''}${minute}`;
+  const formattedTime = `${hour < 10 ? "0" : ""}${hour}:${minute < 10 ? "0" : ""}${minute}`;
 
   return (
     <View style={styles.container}>
@@ -68,15 +68,16 @@ export function WheelTimePicker({
               snapToInterval={ITEM_HEIGHT}
               decelerationRate="fast"
               contentContainerStyle={{ paddingVertical: ITEM_HEIGHT }}
-              onMomentumScrollEnd={e => handleHourScroll(e.nativeEvent.contentOffset.y)}
-              onScrollEndDrag={e => handleHourScroll(e.nativeEvent.contentOffset.y)}
+              onMomentumScrollEnd={(e) => handleHourScroll(e.nativeEvent.contentOffset.y)}
+              onScrollEndDrag={(e) => handleHourScroll(e.nativeEvent.contentOffset.y)}
             >
-              {HOURS.map(h => (
+              {HOURS.map((h) => (
                 <TouchableOpacity
                   key={h}
                   style={styles.wheelItem}
+                  activeOpacity={0.7}
                   onPress={() => {
-                    triggerHaptic('selection');
+                    triggerHaptic("selection");
                     onHourChange(h);
                     hourScrollRef.current?.scrollTo({ y: h * ITEM_HEIGHT, animated: true });
                   }}
@@ -104,15 +105,16 @@ export function WheelTimePicker({
               snapToInterval={ITEM_HEIGHT}
               decelerationRate="fast"
               contentContainerStyle={{ paddingVertical: ITEM_HEIGHT }}
-              onMomentumScrollEnd={e => handleMinuteScroll(e.nativeEvent.contentOffset.y)}
-              onScrollEndDrag={e => handleMinuteScroll(e.nativeEvent.contentOffset.y)}
+              onMomentumScrollEnd={(e) => handleMinuteScroll(e.nativeEvent.contentOffset.y)}
+              onScrollEndDrag={(e) => handleMinuteScroll(e.nativeEvent.contentOffset.y)}
             >
-              {MINUTES.map(m => (
+              {MINUTES.map((m) => (
                 <TouchableOpacity
                   key={m}
                   style={styles.wheelItem}
+                  activeOpacity={0.7}
                   onPress={() => {
-                    triggerHaptic('selection');
+                    triggerHaptic("selection");
                     onMinuteChange(m);
                     minuteScrollRef.current?.scrollTo({ y: m * ITEM_HEIGHT, animated: true });
                   }}
@@ -150,14 +152,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   wheelPickerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
     marginVertical: Spacing.xs,
   },
   wheelColumn: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
   },
   wheelLabel: {
@@ -165,36 +167,33 @@ const styles = StyleSheet.create({
     color: Colors.text.tertiary,
     fontWeight: Typography.weight.bold,
     letterSpacing: 1,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   wheelWrapper: {
-    height: 44 * 3,
-    overflow: 'hidden',
+    height: ITEM_HEIGHT * 3,
+    width: "100%",
+    overflow: "hidden",
     borderRadius: Radii.card,
     backgroundColor: Colors.bg.tertiary,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
-    position: 'relative',
+    position: "relative",
   },
   wheelSelector: {
-    position: 'absolute',
-    top: 44,
-    left: 0,
-    right: 0,
-    height: 44,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: Colors.accent.indigo,
-    backgroundColor: Colors.accent.indigo + '18',
-    zIndex: 1,
+    position: "absolute",
+    top: ITEM_HEIGHT,
+    left: 6,
+    right: 6,
+    height: ITEM_HEIGHT,
+    borderRadius: Radii.card,
+    backgroundColor: Colors.accent.indigoDim,
   },
   wheelScroll: {
     flex: 1,
+    width: "100%",
   },
   wheelItem: {
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: ITEM_HEIGHT,
+    alignItems: "center",
+    justifyContent: "center",
   },
   wheelItemText: {
     fontSize: 22,
@@ -203,20 +202,20 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   wheelItemTextActive: {
-    color: Colors.text.primary,
+    color: Colors.accent.indigoLight,
     fontWeight: Typography.weight.bold,
-    fontSize: 24,
+    fontSize: 26,
   },
   wheelColon: {
     fontSize: 28,
     fontWeight: Typography.weight.bold,
     color: Colors.text.secondary,
-    paddingBottom: 16,
-    marginHorizontal: 4,
+    paddingTop: 16,
+    marginHorizontal: 2,
   },
   statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     marginTop: Spacing.sm,
   },

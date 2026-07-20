@@ -61,34 +61,10 @@ function Field({
   const [focused, setFocused] = useState(false);
   const [showText, setShowText] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const borderAnim = useRef(new Animated.Value(0)).current;
-
-  const handleFocus = () => {
-    setFocused(true);
-    Animated.timing(borderAnim, {
-      toValue: 1,
-      duration: 180,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const handleBlur = () => {
-    setFocused(false);
-    Animated.timing(borderAnim, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const borderColor = borderAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [Colors.border.separator, Colors.accent.indigo],
-  });
 
   return (
     <Pressable onPress={() => inputRef.current?.focus()}>
-      <Animated.View style={[styles.fieldCard, { borderColor }]}>
+      <View style={styles.fieldCard}>
         <View style={styles.fieldIconWrap}>
           <Ionicons
             name={icon}
@@ -105,8 +81,8 @@ function Field({
             placeholderTextColor={Colors.text.quaternary}
             value={value}
             onChangeText={onChangeText}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             keyboardType={keyboardType}
             autoCapitalize={autoCapitalize}
             autoCorrect={autoCorrect}
@@ -126,7 +102,7 @@ function Field({
             />
           </TouchableOpacity>
         )}
-      </Animated.View>
+      </View>
     </Pressable>
   );
 }
@@ -453,8 +429,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: Colors.bg.secondary,
     borderRadius: Radii.card,
-    borderWidth: 1,
-    borderColor: Colors.border.separator,
     paddingHorizontal: Spacing.cellHorizontal,
     paddingVertical: 10,
     minHeight: 58,

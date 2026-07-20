@@ -13,7 +13,11 @@ import {
 import { auth } from '../../lib/firebase';
 import { getAuthErrorMessage } from '../../lib/errorHandler';
 import {
-  getReminderSettings, scheduleDailyStudyReminder, cancelDailyStudyReminder, sendTestNotification,
+  getReminderSettings,
+  scheduleDailyStudyReminder,
+  cancelDailyStudyReminder,
+  sendTestNotification,
+  requestNotificationPermissions,
 } from '../../lib/notificationService';
 import { useStore } from '../../store/useStore';
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
@@ -145,6 +149,17 @@ export default function DashboardScreen() {
     triggerHaptic('selection');
     setReminderEnabled(value);
     if (value) {
+      const hasPermission = await requestNotificationPermissions();
+      if (!hasPermission) {
+        triggerHaptic('error');
+        setReminderEnabled(false);
+        Alert.alert(
+          'Quyền thông báo',
+          'Vui lòng mở Cài đặt iPhone > Anki > Thông báo và bật "Cho phép thông báo" để nhận nhắc nhở hàng ngày.',
+        );
+        return;
+      }
+
       const success = await scheduleDailyStudyReminder(reminderHour, reminderMinute);
       if (success) {
         triggerHaptic('success');
@@ -152,18 +167,11 @@ export default function DashboardScreen() {
         Alert.alert(
           'Đã bật nhắc nhở hàng ngày',
           `Ứng dụng Anki sẽ nhắc bạn vào học lúc ${formattedTime} hàng ngày.`,
-          [
-            { text: 'Đóng', style: 'cancel' },
-            {
-              text: 'Thử thông báo (3s)',
-              onPress: () => sendTestNotification(),
-            },
-          ]
         );
       } else {
         triggerHaptic('error');
         setReminderEnabled(false);
-        Alert.alert('Quyền thông báo', 'Vui lòng cho phép quyền thông báo trong Cài đặt iPhone để sử dụng tính năng này.');
+        Alert.alert('Không thể tạo nhắc nhở', 'Đã xảy ra lỗi khi tạo lịch nhắc nhở. Vui lòng thử lại sau.');
       }
     } else {
       await cancelDailyStudyReminder();

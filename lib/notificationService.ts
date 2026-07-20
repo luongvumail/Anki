@@ -31,7 +31,6 @@ function getNotificationsModule() {
       try {
         Notifications.setNotificationHandler({
           handleNotification: async () => ({
-            shouldShowAlert: true,
             shouldPlaySound: true,
             shouldSetBadge: false,
             shouldShowBanner: true,
@@ -67,21 +66,20 @@ export async function requestNotificationPermissions(): Promise<boolean> {
       });
     }
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync({
-        ios: {
-          allowAlert: true,
-          allowBadge: true,
-          allowSound: true,
-        },
-      });
-      finalStatus = status;
+    const { status: existingStatus, granted: existingGranted } = await Notifications.getPermissionsAsync();
+    if (existingGranted || existingStatus === 'granted') {
+      return true;
     }
 
-    return finalStatus === 'granted';
+    const { status, granted } = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+      },
+    });
+
+    return Boolean(granted || status === 'granted');
   } catch (e) {
     console.warn('[notificationService] Permission request failed:', e);
     return false;
@@ -102,7 +100,9 @@ export async function scheduleDailyStudyReminder(hour: number, minute: number): 
     // Cancel previous notifications
     await Notifications.cancelAllScheduledNotificationsAsync();
 
-    // Schedule daily notification using repeating trigger
+    const dailyType = Notifications.SchedulableTriggerInputTypes?.DAILY || 'daily';
+
+    // Schedule daily notification using repeating trigger format compatible with Expo 57 / iOS
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '📚 Anki - Đến giờ ôn tập từ vựng!',
@@ -110,6 +110,7 @@ export async function scheduleDailyStudyReminder(hour: number, minute: number): 
         sound: true,
       },
       trigger: {
+        type: dailyType,
         hour,
         minute,
         repeats: true,
@@ -135,6 +136,8 @@ export async function sendTestNotification(): Promise<boolean> {
   if (!hasPermission) return false;
 
   try {
+    const timeIntervalType = Notifications.SchedulableTriggerInputTypes?.TIME_INTERVAL || 'timeInterval';
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '🔔 Thông báo thử nghiệm Anki',
@@ -142,7 +145,9 @@ export async function sendTestNotification(): Promise<boolean> {
         sound: true,
       },
       trigger: {
+        type: timeIntervalType,
         seconds: 3,
+        repeats: false,
       },
     });
     return true;

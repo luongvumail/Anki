@@ -32,7 +32,10 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     set({ isLoading: true });
     try {
       const snap = await getDocs(cardsRef(uid, deckId));
-      const cards = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Card);
+      const cards = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }) as Card)
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
       const realCardCount = cards.length;
       const realDueCount = computeDueCount(cards);
       const realNewCount = computeNewCount(cards);
@@ -69,6 +72,33 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
 
   addCard: async (cardData) => {
     const uid = getUserId();
+    const existingCards = get().cards[cardData.deckId] || [];
+    const cleanChar = cardData.character.trim().toLowerCase();
+
+    // Prevent duplicate cards: if card already exists in this deck, update it instead of creating duplicate
+    const duplicate = existingCards.find(
+      (c) => c.character.trim().toLowerCase() === cleanChar,
+    );
+
+    if (duplicate) {
+      console.log(
+        `[cardSlice] Duplicate found for "${cardData.character}" in deck ${cardData.deckId}. Updating card ${duplicate.id} instead of creating duplicate.`,
+      );
+      await get().updateCard(duplicate.id, cardData.deckId, {
+        character: cardData.character,
+        traditional: cardData.traditional,
+        pinyin: cardData.pinyin,
+        hanviet: cardData.hanviet,
+        translation: cardData.translation,
+        examples: cardData.examples || [],
+        radical: cardData.radical,
+        strokeCount: cardData.strokeCount,
+        hskLevel: cardData.hskLevel,
+        tags: cardData.tags || [],
+      });
+      return;
+    }
+
     const ref = doc(cardsRef(uid, cardData.deckId));
     const card: Card = {
       id: ref.id,
@@ -79,8 +109,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     };
     await setDoc(ref, card);
 
-    const existingCards = get().cards[cardData.deckId] || [];
-    const updatedCards = [...existingCards, card];
+    const updatedCards = [card, ...existingCards];
     const realCardCount = updatedCards.length;
     const realDueCount = computeDueCount(updatedCards);
     const realNewCount = computeNewCount(updatedCards);

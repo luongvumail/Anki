@@ -276,16 +276,29 @@ export default function DeckDetailScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.cardLeft}>
-                    <Text style={styles.cardChar}>{card.character}</Text>
+                    <Text
+                      style={styles.cardChar}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
+                    >
+                      {(card.character || "").trim()}
+                    </Text>
                   </View>
 
                   <View style={styles.cardMid}>
                     <View style={styles.cardPinyinRow}>
-                      <Text style={styles.cardPinyin}>{card.pinyin}</Text>
-                      <Text style={styles.cardHanviet}>{card.hanviet}</Text>
+                      <Text style={styles.cardPinyin} numberOfLines={1}>
+                        {(card.pinyin || "").trim()}
+                      </Text>
+                      {card.hanviet ? (
+                        <Text style={styles.cardHanviet} numberOfLines={1}>
+                          {(card.hanviet || "").trim()}
+                        </Text>
+                      ) : null}
                     </View>
                     <Text style={styles.cardTranslation} numberOfLines={1}>
-                      {card.translation}
+                      {(card.translation || "").trim()}
                     </Text>
                   </View>
 
@@ -454,9 +467,12 @@ const styles = StyleSheet.create({
   cellDividerIndented: {
     height: 1,
     backgroundColor: Colors.border.separator,
-    marginLeft: 56,
+    marginLeft: 84,
   },
-  cardLeft: { width: 40, alignItems: "center" },
+  cardLeft: {
+    width: 68,
+    justifyContent: "center",
+  },
   cardChar: {
     fontSize: Typography.hanzi.sm,
     color: Colors.text.primary,

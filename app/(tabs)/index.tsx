@@ -55,6 +55,7 @@ export default function DashboardScreen() {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderHour, setReminderHour] = useState(20);
   const [reminderMinute, setReminderMinute] = useState(0);
+  const scheduleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const user = auth.currentUser;
 
@@ -197,8 +198,6 @@ export default function DashboardScreen() {
       triggerHaptic("light");
     }
   };
-
-  const scheduleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleHourChange = (h: number) => {
     setReminderHour(h);

@@ -84,17 +84,14 @@ const styles = StyleSheet.create({
   inputWrapper: {
     backgroundColor: Colors.bg.tertiary,
     borderRadius: Radii.card,
-    minHeight: 46,
+    minHeight: 48,
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
   },
   inputWrapperFocused: {
-    borderColor: Colors.accent.indigo,
     backgroundColor: Colors.bg.tertiary,
   },
   inputWrapperError: {
-    borderColor: Colors.neon.coral,
+    backgroundColor: Colors.bg.tertiary,
   },
   input: {
     paddingHorizontal: Spacing.md,

@@ -67,7 +67,9 @@ export default function DashboardScreen() {
   const progressPct = totalCards > 0 ? Math.round(((totalCards - totalDue) / totalCards) * 100) : 0;
 
   useEffect(() => {
-    if (userId) fetchDecks();
+    // _layout.tsx already awaits fetchDecks() before navigating here on boot/login,
+    // so only re-fetch if decks haven't been loaded yet (avoids double-fetch + loading jump).
+    if (userId && decks.length === 0) fetchDecks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 

@@ -14,7 +14,7 @@ interface WheelTimePickerProps {
   onMinuteChange: (minute: number) => void;
 }
 
-export function WheelTimePicker({
+export const WheelTimePicker = React.memo(function WheelTimePicker({
   hour,
   minute,
   onHourChange,
@@ -135,7 +135,7 @@ export function WheelTimePicker({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

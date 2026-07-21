@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -22,19 +22,18 @@ import { InsetGroup } from "../../components/ui/InsetGroup";
 export default function DeckDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const {
-    decks,
-    cards,
-    fetchCards,
-    deleteCard,
-    clearDeckCards,
-    deleteDeck,
-    resetDeckProgress,
-    isLoading,
-  } = useStore();
+  const decks = useStore((s) => s.decks);
+  const cards = useStore((s) => s.cards);
+  const fetchCards = useStore((s) => s.fetchCards);
+  const deleteCard = useStore((s) => s.deleteCard);
+  const clearDeckCards = useStore((s) => s.clearDeckCards);
+  const deleteDeck = useStore((s) => s.deleteDeck);
+  const resetDeckProgress = useStore((s) => s.resetDeckProgress);
+  const isLoading = useStore((s) => s.isLoading);
+
   const [resetting, setResetting] = useState(false);
-  const deck = decks.find((d) => d.id === id);
-  const deckCards = cards[id] || [];
+  const deck = useMemo(() => decks.find((d) => d.id === id), [decks, id]);
+  const deckCards = useMemo(() => cards[id] || [], [cards, id]);
 
   const handleDeleteDeck = () => {
     if (!deck) return;
@@ -174,11 +173,6 @@ export default function DeckDetailScreen() {
                 <Text style={styles.cardPinyin} numberOfLines={1}>
                   {(card.pinyin || "").trim()}
                 </Text>
-                {card.hanviet ? (
-                  <Text style={styles.cardHanviet} numberOfLines={1}>
-                    {(card.hanviet || "").trim()}
-                  </Text>
-                ) : null}
               </View>
               <Text style={styles.cardTranslation} numberOfLines={1}>
                 {(card.translation || "").trim()}

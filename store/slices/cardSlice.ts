@@ -108,21 +108,13 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    await setDoc(ref, card);
 
     const updatedCards = [card, ...existingCards];
     const realCardCount = updatedCards.length;
     const realDueCount = computeDueCount(updatedCards);
     const realNewCount = computeNewCount(updatedCards);
 
-    // Update deck card count, new count, and due count in Firestore & Store
-    const deckDocRef = doc(decksRef(uid), cardData.deckId);
-    await updateDoc(deckDocRef, {
-      cardCount: realCardCount,
-      dueCount: realDueCount,
-      newCount: realNewCount,
-    });
-
+    // Optimistically update local store immediately
     set((s) => ({
       cards: { ...s.cards, [cardData.deckId]: updatedCards },
       decks: s.decks.map((deck) =>
@@ -136,29 +128,52 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
           : deck,
       ),
     }));
+
+    // Async background persistence to Firestore
+    (async () => {
+      try {
+        await setDoc(ref, card);
+        const deckDocRef = doc(decksRef(uid), cardData.deckId);
+        await updateDoc(deckDocRef, {
+          cardCount: realCardCount,
+          dueCount: realDueCount,
+          newCount: realNewCount,
+        });
+      } catch (err) {
+        console.error("[addCard] Firestore async sync failed:", err);
+      }
+    })();
   },
 
   updateCard: async (cardId, deckId, updates) => {
     const uid = getUserId();
-    await updateDoc(cardRef(uid, deckId, cardId), {
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    });
-    set((s) => {
-      const existing = s.cards[deckId] || [];
-      const updatedCards = existing.map((c) => (c.id === cardId ? { ...c, ...updates } : c));
-      const realDueCount = computeDueCount(updatedCards);
-      const realNewCount = computeNewCount(updatedCards);
-      return {
-        cards: {
-          ...s.cards,
-          [deckId]: updatedCards,
-        },
-        decks: s.decks.map((d) =>
-          d.id === deckId ? { ...d, dueCount: realDueCount, newCount: realNewCount } : d,
-        ),
-      };
-    });
+    const existing = get().cards[deckId] || [];
+    const updatedCards = existing.map((c) => (c.id === cardId ? { ...c, ...updates } : c));
+    const realDueCount = computeDueCount(updatedCards);
+    const realNewCount = computeNewCount(updatedCards);
+
+    // Optimistically update local store immediately
+    set((s) => ({
+      cards: {
+        ...s.cards,
+        [deckId]: updatedCards,
+      },
+      decks: s.decks.map((d) =>
+        d.id === deckId ? { ...d, dueCount: realDueCount, newCount: realNewCount } : d,
+      ),
+    }));
+
+    // Async background persistence to Firestore
+    (async () => {
+      try {
+        await updateDoc(cardRef(uid, deckId, cardId), {
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.error("[updateCard] Firestore async sync failed:", err);
+      }
+    })();
   },
 
   deleteCard: async (cardId, deckId) => {
@@ -169,32 +184,33 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     const realDueCount = computeDueCount(updatedCards);
     const realNewCount = computeNewCount(updatedCards);
 
-    await deleteDoc(cardRef(uid, deckId, cardId));
-
-    // Update deck card count, due count & new count
-    const deckDocRef = doc(decksRef(uid), deckId);
-    await updateDoc(deckDocRef, {
-      cardCount: realCardCount,
-      dueCount: realDueCount,
-      newCount: realNewCount,
-    });
-
+    // Optimistically update local store immediately
     set((s) => ({
       cards: {
         ...s.cards,
         [deckId]: updatedCards,
       },
-      decks: s.decks.map((deck) =>
-        deck.id === deckId
-          ? {
-              ...deck,
-              cardCount: realCardCount,
-              dueCount: realDueCount,
-              newCount: realNewCount,
-            }
-          : deck,
+      decks: s.decks.map((d) =>
+        d.id === deckId
+          ? { ...d, cardCount: realCardCount, dueCount: realDueCount, newCount: realNewCount }
+          : d,
       ),
     }));
+
+    // Async background persistence to Firestore
+    (async () => {
+      try {
+        await deleteDoc(cardRef(uid, deckId, cardId));
+        const deckDocRef = doc(decksRef(uid), deckId);
+        await updateDoc(deckDocRef, {
+          cardCount: realCardCount,
+          dueCount: realDueCount,
+          newCount: realNewCount,
+        });
+      } catch (err) {
+        console.error("[deleteCard] Firestore async sync failed:", err);
+      }
+    })();
   },
 
   clearDeckCards: async (deckId) => {

@@ -43,7 +43,11 @@ function getLast7Days(): DayActivity[] {
 
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
-  const { decks, cards, fetchDecks, fetchCards, userId } = useStore();
+  const decks = useStore((s) => s.decks);
+  const cards = useStore((s) => s.cards);
+  const fetchDecks = useStore((s) => s.fetchDecks);
+  const fetchCards = useStore((s) => s.fetchCards);
+  const userId = useStore((s) => s.userId);
   const [loadingCards, setLoadingCards] = useState(true);
   const [reviewHistory, setReviewHistory] = useState<Record<string, number>>({});
 

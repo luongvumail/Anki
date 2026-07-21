@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
@@ -14,14 +14,14 @@ interface DeckPickerProps {
   onSelectDeck: (deckId: string) => void;
 }
 
-export function DeckPicker({
+export const DeckPicker = React.memo(function DeckPicker({
   decks,
   selectedDeckId,
   isOpen,
   onToggleOpen,
   onSelectDeck,
 }: DeckPickerProps) {
-  const selectedDeck = decks.find(d => d.id === selectedDeckId);
+  const selectedDeck = useMemo(() => decks.find((d) => d.id === selectedDeckId), [decks, selectedDeckId]);
 
   if (decks.length === 0) {
     return (
@@ -131,7 +131,7 @@ export function DeckPicker({
       </Modal>
     </>
   );
-}
+});
 
 const styles = StyleSheet.create({
   warningBox: {

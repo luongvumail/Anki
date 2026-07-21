@@ -18,12 +18,12 @@ interface CardPreviewProps {
   targetDeckName?: string;
   saving: boolean;
   onReGenerate: () => void;
-  onSave: () => void;
+  onSave?: () => void;
   /** Optional: show an X button to remove this card from the batch list */
   onRemove?: () => void;
 }
 
-export function CardPreview({
+export const CardPreview = React.memo(function CardPreview({
   cardData,
   targetDeckName,
   saving,
@@ -80,7 +80,6 @@ export function CardPreview({
         {/* Data Rows */}
         <View style={styles.previewRows}>
           <InfoRow label="Pinyin" value={cardData.pinyin} color={Colors.neon.cyan} />
-          <InfoRow label="Hán Việt" value={cardData.hanviet} />
           <InfoRow label="Nghĩa TV" value={cardData.translation} />
           {cardData.hskLevel ? <InfoRow label="Cấp HSK" value={`HSK ${cardData.hskLevel}`} /> : null}
           {cardData.radical ? <InfoRow label="Bộ thủ" value={cardData.radical} /> : null}
@@ -104,26 +103,28 @@ export function CardPreview({
         )}
 
         {/* Save Button */}
-        <AnimatedButton
-          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-          onPress={onSave}
-          disabled={saving}
-          activeScale={0.97}
-        >
-          {saving ? (
-            <ActivityIndicator color="#F3F4F6" size="small" />
-          ) : (
-            <Text style={styles.saveBtnText}>
-              {targetDeckName ? `Lưu vào bộ "${targetDeckName}"` : "Lưu vào bộ thẻ"}
-            </Text>
-          )}
-        </AnimatedButton>
+        {onSave && (
+          <AnimatedButton
+            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+            onPress={onSave}
+            disabled={saving}
+            activeScale={0.97}
+          >
+            {saving ? (
+              <ActivityIndicator color="#F3F4F6" size="small" />
+            ) : (
+              <Text style={styles.saveBtnText}>
+                {targetDeckName ? `Lưu vào bộ "${targetDeckName}"` : "Lưu vào bộ thẻ"}
+              </Text>
+            )}
+          </AnimatedButton>
+        )}
       </View>
     </Animated.View>
   );
-}
+});
 
-function InfoRow({ label, value, color }: { label: string; value: string; color?: string }) {
+const InfoRow = React.memo(function InfoRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
@@ -134,7 +135,7 @@ function InfoRow({ label, value, color }: { label: string; value: string; color?
       </Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   previewHeaderRow: {

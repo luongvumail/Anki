@@ -7,9 +7,9 @@ interface InsetGroupProps {
   style?: ViewStyle;
 }
 
-export function InsetGroup({ children, style }: InsetGroupProps) {
+export const InsetGroup = React.memo(function InsetGroup({ children, style }: InsetGroupProps) {
   return <View style={[styles.insetGroup, style]}>{children}</View>;
-}
+});
 
 const styles = StyleSheet.create({
   insetGroup: {

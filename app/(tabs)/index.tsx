@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -41,11 +41,14 @@ import {
   computeLearnedCount,
   getDeckMasteryPct,
 } from "../../lib/deckUtils";
-import { useRef } from "react";
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { decks, fetchDecks, isLoading, userId } = useStore();
+  const decks = useStore((s) => s.decks);
+  const fetchDecks = useStore((s) => s.fetchDecks);
+  const isLoading = useStore((s) => s.isLoading);
+  const userId = useStore((s) => s.userId);
+  const cardsState = useStore((s) => s.cards);
   const [refreshing, setRefreshing] = useState(false);
 
   // Account Settings Modal States
@@ -71,66 +74,87 @@ export default function DashboardScreen() {
   // 1 single character for circular avatar
   const initials = displayName.slice(0, 1).toUpperCase();
 
-  const cardsState = useStore((s) => s.cards);
+  const {
+    totalCards,
+    totalDue,
+    totalNew,
+    totalReview,
+    totalLearned,
+    progressPct,
+    heroTitleText,
+    subLabelText,
+  } = useMemo(() => {
+    const totalCardsVal = decks.reduce((s, d) => {
+      const deckCards = cardsState[d.id];
+      return s + (deckCards ? deckCards.length : d.cardCount || 0);
+    }, 0);
 
-  const totalCards = decks.reduce((s, d) => {
-    const deckCards = cardsState[d.id];
-    return s + (deckCards ? deckCards.length : d.cardCount || 0);
-  }, 0);
+    const totalDueVal = decks.reduce((s, d) => {
+      const deckCards = cardsState[d.id];
+      return s + (deckCards ? computeDueCount(deckCards) : d.dueCount || 0);
+    }, 0);
 
-  const totalDue = decks.reduce((s, d) => {
-    const deckCards = cardsState[d.id];
-    return s + (deckCards ? computeDueCount(deckCards) : d.dueCount || 0);
-  }, 0);
+    const totalNewVal = decks.reduce((s, d) => {
+      const deckCards = cardsState[d.id];
+      return s + (deckCards ? computeNewCount(deckCards) : d.newCount || 0);
+    }, 0);
 
-  const totalNew = decks.reduce((s, d) => {
-    const deckCards = cardsState[d.id];
-    return s + (deckCards ? computeNewCount(deckCards) : d.newCount || 0);
-  }, 0);
+    const totalReviewVal = decks.reduce((s, d) => {
+      const deckCards = cardsState[d.id];
+      return (
+        s +
+        (deckCards
+          ? computeReviewDueCount(deckCards)
+          : Math.max(0, (d.dueCount || 0) - (d.newCount || 0)))
+      );
+    }, 0);
 
-  const totalReview = decks.reduce((s, d) => {
-    const deckCards = cardsState[d.id];
-    return (
-      s +
-      (deckCards
-        ? computeReviewDueCount(deckCards)
-        : Math.max(0, (d.dueCount || 0) - (d.newCount || 0)))
-    );
-  }, 0);
+    const totalLearnedVal = decks.reduce((s, d) => {
+      const deckCards = cardsState[d.id];
+      if (deckCards) return s + computeLearnedCount(deckCards);
+      const count = d.cardCount || 0;
+      const due = d.dueCount || 0;
+      return s + Math.max(0, count - due);
+    }, 0);
 
-  const totalLearned = decks.reduce((s, d) => {
-    const deckCards = cardsState[d.id];
-    if (deckCards) return s + computeLearnedCount(deckCards);
-    const count = d.cardCount || 0;
-    const due = d.dueCount || 0;
-    return s + Math.max(0, count - due);
-  }, 0);
+    const progressPctVal =
+      totalCardsVal > 0 ? Math.round((totalLearnedVal / totalCardsVal) * 100) : 0;
 
-  const progressPct = totalCards > 0 ? Math.round((totalLearned / totalCards) * 100) : 0;
-
-  let heroTitleText = "HOÀN THÀNH ÔN TẬP HÔM NAY";
-  if (totalDue > 0) {
-    if (totalReview > 0 && totalNew > 0) {
-      heroTitleText = `${totalDue} THẺ CẦN HỌC HÔM NAY`;
-    } else if (totalNew > 0) {
-      heroTitleText = `${totalNew} THẺ MỚI CẦN HỌC`;
-    } else {
-      heroTitleText = `${totalReview} THẺ CẦN ÔN TẬP`;
+    let heroTitle = "HOÀN THÀNH ÔN TẬP HÔM NAY";
+    if (totalDueVal > 0) {
+      if (totalReviewVal > 0 && totalNewVal > 0) {
+        heroTitle = `${totalDueVal} THẺ CẦN HỌC HÔM NAY`;
+      } else if (totalNewVal > 0) {
+        heroTitle = `${totalNewVal} THẺ MỚI CẦN HỌC`;
+      } else {
+        heroTitle = `${totalReviewVal} THẺ CẦN ÔN TẬP`;
+      }
     }
-  }
 
-  let subLabelText = "";
-  if (totalDue > 0) {
-    if (totalReview > 0 && totalNew > 0) {
-      subLabelText = `${totalNew} THẺ MỚI  •  ${totalReview} CẦN ÔN`;
-    } else if (totalNew > 0) {
-      subLabelText = `${totalNew} THẺ MỚI`;
+    let subLabel = "";
+    if (totalDueVal > 0) {
+      if (totalReviewVal > 0 && totalNewVal > 0) {
+        subLabel = `${totalNewVal} THẺ MỚI  •  ${totalReviewVal} CẦN ÔN`;
+      } else if (totalNewVal > 0) {
+        subLabel = `${totalNewVal} THẺ MỚI`;
+      } else {
+        subLabel = `${totalReviewVal} THẺ CẦN ÔN`;
+      }
     } else {
-      subLabelText = `${totalReview} THẺ CẦN ÔN`;
+      subLabel = `${totalLearnedVal}/${totalCardsVal} THẺ ĐÃ THUỘC`;
     }
-  } else {
-    subLabelText = `${totalLearned}/${totalCards} THẺ ĐÃ THUỘC`;
-  }
+
+    return {
+      totalCards: totalCardsVal,
+      totalDue: totalDueVal,
+      totalNew: totalNewVal,
+      totalReview: totalReviewVal,
+      totalLearned: totalLearnedVal,
+      progressPct: progressPctVal,
+      heroTitleText: heroTitle,
+      subLabelText: subLabel,
+    };
+  }, [decks, cardsState]);
 
   useEffect(() => {
     // _layout.tsx already awaits fetchDecks() before navigating here on boot/login,
@@ -148,6 +172,11 @@ export default function DashboardScreen() {
       setReminderMinute(settings.minute);
     }
     loadReminder();
+    return () => {
+      if (scheduleDebounceRef.current) {
+        clearTimeout(scheduleDebounceRef.current);
+      }
+    };
   }, []);
 
   // Safety check: If user is logging out, return a dark view immediately to avoid layout/white flash

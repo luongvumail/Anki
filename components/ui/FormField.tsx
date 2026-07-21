@@ -20,7 +20,7 @@ interface FormFieldProps extends TextInputProps {
   labelStyle?: TextStyle;
 }
 
-export function FormField({
+export const FormField = React.memo(function FormField({
   label,
   error,
   helperText,
@@ -66,7 +66,7 @@ export function FormField({
       ) : null}
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   fieldBox: {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -22,11 +22,20 @@ import { InsetRow } from "../../components/ui/InsetRow";
 export default function CardDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id, deckId } = useLocalSearchParams<{ id: string; deckId: string }>();
-  const { cards, deleteCard } = useStore();
+  const cards = useStore((s) => s.cards);
+  const deleteCard = useStore((s) => s.deleteCard);
   const [speaking, setSpeaking] = useState(false);
 
-  const deckCards = cards[deckId] || [];
-  const card = deckCards.find((c) => c.id === id);
+  const card = useMemo(() => {
+    const deckCards = cards[deckId] || [];
+    return deckCards.find((c) => c.id === id);
+  }, [cards, deckId, id]);
+
+  useEffect(() => {
+    return () => {
+      Speech.stop();
+    };
+  }, []);
 
   const handleDelete = () => {
     if (!card) return;
@@ -110,8 +119,6 @@ export default function CardDetailScreen() {
 
         <View style={styles.subInfoRow}>
           <Text style={styles.pinyinText}>{card.pinyin}</Text>
-          <Text style={styles.dotSeparator}>•</Text>
-          <Text style={styles.hanvietText}>{card.hanviet}</Text>
         </View>
 
         <Text style={styles.translationText}>{card.translation}</Text>
@@ -130,7 +137,6 @@ export default function CardDetailScreen() {
       <SectionTitle>THÔNG TIN TỪ VỰNG</SectionTitle>
       <InsetGroup>
         <InsetRow label="Pinyin" value={card.pinyin} valueColor={Colors.neon.cyan} labelStyle={{ width: 100 }} />
-        <InsetRow label="Hán Việt" value={card.hanviet} isBorder labelStyle={{ width: 100 }} />
         <InsetRow label="Nghĩa TV" value={card.translation} isBorder labelStyle={{ width: 100 }} />
         {card.traditional && card.traditional !== card.character && (
           <InsetRow label="Phồn thể" value={card.traditional} isBorder labelStyle={{ width: 100 }} />

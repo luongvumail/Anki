@@ -41,6 +41,7 @@ export default function StudyScreen() {
 
   const slideAnim = useRef(new Animated.Value(0)).current; // 0 (front) -> 1 (revealed/expanded)
   const pan = useRef(new Animated.ValueXY()).current;
+  const isProcessingRef = useRef(false);
 
   // Computed values
   const deck = decks.find((d) => d.id === deckId);
@@ -89,6 +90,7 @@ export default function StudyScreen() {
     pan.setValue({ x: 0, y: 0 });
     setFlipped(false);
     setActiveSwipeDirection(null);
+    isProcessingRef.current = false;
   };
 
   useEffect(() => {
@@ -97,23 +99,29 @@ export default function StudyScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.currentIndex]);
 
-  const handleGrade = async (grade: number, direction: "left" | "right" | "up" | "down") => {
+  const handleGrade = (grade: number, direction: "left" | "right" | "up" | "down") => {
+    if (isProcessingRef.current) return;
     const card = currentCardRef.current;
     const sess = sessionRef.current;
     if (!card || !sess) return;
+
+    isProcessingRef.current = true;
 
     if (grade === SRS_GRADES.AGAIN) triggerHaptic("error");
     else if (grade === SRS_GRADES.HARD) triggerHaptic("warning");
     else triggerHaptic("success");
 
-    await gradeCard(card, grade as any);
+    // Async background update - non-blocking for smooth animation
+    gradeCard(card, grade as any).catch((err) => {
+      console.warn("[StudyScreen] Error updating card grade:", err);
+    });
 
-    const targetX = direction === "left" ? -width * 1.3 : direction === "right" ? width * 1.3 : 0;
-    const targetY = direction === "up" ? -height * 1.3 : direction === "down" ? height * 1.3 : 0;
+    const targetX = direction === "left" ? -width * 1.4 : direction === "right" ? width * 1.4 : 0;
+    const targetY = direction === "up" ? -height * 1.4 : direction === "down" ? height * 1.4 : 0;
 
     Animated.timing(pan, {
       toValue: { x: targetX, y: targetY },
-      duration: 220,
+      duration: 200,
       useNativeDriver: true,
     }).start(() => {
       advanceSession(card, grade);
@@ -129,9 +137,12 @@ export default function StudyScreen() {
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 8 || Math.abs(gestureState.dy) > 8;
+        if (isProcessingRef.current) return false;
+        return Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
       },
+      onPanResponderTerminationRequest: () => false,
       onPanResponderMove: (_, gestureState) => {
+        if (isProcessingRef.current) return;
         pan.setValue({ x: gestureState.dx, y: gestureState.dy });
 
         const { dx, dy } = gestureState;
@@ -146,6 +157,7 @@ export default function StudyScreen() {
         }
       },
       onPanResponderRelease: (_, gestureState) => {
+        if (isProcessingRef.current) return;
         const { dx, dy } = gestureState;
         const absX = Math.abs(dx);
         const absY = Math.abs(dy);
@@ -179,6 +191,14 @@ export default function StudyScreen() {
             useNativeDriver: true,
           }).start();
         }
+      },
+      onPanResponderTerminate: () => {
+        setActiveSwipeDirection(null);
+        Animated.spring(pan, {
+          toValue: { x: 0, y: 0 },
+          friction: 5,
+          useNativeDriver: true,
+        }).start();
       },
     }),
   ).current;
@@ -243,7 +263,7 @@ export default function StudyScreen() {
     );
   }
 
-  if (isSessionDone) {
+  if (isSessionDone || !currentCard) {
     return (
       <SessionDoneScreen
         session={session}
@@ -254,8 +274,6 @@ export default function StudyScreen() {
       />
     );
   }
-
-  if (!currentCard) return null;
 
   const pinyinColor = getPinyinToneColor(currentCard.pinyin);
 
@@ -402,6 +420,13 @@ export default function StudyScreen() {
                   <Text style={[styles.pinyin, { color: pinyinColor }]}>{currentCard.pinyin}</Text>
                   <View style={styles.divider} />
                   <Text style={styles.translation}>{currentCard.translation}</Text>
+
+                  {currentCard.radical ? (
+                    <View style={styles.radicalBox}>
+                      <Text style={styles.radicalTitle}>BỘ THỦ & CẤU TẠO CHỮ</Text>
+                      <Text style={styles.radicalText}>{currentCard.radical}</Text>
+                    </View>
+                  ) : null}
 
                   {currentCard.examples && currentCard.examples.length > 0 && (
                     <View style={styles.exampleBox}>
@@ -600,12 +625,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.bold,
     marginTop: Spacing.xs,
   },
-  hanviet: {
-    fontSize: Typography.text.title3.fontSize,
-    color: Colors.text.primary,
-    marginTop: 2,
-    fontWeight: Typography.weight.semibold,
-  },
   divider: {
     height: 1,
     width: "100%",
@@ -617,6 +636,27 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
     textAlign: "center",
     fontWeight: Typography.weight.semibold,
+  },
+  radicalBox: {
+    backgroundColor: Colors.bg.tertiary,
+    borderRadius: Radii.card,
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+    width: "100%",
+    alignItems: "flex-start",
+  },
+  radicalTitle: {
+    fontSize: Typography.text.caption2.fontSize,
+    color: Colors.accent.indigoLight,
+    fontWeight: Typography.weight.bold,
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  radicalText: {
+    fontSize: Typography.text.footnote.fontSize,
+    color: Colors.text.primary,
+    lineHeight: 18,
+    fontWeight: Typography.weight.medium,
   },
   exampleBox: {
     backgroundColor: Colors.bg.tertiary,

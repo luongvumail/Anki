@@ -7,9 +7,9 @@ interface SectionTitleProps {
   style?: TextStyle;
 }
 
-export function SectionTitle({ children, style }: SectionTitleProps) {
+export const SectionTitle = React.memo(function SectionTitle({ children, style }: SectionTitleProps) {
   return <Text style={[styles.title, style]}>{children}</Text>;
-}
+});
 
 const styles = StyleSheet.create({
   title: {

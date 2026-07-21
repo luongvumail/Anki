@@ -23,7 +23,7 @@ interface CardPreviewProps {
   onRemove?: () => void;
 }
 
-export function CardPreview({
+export const CardPreview = React.memo(function CardPreview({
   cardData,
   targetDeckName,
   saving,
@@ -122,9 +122,9 @@ export function CardPreview({
       </View>
     </Animated.View>
   );
-}
+});
 
-function InfoRow({ label, value, color }: { label: string; value: string; color?: string }) {
+const InfoRow = React.memo(function InfoRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
@@ -135,7 +135,7 @@ function InfoRow({ label, value, color }: { label: string; value: string; color?
       </Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   previewHeaderRow: {

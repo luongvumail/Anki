@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -51,7 +51,12 @@ function parseWords(raw: string): string[] {
 export default function AddCardScreen() {
   const insets = useSafeAreaInsets();
   const { deckId } = useLocalSearchParams<{ deckId?: string }>();
-  const { decks, cards, addCard, findExistingCard, fetchCards } = useStore();
+  const decks = useStore((s) => s.decks);
+  const cards = useStore((s) => s.cards);
+  const addCard = useStore((s) => s.addCard);
+  const findExistingCard = useStore((s) => s.findExistingCard);
+  const fetchCards = useStore((s) => s.fetchCards);
+
   const [input, setInput] = useState("");
   const [selectedDeckId, setSelectedDeckId] = useState("");
   const [deckPickerOpen, setDeckPickerOpen] = useState(false);
@@ -59,7 +64,7 @@ export default function AddCardScreen() {
   const [skippedWords, setSkippedWords] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const parsedWords = parseWords(input);
+  const parsedWords = useMemo(() => parseWords(input), [input]);
   const wordCount = parsedWords.length;
   const isMulti = wordCount > 1;
 

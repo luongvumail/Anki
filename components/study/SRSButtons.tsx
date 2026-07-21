@@ -10,7 +10,7 @@ interface SRSButtonsProps {
   onGrade: (grade: number, direction: 'left' | 'right' | 'up' | 'down') => void;
 }
 
-export function SRSButtons({ cardSRS, onGrade }: SRSButtonsProps) {
+export const SRSButtons = React.memo(function SRSButtons({ cardSRS, onGrade }: SRSButtonsProps) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.srsArea, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
@@ -37,9 +37,9 @@ export function SRSButtons({ cardSRS, onGrade }: SRSButtonsProps) {
       </View>
     </View>
   );
-}
+});
 
-function SRSButtonPropsItem({ label, sub, color, onPress }: { label: string; sub: string; color: string; onPress: () => void }) {
+const SRSButtonPropsItem = React.memo(function SRSButtonPropsItem({ label, sub, color, onPress }: { label: string; sub: string; color: string; onPress: () => void }) {
   return (
     <AnimatedButton
       style={[styles.srsBtn, { backgroundColor: color + '15' }]}
@@ -50,7 +50,7 @@ function SRSButtonPropsItem({ label, sub, color, onPress }: { label: string; sub
       <Text style={styles.srsBtnSub}>{sub}</Text>
     </AnimatedButton>
   );
-}
+});
 
 const styles = StyleSheet.create({
   srsArea: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.xs },

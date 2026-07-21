@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   Modal, Alert, ActivityIndicator, RefreshControl,
@@ -23,7 +23,15 @@ import {
 
 export default function DecksScreen() {
   const insets = useSafeAreaInsets();
-  const { decks, fetchDecks, createDeck, deleteDeck, resetDeckProgress, isLoading, userId } = useStore();
+  const decks = useStore((s) => s.decks);
+  const cardsState = useStore((s) => s.cards);
+  const fetchDecks = useStore((s) => s.fetchDecks);
+  const createDeck = useStore((s) => s.createDeck);
+  const deleteDeck = useStore((s) => s.deleteDeck);
+  const resetDeckProgress = useStore((s) => s.resetDeckProgress);
+  const isLoading = useStore((s) => s.isLoading);
+  const userId = useStore((s) => s.userId);
+
   const [showCreate, setShowCreate] = useState(false);
   const [deckName, setDeckName] = useState('');
   const [deckDesc, setDeckDesc] = useState('');
@@ -32,6 +40,20 @@ export default function DecksScreen() {
   const [resettingDeckId, setResettingDeckId] = useState<string | null>(null);
 
   const [refreshing, setRefreshing] = useState(false);
+
+  const deckItemsStats = useMemo(() => {
+    return decks.map((deck) => {
+      const deckCards = cardsState[deck.id];
+      const total = deckCards ? deckCards.length : deck.cardCount || 0;
+      const due = deckCards ? computeDueCount(deckCards) : deck.dueCount || 0;
+      const newCount = deckCards ? computeNewCount(deckCards) : deck.newCount || 0;
+      const reviewCount = deckCards
+        ? computeReviewDueCount(deckCards)
+        : Math.max(0, due - newCount);
+      const masteryPct = getDeckMasteryPct(total, due, deckCards);
+      return { deck, total, due, newCount, reviewCount, masteryPct };
+    });
+  }, [decks, cardsState]);
 
   useEffect(() => {
     if (userId && decks.length === 0) fetchDecks();
@@ -187,13 +209,7 @@ export default function DecksScreen() {
 
         {decks.length > 0 && (
           <InsetGroup>
-            {decks.map((deck, idx) => {
-              const deckCards = useStore.getState().cards[deck.id];
-              const total = deckCards ? deckCards.length : (deck.cardCount || 0);
-              const due = deckCards ? computeDueCount(deckCards) : (deck.dueCount || 0);
-              const newCount = deckCards ? computeNewCount(deckCards) : (deck.newCount || 0);
-              const reviewCount = deckCards ? computeReviewDueCount(deckCards) : Math.max(0, due - newCount);
-              const masteryPct = getDeckMasteryPct(total, due, deckCards);
+            {deckItemsStats.map(({ deck, total, due, newCount, reviewCount, masteryPct }, idx) => {
 
               return (
                 <React.Fragment key={deck.id}>

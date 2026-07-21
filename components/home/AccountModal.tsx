@@ -8,6 +8,7 @@ import {
   ScrollView,
   Switch,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -55,6 +56,11 @@ export function AccountModal({
 
   const handlePasswordSubmit = async () => {
     if (!newPassword) return;
+    if (newPassword.length < 6) {
+      triggerHaptic("warning");
+      Alert.alert("Thông báo", "Mật khẩu mới phải có tối thiểu 6 ký tự");
+      return;
+    }
     setLoadingPass(true);
     try {
       await onChangePassword(currentPassword, newPassword);

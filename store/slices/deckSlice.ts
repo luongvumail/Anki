@@ -63,26 +63,39 @@ export const createDeckSlice: StateCreator<DeckSlice & UISlice & CardSlice, [], 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    await setDoc(ref, deck);
+    // Optimistically update local store immediately
     set((s) => ({ decks: [...s.decks, deck] }));
+
+    // Async background persistence
+    (async () => {
+      try {
+        await setDoc(ref, deck);
+      } catch (err) {
+        console.error("[createDeck] Firestore async sync failed:", err);
+      }
+    })();
+
     return ref.id;
   },
 
   deleteDeck: async (deckId) => {
     const uid = getUserId();
-    // Cascade delete: delete all sub-cards first
-    try {
-      const snap = await getDocs(cardsRef(uid, deckId));
-      const deletions = snap.docs.map((d) => deleteDoc(d.ref));
-      await Promise.all(deletions);
-    } catch (e) {
-      console.warn("[deleteDeck] Could not cascade delete cards:", e);
-    }
-    // Delete deck doc
-    await deleteDoc(doc(decksRef(uid), deckId));
+    // Optimistically remove from store immediately
     set((s) => ({
       decks: s.decks.filter((d) => d.id !== deckId),
       cards: Object.fromEntries(Object.entries(s.cards).filter(([k]) => k !== deckId)),
     }));
+
+    // Async background cascade deletion in Firestore
+    (async () => {
+      try {
+        const snap = await getDocs(cardsRef(uid, deckId));
+        const deletions = snap.docs.map((d) => deleteDoc(d.ref));
+        await Promise.all(deletions);
+        await deleteDoc(doc(decksRef(uid), deckId));
+      } catch (e) {
+        console.warn("[deleteDeck] Could not cascade delete cards or deck:", e);
+      }
+    })();
   },
 });

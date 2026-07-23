@@ -287,7 +287,7 @@ export default function AuthScreen() {
           variant="primary"
           disabled={loading}
           onPress={handleSubmit}
-          height={54}
+          height={52}
         />
 
         {/* Footer Toggle */}

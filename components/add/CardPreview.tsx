@@ -3,14 +3,13 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
   StyleSheet,
   Animated,
 } from "react-native";
 import { CardData } from "../../lib/gemini";
 import { Colors, Typography, Spacing, Radii } from "../../constants/theme";
 import { SectionTitle } from "../ui/SectionTitle";
-import { AnimatedButton } from "../ui/AnimatedButton";
+import { DuolingoButton } from "../ui/DuolingoButton";
 import { Ionicons } from "@expo/vector-icons";
 
 interface CardPreviewProps {
@@ -104,20 +103,13 @@ export const CardPreview = React.memo(function CardPreview({
 
         {/* Save Button */}
         {onSave && (
-          <AnimatedButton
-            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-            onPress={onSave}
+          <DuolingoButton
+            title={saving ? "ĐANG LƯU..." : targetDeckName ? `LƯU VÀO BỘ "${targetDeckName.toUpperCase()}" ➜` : "LƯU VÀO BỘ THẺ ➜"}
+            variant="primary"
             disabled={saving}
-            activeScale={0.97}
-          >
-            {saving ? (
-              <ActivityIndicator color="#F3F4F6" size="small" />
-            ) : (
-              <Text style={styles.saveBtnText}>
-                {targetDeckName ? `Lưu vào bộ "${targetDeckName}"` : "Lưu vào bộ thẻ"}
-              </Text>
-            )}
-          </AnimatedButton>
+            onPress={onSave}
+            height={52}
+          />
         )}
       </View>
     </Animated.View>

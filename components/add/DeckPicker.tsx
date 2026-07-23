@@ -1,10 +1,9 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
 import { Deck } from '../../store/slices/types';
 import { DeckIcon } from '../ui/DeckIcon';
-import { InsetGroup } from '../ui/InsetGroup';
 
 interface DeckPickerProps {
   decks: Deck[];
@@ -21,7 +20,6 @@ export const DeckPicker = React.memo(function DeckPicker({
   onToggleOpen,
   onSelectDeck,
 }: DeckPickerProps) {
-  const selectedDeck = useMemo(() => decks.find((d) => d.id === selectedDeckId), [decks, selectedDeckId]);
 
   if (decks.length === 0) {
     return (
@@ -34,43 +32,12 @@ export const DeckPicker = React.memo(function DeckPicker({
   }
 
   return (
-    <>
-      <InsetGroup>
-        <TouchableOpacity
-          style={styles.pickerCell}
-          onPress={() => {
-            triggerHaptic('light');
-            onToggleOpen();
-          }}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.cellLabel}>Bộ thẻ</Text>
-          <View style={styles.pickerRight}>
-            {selectedDeck ? (
-              <View style={styles.pickerSelectedRow}>
-                <DeckIcon name={selectedDeck.icon} size={16} color={Colors.accent.indigoLight} style={{ marginRight: 6 }} />
-                <Text style={styles.pickerValue}>{selectedDeck.name}</Text>
-              </View>
-            ) : (
-              <Text style={styles.pickerPlaceholder}>Chọn bộ thẻ...</Text>
-            )}
-            <Ionicons
-              name="chevron-down"
-              size={16}
-              color={Colors.accent.gray3}
-              style={{ marginLeft: 6 }}
-            />
-          </View>
-        </TouchableOpacity>
-      </InsetGroup>
-
-      {/* Non-disruptive iOS Bottom Sheet Modal */}
-      <Modal
-        visible={isOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={onToggleOpen}
-      >
+    <Modal
+      visible={isOpen}
+      transparent
+      animationType="slide"
+      onRequestClose={onToggleOpen}
+    >
         <TouchableWithoutFeedback onPress={onToggleOpen}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
@@ -129,7 +96,6 @@ export const DeckPicker = React.memo(function DeckPicker({
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-    </>
   );
 });
 

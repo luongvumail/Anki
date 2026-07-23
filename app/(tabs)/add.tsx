@@ -23,9 +23,11 @@ import { useStore } from "../../store/useStore";
 import { getFirestoreErrorMessage, getGeminiErrorMessage } from "../../lib/errorHandler";
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
 import { SectionTitle } from "../../components/ui/SectionTitle";
-import { InsetGroup } from "../../components/ui/InsetGroup";
 import { DeckPicker } from "../../components/add/DeckPicker";
 import { CardPreview } from "../../components/add/CardPreview";
+import { DuolingoCard } from "../../components/ui/DuolingoCard";
+import { DuolingoButton } from "../../components/ui/DuolingoButton";
+import { DuolingoHeader } from "../../components/ui/DuolingoHeader";
 
 const MAX_WORDS = 10;
 
@@ -58,678 +60,380 @@ export default function AddCardScreen() {
   const fetchCards = useStore((s) => s.fetchCards);
 
   const [input, setInput] = useState("");
-  const [selectedDeckId, setSelectedDeckId] = useState("");
-  const [deckPickerOpen, setDeckPickerOpen] = useState(false);
+  const [selectedDeckId, setSelectedDeckId] = useState<string>(deckId || "");
   const [wordItems, setWordItems] = useState<WordItem[]>([]);
-  const [skippedWords, setSkippedWords] = useState<string[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [analyzingBatch, setAnalyzingBatch] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [recentHistory, setRecentHistory] = useState<string[]>([]);
 
-  const parsedWords = useMemo(() => parseWords(input), [input]);
-  const wordCount = parsedWords.length;
-  const isMulti = wordCount > 1;
-
-  // Restore or set selected deck from params/storage once decks are loaded
-  useEffect(() => {
-    const initSelectedDeck = async () => {
-      if (decks.length === 0) return;
-      if (deckId && decks.some((d) => d.id === deckId)) {
-        setSelectedDeckId(deckId);
-        await AsyncStorage.setItem("lastSelectedDeckId", deckId);
-      } else {
-        const saved = await AsyncStorage.getItem("lastSelectedDeckId");
-        if (saved && decks.some((d) => d.id === saved)) {
-          setSelectedDeckId(saved);
-        } else if (decks.length > 0) {
-          setSelectedDeckId((prev) => prev || decks[0].id);
-        }
-      }
-    };
-    initSelectedDeck();
-  }, [decks, deckId]);
+  const [isDeckPickerOpen, setIsDeckPickerOpen] = useState(false);
 
   useEffect(() => {
-    if (selectedDeckId && (!cards[selectedDeckId] || cards[selectedDeckId].length === 0)) {
+    if (decks.length > 0 && !selectedDeckId) {
+      setSelectedDeckId(deckId && decks.some((d) => d.id === deckId) ? deckId : decks[0].id);
+    }
+  }, [decks, deckId, selectedDeckId]);
+
+  useEffect(() => {
+    if (selectedDeckId && !cards[selectedDeckId]) {
       fetchCards(selectedDeckId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDeckId]);
+  }, [selectedDeckId, cards, fetchCards]);
 
-  // Internal: kick off batch generation for a list of words (1 API request)
-  const startGeneration = async (words: string[]) => {
-    triggerHaptic("medium");
-    setIsGenerating(true);
+  useEffect(() => {
+    AsyncStorage.getItem("@gemini_history").then((json) => {
+      if (json) {
+        try {
+          setRecentHistory(JSON.parse(json));
+        } catch {
+          // ignore
+        }
+      }
+    });
+  }, []);
 
-    // Show all as loading immediately
-    setWordItems(
-      words.map((word) => ({
-        word,
-        status: "loading" as WordItemStatus,
-        data: null,
-        saving: false,
-        saved: false,
-      })),
-    );
-
-    try {
-      // Single API request for all words — much faster & cheaper than N separate calls
-      const results = await generateCardDataBatch(words);
-      setWordItems(
-        words.map((word, i) => {
-          const data = results[i] || null;
-          return {
-            word,
-            status: data ? ("done" as WordItemStatus) : ("error" as WordItemStatus),
-            data,
-            saving: false,
-            saved: false,
-            errorMsg: data ? undefined : "Không nhận được dữ liệu từ AI",
-          };
-        }),
-      );
-      triggerHaptic("success");
-    } catch (e: any) {
-      triggerHaptic("error");
-      // Mark all as error
-      setWordItems((prev) =>
-        prev.map((item) => ({
-          ...item,
-          status: "error" as WordItemStatus,
-          errorMsg: getGeminiErrorMessage(e),
-        })),
-      );
-    } finally {
-      setIsGenerating(false);
-    }
+  const saveToHistory = async (newWords: string[]) => {
+    const combined = Array.from(new Set([...newWords, ...recentHistory])).slice(0, 8);
+    setRecentHistory(combined);
+    await AsyncStorage.setItem("@gemini_history", JSON.stringify(combined));
   };
 
-  const handleGenerate = async () => {
-    Keyboard.dismiss();
-    setSkippedWords([]);
+  const currentDeck = useMemo(() => {
+    return decks.find((d) => d.id === selectedDeckId) || decks[0] || null;
+  }, [decks, selectedDeckId]);
 
-    if (!input.trim()) {
+  const handleGenerateBatch = async () => {
+    const parsed = parseWords(input);
+    if (parsed.length === 0) {
       triggerHaptic("warning");
-      Alert.alert("Thông báo", "Vui lòng nhập từ cần học");
+      Alert.alert("Thông báo", "Vui lòng nhập từ hoặc câu Tiếng Trung");
       return;
     }
     if (!selectedDeckId) {
       triggerHaptic("warning");
-      Alert.alert("Thông báo", "Vui lòng chọn bộ thẻ lưu trữ trước");
+      Alert.alert("Thông báo", "Vui lòng chọn hoặc tạo 1 bộ thẻ trước");
       return;
     }
 
-    const words = parsedWords;
-    if (words.length === 0) return;
-
-    // Always pre-fetch cards for the selected deck so findExistingCard has 100% accurate data
-    await fetchCards(selectedDeckId);
-
-    const selectedDeckName = decks.find((d) => d.id === selectedDeckId)?.name || "Bộ thẻ";
-
-    // 1. Single Word Flow
-    if (words.length === 1) {
-      const existing = findExistingCard(words[0], selectedDeckId);
-      if (existing) {
-        triggerHaptic("warning");
-        Alert.alert(
-          "Từ vựng đã có sẵn!",
-          `Từ "${existing.character}" (${existing.pinyin}) đã có sẵn trong bộ thẻ "${selectedDeckName}".`,
-          [
-            {
-              text: "Đóng",
-              style: "cancel",
-              onPress: () => {
-                setInput("");
-              },
-            },
-            {
-              text: "Học ngay 📚",
-              onPress: () => {
-                setInput("");
-                router.push(`/study/${selectedDeckId}`);
-              },
-            },
-          ],
-        );
-        return;
-      }
-      startGeneration([words[0]]);
-      return;
-    }
-
-    // 2. Batch Words Flow: Filter out duplicate words that already exist in the deck
-    const existingWords: string[] = [];
-    const newWords: string[] = [];
-
-    for (const w of words) {
-      const match = findExistingCard(w, selectedDeckId);
-      if (match) {
-        existingWords.push(match.character || w);
-      } else {
-        newWords.push(w);
-      }
-    }
-
-    // If ALL words already exist in deck
-    if (newWords.length === 0) {
-      triggerHaptic("warning");
-      Alert.alert(
-        "Tất cả từ vựng đã có sẵn!",
-        `Tất cả ${words.length} từ vựng bạn nhập đều đã có sẵn trong bộ thẻ "${selectedDeckName}".`,
-        [
-          {
-            text: "Đóng",
-            style: "cancel",
-            onPress: () => {
-              setInput("");
-            },
-          },
-          {
-            text: "Học ngay 📚",
-            onPress: () => {
-              setInput("");
-              router.push(`/study/${selectedDeckId}`);
-            },
-          },
-        ],
-      );
-      return;
-    }
-
-    // If SOME words exist and SOME are new
-    if (existingWords.length > 0) {
-      setSkippedWords(existingWords);
-    }
-
-    // Generate AI ONLY for newWords!
-    startGeneration(newWords);
-  };
-
-  const handleReGenerate = async (word: string) => {
+    Keyboard.dismiss();
+    setAnalyzingBatch(true);
     triggerHaptic("medium");
-    setWordItems((prev) =>
-      prev.map((item) => (item.word === word ? { ...item, status: "loading", data: null } : item)),
-    );
+
+    const initialItems: WordItem[] = parsed.map((w) => ({
+      word: w,
+      status: "loading",
+      data: null,
+      saving: false,
+      saved: false,
+    }));
+    setWordItems(initialItems);
+    saveToHistory(parsed);
+
     try {
-      const data = await generateCardData(word);
-      triggerHaptic("success");
+      const results = await generateCardDataBatch(parsed);
+
       setWordItems((prev) =>
-        prev.map((item) => (item.word === word ? { ...item, status: "done", data } : item)),
+        prev.map((item, idx) => {
+          const resData = results[idx];
+          if (resData) {
+            return { ...item, status: "done", data: resData };
+          }
+          return {
+            ...item,
+            status: "error",
+            errorMsg: "Không thể phân tích từ này.",
+          };
+        })
       );
+      triggerHaptic("success");
     } catch (e: any) {
       triggerHaptic("error");
       setWordItems((prev) =>
-        prev.map((item) =>
-          item.word === word ? { ...item, status: "error", errorMsg: getGeminiErrorMessage(e) } : item,
-        ),
+        prev.map((item) => ({
+          ...item,
+          status: "error",
+          errorMsg: getGeminiErrorMessage(e),
+        }))
       );
+    } finally {
+      setAnalyzingBatch(false);
     }
   };
 
-  const handleSaveOne = async (item: WordItem) => {
-    if (!item.data || !selectedDeckId) return;
+  const handleSaveItem = async (index: number) => {
+    const item = wordItems[index];
+    if (!item.data || item.saving || item.saved) return;
 
     setWordItems((prev) =>
-      prev.map((i) => (i.word === item.word ? { ...i, saving: true } : i)),
+      prev.map((w, i) => (i === index ? { ...w, saving: true } : w))
     );
     triggerHaptic("medium");
 
     try {
+      const existing = findExistingCard(item.data.character, selectedDeckId);
+      if (existing) {
+        setWordItems((prev) =>
+          prev.map((w, i) =>
+            i === index
+              ? { ...w, saving: false, status: "error", errorMsg: "Từ này đã có trong bộ thẻ" }
+              : w
+          )
+        );
+        triggerHaptic("warning");
+        return;
+      }
+
       await addCard({
         deckId: selectedDeckId,
         character: item.data.character,
-        traditional: item.data.traditional,
         pinyin: item.data.pinyin,
         translation: item.data.translation,
         examples: item.data.examples || [],
-        radical: item.data.radical,
-        strokeCount: item.data.strokeCount,
-        hskLevel: item.data.hskLevel,
-        tags: item.data.tags || [],
         srs: createDefaultSRSState(),
       });
 
       triggerHaptic("success");
-
-      const remaining = wordItems.filter((i) => i.word !== item.word);
-      setWordItems(remaining);
-      if (remaining.length === 0) {
-        setInput("");
-        setSkippedWords([]);
-      }
-
-      Alert.alert(
-        "Thành công",
-        `Đã lưu từ "${item.data.character}" vào bộ thẻ thành công!`,
+      setWordItems((prev) =>
+        prev.map((w, i) =>
+          i === index ? { ...w, saving: false, saved: true } : w
+        )
       );
     } catch (e: any) {
       triggerHaptic("error");
-      Alert.alert("Lỗi lưu thẻ", getFirestoreErrorMessage(e));
       setWordItems((prev) =>
-        prev.map((i) => (i.word === item.word ? { ...i, saving: false } : i)),
+        prev.map((w, i) =>
+          i === index
+            ? { ...w, saving: false, errorMsg: getFirestoreErrorMessage(e) }
+            : w
+        )
       );
     }
   };
 
   const handleSaveAll = async () => {
-    const toSave = wordItems.filter((i) => i.status === "done" && !i.saved && i.data);
-    if (toSave.length === 0) return;
+    const validIndexes = wordItems
+      .map((item, idx) => ({ item, idx }))
+      .filter(({ item }) => item.status === "done" && item.data && !item.saved)
+      .map(({ idx }) => idx);
 
+    if (validIndexes.length === 0) return;
+
+    setBulkSaving(true);
     triggerHaptic("medium");
-    setWordItems((prev) => prev.map((i) => ({ ...i, saving: true })));
 
-    try {
-      await Promise.all(
-        toSave.map((item) =>
-          addCard({
-            deckId: selectedDeckId,
-            character: item.data!.character,
-            traditional: item.data!.traditional,
-            pinyin: item.data!.pinyin,
-            translation: item.data!.translation,
-            examples: item.data!.examples || [],
-            radical: item.data!.radical,
-            strokeCount: item.data!.strokeCount,
-            hskLevel: item.data!.hskLevel,
-            tags: item.data!.tags || [],
-            srs: createDefaultSRSState(),
-          }),
-        ),
-      );
+    for (const idx of validIndexes) {
+      await handleSaveItem(idx);
+    }
 
-      triggerHaptic("success");
-      setInput("");
-      setWordItems([]);
-      setSkippedWords([]);
+    setBulkSaving(false);
+  };
 
-      Alert.alert(
-        "Thành công",
-        `Đã lưu tất cả ${toSave.length} từ vựng vào bộ thẻ thành công!`,
-      );
-    } catch (e: any) {
-      triggerHaptic("error");
-      Alert.alert("Lỗi lưu thẻ", getFirestoreErrorMessage(e));
-      setWordItems((prev) => prev.map((i) => ({ ...i, saving: false })));
+  const handleHistoryClick = (histWord: string) => {
+    triggerHaptic("selection");
+    if (!input.trim()) {
+      setInput(histWord);
+    } else if (!input.includes(histWord)) {
+      setInput((prev) => `${prev}, ${histWord}`);
     }
   };
 
-  const handleRemoveItem = (word: string) => {
-    setWordItems((prev) => prev.filter((i) => i.word !== word));
-  };
-
-  const doneItems = wordItems.filter((i) => i.status === "done" && !i.saved);
-  const anyLoading = wordItems.some((i) => i.status === "loading");
-  const anySaving = wordItems.some((i) => i.saving);
+  const parsedCount = parseWords(input).length;
+  const unsavedDoneCount = wordItems.filter(
+    (w) => w.status === "done" && w.data && !w.saved
+  ).length;
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <DuolingoHeader courseName="Tiếng Trung" streakCount={1} gemsCount={150} heartsCount={5} />
+
       <ScrollView
         contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: Math.max(insets.top + 16, 54),
-            paddingBottom: Math.max(insets.bottom + 90, 110),
-          },
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom + 90, 110) },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Linear Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerSubhead}>TỰ ĐỘNG PHÂN TÍCH TỪ VỰNG</Text>
-          <Text style={styles.headerTitle}>Thêm từ AI</Text>
-        </View>
+        {/* Target Deck Picker Card */}
+        <DuolingoCard style={styles.pickerCard}>
+          <Text style={styles.pickerLabel}>LƯU VÀO BỘ THẺ:</Text>
+          <TouchableOpacity
+            style={styles.deckSelectBtn}
+            onPress={() => {
+              triggerHaptic("light");
+              setIsDeckPickerOpen(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="folder-open" size={20} color={Colors.duolingo.blue} />
+            <Text style={styles.deckSelectText} numberOfLines={1}>
+              {currentDeck ? currentDeck.name : "Chọn bộ thẻ..."}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={Colors.duolingo.textMuted} />
+          </TouchableOpacity>
+        </DuolingoCard>
 
-        {/* Section 1: Deck Selection */}
-        <SectionTitle>BỘ THẺ LƯU TRỮ</SectionTitle>
-        <DeckPicker
-          decks={decks}
-          selectedDeckId={selectedDeckId}
-          isOpen={deckPickerOpen}
-          onToggleOpen={() => setDeckPickerOpen((o) => !o)}
-          onSelectDeck={(id) => {
-            triggerHaptic("selection");
-            setSelectedDeckId(id);
-            setDeckPickerOpen(false);
-            setWordItems([]);
-            setSkippedWords([]);
-            AsyncStorage.setItem("lastSelectedDeckId", id);
-          }}
-        />
-
-        {/* Section 2: Input */}
-        <SectionTitle>
-          {isMulti
-            ? `TỪ CẦN TẠO THẺ  ·  ${wordCount}/${MAX_WORDS} TỪ`
-            : `TỪ CẦN TẠO THẺ  ·  TỐI ĐA ${MAX_WORDS} TỪ`}
-        </SectionTitle>
-        <InsetGroup>
-          <View style={styles.inputCell}>
-            <TextInput
-              style={styles.input}
-              placeholder="VD: 学习  hoặc nhiều từ: 学习, 汉语, 工作 (ngăn cách bằng dấu phẩy)"
-              placeholderTextColor={Colors.text.tertiary}
-              value={input}
-              onChangeText={setInput}
-              onSubmitEditing={() => handleGenerate()}
-              returnKeyType="search"
-            />
-            <TouchableOpacity
-              style={[
-                styles.genBtn,
-                (isGenerating || !input.trim() || !selectedDeckId) && styles.genBtnDisabled,
-              ]}
-              onPress={handleGenerate}
-              disabled={isGenerating || !input.trim() || !selectedDeckId}
-              activeOpacity={0.8}
-            >
-              {isGenerating ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="sparkles" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
-                  <Text style={styles.genBtnText}>
-                    {isMulti ? `Tạo ${wordCount} từ` : "Tạo AI"}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+        {/* AI Generator Input Card */}
+        <DuolingoCard style={styles.inputCard}>
+          <View style={styles.inputCardHeader}>
+            <Ionicons name="sparkles" size={20} color={Colors.duolingo.purple} />
+            <Text style={styles.inputCardTitle}>NHẬP TỪ VỰNG CẦN NẠP THẺ</Text>
           </View>
 
-          {/* Word chips — show parsed words when multiple detected, before generation */}
-          {isMulti && wordItems.length === 0 && (
-            <View style={styles.chipsRow}>
-              {parsedWords.map((w, i) => (
-                <View key={i} style={styles.chip}>
-                  <Text style={styles.chipText}>{w}</Text>
-                </View>
-              ))}
-              {wordCount >= MAX_WORDS && (
-                <View style={[styles.chip, styles.chipWarning]}>
-                  <Text style={[styles.chipText, styles.chipWarningText]}>
-                    tối đa {MAX_WORDS}
-                  </Text>
-                </View>
-              )}
+          <TextInput
+            style={styles.textArea}
+            placeholder="Nhập từ vựng Hán tự hoặc câu (Ví dụ: 学习, 苹果, 谢谢)..."
+            placeholderTextColor={Colors.duolingo.disabledText}
+            value={input}
+            onChangeText={setInput}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+
+          {recentHistory.length > 0 && (
+            <View style={styles.historyContainer}>
+              <Text style={styles.historyLabel}>Từ đã tra gần đây:</Text>
+              <View style={styles.historyChips}>
+                {recentHistory.map((hWord, idx) => (
+                  <TouchableOpacity
+                    key={`${hWord}-${idx}`}
+                    style={styles.historyChip}
+                    onPress={() => handleHistoryClick(hWord)}
+                  >
+                    <Text style={styles.historyChipText}>{hWord}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
-        </InsetGroup>
 
-        {/* Skipped duplicate words notice banner */}
-        {skippedWords.length > 0 && !isGenerating && (
-          <View style={styles.skippedBanner}>
-            <Ionicons
-              name="information-circle-outline"
-              size={16}
-              color={Colors.accent.indigoLight}
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.skippedText}>
-              Tự động bỏ qua {skippedWords.length} từ đã có sẵn trong bộ thẻ:{" "}
-              <Text style={{ fontWeight: Typography.weight.bold }}>{skippedWords.join(", ")}</Text>
-            </Text>
-          </View>
-        )}
+          <DuolingoButton
+            title={analyzingBatch ? "ĐANG PHÂN TÍCH AI..." : `✨ TẠO THẺ AI (${parsedCount}/${MAX_WORDS}) ➜`}
+            variant="blue"
+            disabled={analyzingBatch || parsedCount === 0}
+            onPress={handleGenerateBatch}
+            height={52}
+            style={{ marginTop: Spacing.md }}
+          />
+        </DuolingoCard>
 
-        {/* Global Loading Indicator */}
-        {(isGenerating || anyLoading) && (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator color={Colors.accent.indigoLight} size="small" />
-            <Text style={styles.loadingText}>AI đang phân tích...</Text>
-          </View>
-        )}
+        {/* Generated Cards List Preview */}
+        {wordItems.length > 0 && (
+          <View style={styles.resultsContainer}>
+            <View style={styles.resultsHeaderRow}>
+              <SectionTitle>KẾT QUẢ TỰ ĐỘNG TẠO ({wordItems.length})</SectionTitle>
 
-        {/* Per-word results */}
-        {wordItems.map((item) => {
-          if (item.status === "loading") {
-            return null;
-          }
-
-          if (item.status === "error") {
-            return (
-              <View key={item.word} style={styles.errorRow}>
-                <View style={styles.errorContent}>
-                  <Ionicons name="alert-circle-outline" size={16} color={Colors.neon.coral} />
-                  <Text style={styles.errorText}>
-                    "{item.word}" — {item.errorMsg || "Lỗi tạo thẻ"}
-                  </Text>
-                </View>
+              {unsavedDoneCount > 0 && (
                 <TouchableOpacity
-                  style={styles.retryBtn}
-                  onPress={() => handleReGenerate(item.word)}
-                  activeOpacity={0.7}
+                  style={styles.saveAllBtn}
+                  onPress={handleSaveAll}
+                  disabled={bulkSaving}
                 >
-                  <Ionicons
-                    name="refresh"
-                    size={13}
-                    color={Colors.accent.indigoLight}
-                    style={{ marginRight: 3 }}
-                  />
-                  <Text style={styles.retryBtnText}>Thử lại</Text>
+                  <Text style={styles.saveAllBtnText}>
+                    {bulkSaving ? "LƯU..." : "LƯU TẤT CẢ"}
+                  </Text>
                 </TouchableOpacity>
+              )}
+            </View>
+
+            {wordItems.map((item, idx) => (
+              <View key={`${item.word}-${idx}`} style={{ marginBottom: 12 }}>
+                {item.status === "done" && item.data ? (
+                  <CardPreview
+                    cardData={item.data}
+                    saving={item.saving}
+                    onReGenerate={() => {}}
+                    onSave={() => handleSaveItem(idx)}
+                  />
+                ) : (
+                  <DuolingoCard style={{ padding: 16 }}>
+                    <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>{item.word}</Text>
+                    {item.status === "loading" ? (
+                      <ActivityIndicator size="small" color={Colors.duolingo.blue} style={{ marginTop: 8 }} />
+                    ) : (
+                      <Text style={{ color: Colors.duolingo.red, marginTop: 4 }}>{item.errorMsg || "Lỗi tạo thẻ"}</Text>
+                    )}
+                  </DuolingoCard>
+                )}
               </View>
-            );
-          }
-
-          if (item.status === "done" && item.data && !item.saved) {
-            return (
-              <CardPreview
-                key={item.word}
-                cardData={item.data}
-                targetDeckName={decks.find((d) => d.id === selectedDeckId)?.name}
-                saving={item.saving}
-                onReGenerate={() => handleReGenerate(item.word)}
-                onSave={wordItems.length === 1 ? () => handleSaveOne(item) : undefined}
-                onRemove={wordItems.length > 1 ? () => handleRemoveItem(item.word) : undefined}
-              />
-            );
-          }
-
-          return null;
-        })}
-
-        {/* Save All button — visible when multiple words exist in batch and at least one is done */}
-        {wordItems.length > 1 && doneItems.length > 0 && !anyLoading && (
-          <TouchableOpacity
-            style={[styles.saveAllBtn, anySaving && styles.saveAllBtnDisabled]}
-            onPress={handleSaveAll}
-            disabled={anySaving}
-            activeOpacity={0.85}
-          >
-            {anySaving ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-done" size={16} color="#FFF" style={{ marginRight: 6 }} />
-                <Text style={styles.saveAllText}>
-                  {doneItems.length === 1 ? "Lưu 1 thẻ" : `Lưu tất cả ${doneItems.length} thẻ`}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+            ))}
+          </View>
         )}
       </ScrollView>
+
+      {/* Deck Picker Modal */}
+      <DeckPicker
+        decks={decks}
+        selectedDeckId={selectedDeckId}
+        isOpen={isDeckPickerOpen}
+        onToggleOpen={() => setIsDeckPickerOpen((v) => !v)}
+        onSelectDeck={(dId) => {
+          setSelectedDeckId(dId);
+          setIsDeckPickerOpen(false);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg.primary },
-  content: { paddingHorizontal: Spacing.pageMargin },
+  container: { flex: 1, backgroundColor: Colors.duolingo.bg },
+  scrollContent: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.md },
 
-  header: { marginBottom: 0 },
-  headerSubhead: {
-    fontSize: Typography.text.caption1.fontSize,
-    lineHeight: Typography.text.caption1.lineHeight,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.secondary,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    marginBottom: 2,
-  },
-  headerTitle: {
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: Typography.weight.bold,
-    color: Colors.text.primary,
-    letterSpacing: -0.3,
-  },
-
-  inputCell: {
+  pickerCard: { padding: Spacing.md, marginBottom: Spacing.md },
+  pickerLabel: { fontSize: 11, fontWeight: "800", color: Colors.duolingo.textMuted, letterSpacing: 0.8, marginBottom: 6 },
+  deckSelectBtn: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+    backgroundColor: "#131F24",
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    minHeight: 48,
-  },
-  input: {
-    flex: 1,
-    fontSize: Typography.text.subhead.fontSize,
-    color: Colors.text.primary,
-    paddingVertical: 8,
-    marginRight: 8,
-  },
-  genBtn: {
-    backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.card,
-    height: 36,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  genBtnDisabled: {
-    opacity: 0.4,
-  },
-  genBtnText: {
-    color: "#FFFFFF",
-    fontSize: Typography.text.caption1.fontSize,
-    fontWeight: Typography.weight.semibold,
-  },
-
-  chipsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    paddingTop: 2,
-  },
-  chip: {
-    backgroundColor: Colors.bg.tertiary,
-    borderRadius: Radii.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  chipText: {
-    fontSize: Typography.text.caption2.fontSize,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weight.medium,
-  },
-  chipWarning: {
-    backgroundColor: "rgba(248, 81, 73, 0.15)",
-  },
-  chipWarningText: {
-    color: Colors.neon.coral,
-  },
-
-  skippedBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(94, 106, 210, 0.12)",
-    borderRadius: Radii.card,
-    paddingHorizontal: Spacing.cellHorizontal,
     paddingVertical: 10,
-    marginTop: Spacing.md,
+    borderRadius: Radii.md,
+    borderBottomWidth: 2,
+    borderBottomColor: "#0D1518",
   },
-  skippedText: {
-    flex: 1,
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.medium,
-  },
+  deckSelectText: { flex: 1, fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
 
-  loadingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing.xl,
-    gap: 10,
-  },
-  loadingText: {
-    fontSize: Typography.text.footnote.fontSize,
-    color: Colors.text.secondary,
-  },
-
-  errorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
+  inputCard: { padding: Spacing.md, marginBottom: Spacing.md },
+  inputCardHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+  inputCardTitle: { fontSize: 12, fontWeight: "800", color: Colors.duolingo.purple, letterSpacing: 0.8 },
+  textArea: {
+    backgroundColor: "#131F24",
+    borderRadius: Radii.md,
     padding: Spacing.md,
-    marginTop: Spacing.md,
-    borderWidth: 1,
-    borderColor: "rgba(248, 81, 73, 0.2)",
-  },
-  errorContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    marginRight: 8,
-  },
-  errorText: {
-    fontSize: Typography.text.footnote.fontSize,
-    color: Colors.neon.coral,
-    marginLeft: 6,
-    flex: 1,
-  },
-  retryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.bg.tertiary,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: Radii.sm,
-  },
-  retryBtnText: {
-    fontSize: Typography.text.caption2.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.medium,
-  },
-
-  savedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  savedText: {
-    fontSize: Typography.text.subhead.fontSize,
-    color: Colors.neon.emerald,
-    marginLeft: 8,
-    fontWeight: Typography.weight.medium,
-  },
-
-  saveAllBtn: {
-    backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.card,
-    height: 50,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: Spacing.lg,
-  },
-  saveAllBtnDisabled: {
-    opacity: 0.6,
-  },
-  saveAllText: {
+    fontSize: 16,
     color: "#FFFFFF",
-    fontSize: Typography.text.callout.fontSize,
-    fontWeight: Typography.weight.semibold,
+    minHeight: 90,
+    fontWeight: "600",
   },
+
+  historyContainer: { marginTop: Spacing.sm },
+  historyLabel: { fontSize: 11, color: Colors.duolingo.textMuted, fontWeight: "700", marginBottom: 4 },
+  historyChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  historyChip: {
+    backgroundColor: "#131F24",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radii.full,
+    borderBottomWidth: 2,
+    borderBottomColor: "#0D1518",
+  },
+  historyChipText: { fontSize: 12, color: Colors.duolingo.blue, fontWeight: "700" },
+
+  resultsContainer: { marginTop: Spacing.sm },
+  resultsHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: Spacing.xs },
+  saveAllBtn: {
+    backgroundColor: Colors.duolingo.green,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: Radii.md,
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.duolingo.greenDark,
+  },
+  saveAllBtnText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
 });

@@ -1,25 +1,35 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from "react";
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  Modal, Alert, ActivityIndicator, RefreshControl,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useStore } from '../../store/useStore';
-import { getFirestoreErrorMessage } from '../../lib/errorHandler';
-import { Colors, Typography, Spacing, Radii, VECTOR_DECK_ICONS, triggerHaptic } from '../../constants/theme';
-import { DeckIcon } from '../../components/ui/DeckIcon';
-import { SectionTitle } from '../../components/ui/SectionTitle';
-import { InsetGroup } from '../../components/ui/InsetGroup';
-import { FormField } from '../../components/ui/FormField';
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useStore } from "../../store/useStore";
+import { getFirestoreErrorMessage } from "../../lib/errorHandler";
+import { Colors, Typography, Spacing, Radii, VECTOR_DECK_ICONS, triggerHaptic } from "../../constants/theme";
+import { DeckIcon } from "../../components/ui/DeckIcon";
+import { SectionTitle } from "../../components/ui/SectionTitle";
+import { FormField } from "../../components/ui/FormField";
+import { DuolingoCard } from "../../components/ui/DuolingoCard";
+import { DuolingoButton } from "../../components/ui/DuolingoButton";
+import { DuolingoHeader } from "../../components/ui/DuolingoHeader";
+import { ProgressBar } from "../../components/ui/ProgressBar";
 
 import {
   computeDueCount,
   computeNewCount,
   computeReviewDueCount,
   getDeckMasteryPct,
-} from '../../lib/deckUtils';
+} from "../../lib/deckUtils";
 
 export default function DecksScreen() {
   const insets = useSafeAreaInsets();
@@ -33,11 +43,10 @@ export default function DecksScreen() {
   const userId = useStore((s) => s.userId);
 
   const [showCreate, setShowCreate] = useState(false);
-  const [deckName, setDeckName] = useState('');
-  const [deckDesc, setDeckDesc] = useState('');
+  const [deckName, setDeckName] = useState("");
+  const [deckDesc, setDeckDesc] = useState("");
   const [selectedIcon, setSelectedIcon] = useState(VECTOR_DECK_ICONS[0]);
   const [creating, setCreating] = useState(false);
-  const [resettingDeckId, setResettingDeckId] = useState<string | null>(null);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -55,13 +64,17 @@ export default function DecksScreen() {
     });
   }, [decks, cardsState]);
 
+  const totalDueCount = useMemo(() => {
+    return deckItemsStats.reduce((sum, item) => sum + item.due, 0);
+  }, [deckItemsStats]);
+
   useEffect(() => {
     if (userId && decks.length === 0) fetchDecks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const onRefresh = async () => {
-    triggerHaptic('light');
+    triggerHaptic("light");
     setRefreshing(true);
     await fetchDecks();
     setRefreshing(false);
@@ -69,258 +82,212 @@ export default function DecksScreen() {
 
   const handleCreate = async () => {
     if (!deckName.trim()) {
-      triggerHaptic('warning');
-      Alert.alert('Thông báo', 'Vui lòng nhập tên bộ thẻ');
+      triggerHaptic("warning");
+      Alert.alert("Thông báo", "Vui lòng nhập tên bộ thẻ");
       return;
     }
     setCreating(true);
-    triggerHaptic('medium');
+    triggerHaptic("medium");
     try {
-      await createDeck({ name: deckName.trim(), description: deckDesc.trim(), color: Colors.accent.indigo, icon: selectedIcon });
-      triggerHaptic('success');
+      await createDeck({ name: deckName.trim(), description: deckDesc.trim(), color: Colors.duolingo.blue, icon: selectedIcon });
+      triggerHaptic("success");
+      setDeckName("");
+      setDeckDesc("");
       setShowCreate(false);
-      setDeckName(''); setDeckDesc('');
     } catch (e: any) {
-      triggerHaptic('error');
-      Alert.alert('Lỗi lưu dữ liệu', getFirestoreErrorMessage(e));
+      triggerHaptic("error");
+      Alert.alert("Tạo bộ thẻ thất bại", getFirestoreErrorMessage(e));
     } finally {
       setCreating(false);
     }
   };
 
-  const handleLongPressDeck = (deck: any) => {
-    triggerHaptic('warning');
+  const handleDelete = (deckId: string, name: string) => {
+    triggerHaptic("warning");
     Alert.alert(
-      deck.name,
-      'Chọn thao tác cho bộ thẻ này:',
+      "Xóa bộ thẻ",
+      `Bạn có chắc chắn muốn xóa bộ thẻ "${name}" cùng toàn bộ thẻ từ vựng bên trong không?`,
       [
+        { text: "Hủy", style: "cancel" },
         {
-          text: 'Học ngay',
-          onPress: () => {
-            triggerHaptic('light');
-            router.push(`/study/${deck.id}`);
+          text: "Xóa bộ thẻ",
+          style: "destructive",
+          onPress: async () => {
+            triggerHaptic("heavy");
+            try {
+              await deleteDeck(deckId);
+              triggerHaptic("success");
+            } catch (e: any) {
+              triggerHaptic("error");
+              Alert.alert("Xóa thất bại", getFirestoreErrorMessage(e));
+            }
           },
         },
-        {
-          text: 'Reset tiến độ học ⚠️',
-          onPress: () => {
-            Alert.alert(
-              'Reset tiến độ?',
-              `Toàn bộ tiến độ SRS của bộ thẻ “${deck.name}” sẽ về 0. Từ vựng vẫn được giữ nguyên.`,
-              [
-                { text: 'Hủy', style: 'cancel' },
-                {
-                  text: 'Reset tiến độ',
-                  style: 'destructive',
-                  onPress: async () => {
-                    triggerHaptic('error');
-                    setResettingDeckId(deck.id);
-                    try {
-                      await resetDeckProgress(deck.id);
-                      triggerHaptic('success');
-                      Alert.alert('Đã reset', `Tiến độ học của bộ thẻ “${deck.name}” đã về 0.`);
-                    } catch (e: any) {
-                      triggerHaptic('error');
-                      Alert.alert('Lỗi', e.message || 'Không thể reset tiến độ.');
-                    } finally {
-                      setResettingDeckId(null);
-                    }
-                  },
-                },
-              ]
-            );
-          },
-        },
-        {
-          text: 'Xoá bộ thẻ 🗑️',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert('Xoá bộ thẻ', `Bạn có chắc chắn muốn xoá bộ thẻ “${deck.name}” và toàn bộ từ vựng?`, [
-              { text: 'Hủy', style: 'cancel' },
-              {
-                text: 'Xoá',
-                style: 'destructive',
-                onPress: () => {
-                  triggerHaptic('error');
-                  deleteDeck(deck.id);
-                },
-              },
-            ]);
-          },
-        },
-        { text: 'Hủy', style: 'cancel' },
       ]
     );
   };
 
   return (
     <View style={styles.container}>
+      {/* Top Header Bar */}
+      <DuolingoHeader courseName="Anki" streakCount={1} gemsCount={150} heartsCount={5} />
+
       <ScrollView
         contentContainerStyle={[
-          styles.list,
-          {
-            paddingTop: Math.max(insets.top + 16, 54),
-            paddingBottom: Math.max(insets.bottom + 90, 110),
-          },
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom + 90, 110) },
         ]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent.gray} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.duolingo.blue} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Linear Header Bar */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerSubhead}>{decks.length} BỘ THẺ LƯU TRỮ</Text>
-            <Text style={styles.headerTitle}>Bộ thẻ</Text>
+        {/* Create Deck Banner Button */}
+        <DuolingoCard style={styles.createCardBanner}>
+          <View style={styles.bannerRow}>
+            <View style={styles.bannerIconBox}>
+              <Ionicons name="add-circle" size={32} color={Colors.duolingo.blue} />
+            </View>
+            <View style={styles.bannerText}>
+              <Text style={styles.bannerTitle}>Tạo Bộ Thẻ Từ Vựng Mới</Text>
+              <Text style={styles.bannerSub}>Tự do phân loại từ vựng theo chủ đề HSK hoặc sở thích</Text>
+            </View>
           </View>
-          <TouchableOpacity
-            style={styles.addBtn}
+          <DuolingoButton
+            title="➕ TẠO BỘ THẺ MỚI"
+            variant="primary"
             onPress={() => {
-              triggerHaptic('selection');
+              triggerHaptic("light");
               setShowCreate(true);
             }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={26} color={Colors.accent.indigoLight} />
-          </TouchableOpacity>
-        </View>
+            height={48}
+            style={{ marginTop: Spacing.sm }}
+          />
+        </DuolingoCard>
 
-        {decks.length === 0 && isLoading && (
-          <View style={{ marginTop: 40, alignItems: 'center' }}>
-            <ActivityIndicator color={Colors.accent.indigoLight} size="small" />
-          </View>
-        )}
+        <SectionTitle>DANH SÁCH BỘ THẺ</SectionTitle>
 
-        {decks.length === 0 && !isLoading && (
-          <View style={styles.emptyCard}>
-            <Ionicons name="folder-open-outline" size={40} color={Colors.text.secondary} style={{ marginBottom: Spacing.sm }} />
-            <Text style={styles.emptyTitle}>Chưa có bộ thẻ</Text>
-            <Text style={styles.emptySub}>Tạo bộ thẻ để phân loại từ vựng Tiếng Trung</Text>
-            <TouchableOpacity
-              style={styles.emptyBtn}
-              onPress={() => {
-                triggerHaptic('medium');
-                setShowCreate(true);
-              }}
-            >
-              <Text style={styles.emptyBtnText}>+ Tạo bộ thẻ mới</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {isLoading && decks.length === 0 ? (
+          <ActivityIndicator size="small" color={Colors.duolingo.blue} style={{ marginVertical: 30 }} />
+        ) : decks.length === 0 ? (
+          <DuolingoCard style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Chưa có bộ thẻ nào!</Text>
+            <Text style={styles.emptySub}>Bấm nút "Tạo bộ thẻ mới" ở trên để bắt đầu nạp từ vựng.</Text>
+          </DuolingoCard>
+        ) : (
+          <View style={styles.deckGrid}>
+            {deckItemsStats.map(({ deck, total, due, newCount, reviewCount, masteryPct }) => (
+              <DuolingoCard
+                key={deck.id}
+                style={styles.deckCardItem}
+                onPress={() => {
+                  triggerHaptic("light");
+                  router.push(`/deck/${deck.id}`);
+                }}
+              >
+                <View style={styles.deckCardTop}>
+                  <View style={styles.deckIconBox}>
+                    <DeckIcon name={deck.icon} size={24} color={Colors.duolingo.blue} />
+                  </View>
 
-        {decks.length > 0 && (
-          <InsetGroup>
-            {deckItemsStats.map(({ deck, total, due, newCount, reviewCount, masteryPct }, idx) => {
+                  <View style={styles.deckCardMain}>
+                    <Text style={styles.deckTitle} numberOfLines={1}>{deck.name}</Text>
+                    <Text style={styles.deckSubInfo}>
+                      {total} từ {due > 0 ? `• ${due} thẻ cần ôn` : ""}
+                    </Text>
+                  </View>
 
-              return (
-                <React.Fragment key={deck.id}>
-                  {idx > 0 && <View style={styles.cellDividerIndented} />}
                   <TouchableOpacity
-                    style={styles.deckCell}
-                    onPress={() => {
-                      triggerHaptic('light');
-                      router.push(`/deck/${deck.id}`);
-                    }}
-                    onLongPress={() => handleLongPressDeck(deck)}
-                    activeOpacity={0.7}
+                    onPress={() => handleDelete(deck.id, deck.name)}
+                    style={styles.deleteBtn}
                   >
-                    <View style={styles.deckIconTile}>
-                      {resettingDeckId === deck.id
-                        ? <ActivityIndicator size="small" color={Colors.accent.indigoLight} />
-                        : <DeckIcon name={deck.icon} size={18} color={Colors.accent.indigoLight} />
-                      }
-                    </View>
-
-                    <View style={styles.deckMeta}>
-                      <View style={styles.deckNameRow}>
-                        <Text style={styles.deckName}>{deck.name}</Text>
-                        {due > 0 ? (
-                          <View style={styles.dueBadge}>
-                            <Text style={styles.dueBadgeText}>
-                              {reviewCount > 0 && newCount > 0
-                                ? `${due} cần học`
-                                : reviewCount > 0
-                                ? `${reviewCount} cần ôn`
-                                : `${newCount} thẻ mới`}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-
-                      {deck.description ? (
-                        <Text style={styles.deckDesc} numberOfLines={1}>{deck.description}</Text>
-                      ) : null}
-
-                      {/* Progress Track */}
-                      <View style={styles.progressTrack}>
-                        <View style={[styles.progressFill, { width: `${masteryPct}%` }]} />
-                      </View>
-
-                      <Text style={styles.deckStatsText}>
-                        {total} từ vựng  •  {masteryPct}% thuộc
-                      </Text>
-                    </View>
-
-                    <Ionicons name="chevron-forward" size={16} color={Colors.accent.gray3} style={{ marginLeft: 8 }} />
+                    <Ionicons name="trash-outline" size={18} color={Colors.duolingo.red} />
                   </TouchableOpacity>
-                </React.Fragment>
-              );
-            })}
-          </InsetGroup>
+                </View>
+
+                {deck.description ? (
+                  <Text style={styles.deckDesc} numberOfLines={1}>{deck.description}</Text>
+                ) : null}
+
+                <ProgressBar
+                  progress={masteryPct / 100}
+                  height={10}
+                  fillColor={Colors.duolingo.green}
+                  style={{ marginTop: Spacing.xs }}
+                />
+
+                <DuolingoButton
+                  title={due > 0 ? `ÔN NGAY (${due} THẺ)` : "XEM CHI TIẾT ➜"}
+                  variant={due > 0 ? "primary" : "secondary"}
+                  onPress={() => {
+                    triggerHaptic("medium");
+                    if (due > 0) {
+                      router.push(`/study/${deck.id}`);
+                    } else {
+                      router.push(`/deck/${deck.id}`);
+                    }
+                  }}
+                  height={42}
+                  style={{ marginTop: Spacing.sm }}
+                />
+              </DuolingoCard>
+            ))}
+          </View>
         )}
       </ScrollView>
 
-      {/* Modal - Linear Form Field Layout */}
+      {/* Modal Create Deck */}
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCreate(false)}>
         <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowCreate(false)} style={styles.headerLeftBtn}>
-              <Text style={styles.cancelBtnText}>Hủy</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>BỘ THẺ MỚI</Text>
-            <TouchableOpacity onPress={handleCreate} disabled={creating} style={styles.headerRightBtn}>
-              {creating ? (
-                <ActivityIndicator size="small" color={Colors.accent.indigoLight} />
-              ) : (
-                <Text style={styles.doneBtnText}>Tạo</Text>
-              )}
+          <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top + 8, 20) }]}>
+            <Text style={styles.modalTitle}>TẠO BỘ THẺ MỚI</Text>
+            <TouchableOpacity onPress={() => setShowCreate(false)}>
+              <Ionicons name="close-circle" size={28} color={Colors.duolingo.textMuted} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-            <SectionTitle>THÔNG TIN BỘ THẺ</SectionTitle>
-            <View style={styles.formContainer}>
+          <ScrollView contentContainerStyle={styles.modalScroll}>
+            <DuolingoCard style={{ marginBottom: Spacing.md }}>
               <FormField
-                label="TÊN BỘ THẺ"
-                placeholder="VD: HSK 1, Giao tiếp..."
+                label="Tên bộ thẻ"
                 value={deckName}
                 onChangeText={setDeckName}
+                placeholder="Ví dụ: Từ vựng HSK 1, Giao tiếp..."
               />
+              <View style={{ height: 12 }} />
               <FormField
-                label="MÔ TẢ BỘ THẺ"
-                placeholder="Mô tả ngắn (tuỳ chọn)"
+                label="Mô tả bộ thẻ"
                 value={deckDesc}
                 onChangeText={setDeckDesc}
-                containerStyle={{ marginBottom: 0 }}
+                placeholder="Ví dụ: 150 từ vựng căn bản..."
               />
-            </View>
+            </DuolingoCard>
 
-            <SectionTitle>BIỂU TƯỢNG ICON VECTOR</SectionTitle>
-            <View style={styles.modalInsetGroupPadding}>
-              <View style={styles.iconGrid}>
-                {VECTOR_DECK_ICONS.map(icName => (
+            <SectionTitle>CHỌN BIỂU TƯỢNG BỘ THẺ</SectionTitle>
+            <View style={styles.iconGrid}>
+              {VECTOR_DECK_ICONS.map((iconName) => {
+                const isSelected = selectedIcon === iconName;
+                return (
                   <TouchableOpacity
-                    key={icName}
-                    style={[styles.iconOption, selectedIcon === icName && styles.iconOptionActive]}
+                    key={iconName}
+                    style={[styles.iconPickerItem, isSelected && styles.iconPickerSelected]}
                     onPress={() => {
-                      triggerHaptic('selection');
-                      setSelectedIcon(icName);
+                      triggerHaptic("selection");
+                      setSelectedIcon(iconName);
                     }}
                   >
-                    <DeckIcon name={icName} size={22} color={selectedIcon === icName ? Colors.accent.indigoLight : Colors.text.secondary} />
+                    <DeckIcon name={iconName} size={24} color={isSelected ? Colors.duolingo.blue : Colors.duolingo.textMuted} />
                   </TouchableOpacity>
-                ))}
-              </View>
+                );
+              })}
             </View>
+
+            <DuolingoButton
+              title={creating ? "ĐANG TẠO..." : "TẠO BỘ THẺ ➜"}
+              variant="primary"
+              disabled={creating || !deckName.trim()}
+              onPress={handleCreate}
+              height={52}
+              style={{ marginTop: Spacing.lg }}
+            />
           </ScrollView>
         </View>
       </Modal>
@@ -329,190 +296,36 @@ export default function DecksScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg.primary },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-  },
-  headerSubhead: {
-    fontSize: Typography.text.caption1.fontSize,
-    lineHeight: Typography.text.caption1.lineHeight,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.secondary,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  headerTitle: {
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: Typography.weight.bold,
-    color: Colors.text.primary,
-    letterSpacing: -0.3,
-  },
-  addBtn: {
-    padding: Spacing.xs,
-  },
-  list: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.sm },
+  container: { flex: 1, backgroundColor: Colors.duolingo.bg },
+  scrollContent: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.md },
 
-  deckCell: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: Spacing.cellVertical,
-    minHeight: Spacing.cellMinHeight,
-  },
-  cellDividerIndented: {
-    height: 1,
-    backgroundColor: Colors.border.separator,
-    marginLeft: 56,
-  },
-  deckIconTile: {
-    width: 32,
-    height: 32,
-    borderRadius: Radii.icon,
-    backgroundColor: Colors.bg.tertiary,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
-  },
-  deckMeta: { flex: 1 },
-  deckNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginRight: 4,
-  },
-  deckName: {
-    fontSize: Typography.text.body.fontSize,
-    lineHeight: Typography.text.body.lineHeight,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.primary,
-  },
-  deckDesc: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
-    marginTop: 2,
-  },
-  progressTrack: {
-    height: 4,
-    backgroundColor: Colors.bg.tertiary,
-    borderRadius: 2,
-    marginTop: 6,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.accent.indigoLight,
-    borderRadius: 2,
-  },
-  deckStatsText: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
-    marginTop: 4,
-  },
-  dueBadge: {
-    backgroundColor: Colors.accent.indigoDim,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  dueBadgeText: {
-    fontSize: Typography.text.caption2.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.bold,
-  },
-  emptyCard: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: Spacing.xl,
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: Typography.text.headline.fontSize,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.primary,
-  },
-  emptySub: {
-    fontSize: Typography.text.subhead.fontSize,
-    color: Colors.text.secondary,
-    marginTop: 4,
-    marginBottom: Spacing.lg,
-    textAlign: 'center',
-  },
-  emptyBtn: {
-    backgroundColor: Colors.accent.primary,
-    paddingHorizontal: Spacing.xl,
-    height: 50,
-    borderRadius: Radii.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyBtnText: {
-    color: '#F8FAFC',
-    fontWeight: Typography.weight.bold,
-    fontSize: Typography.text.subhead.fontSize,
-    letterSpacing: 0.5,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    includeFontPadding: false,
-  },
+  createCardBanner: { padding: Spacing.md, marginBottom: Spacing.md },
+  bannerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  bannerIconBox: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.duolingo.blueDim, alignItems: "center", justifyContent: "center" },
+  bannerText: { flex: 1 },
+  bannerTitle: { fontSize: 16, fontWeight: "800", color: "#FFFFFF" },
+  bannerSub: { fontSize: 12, color: Colors.duolingo.textMuted, marginTop: 2 },
 
-  modalContainer: { flex: 1, backgroundColor: Colors.bg.primary },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border.separator,
-    backgroundColor: Colors.bg.secondary,
-  },
-  modalTitle: {
-    fontSize: Typography.text.footnote.fontSize,
-    fontWeight: Typography.weight.bold,
-    color: Colors.text.primary,
-    letterSpacing: 1,
-  },
-  headerLeftBtn: { padding: Spacing.xs },
-  headerRightBtn: { padding: Spacing.xs },
-  cancelBtnText: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.accent.indigoLight,
-  },
-  doneBtnText: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.bold,
-  },
-  modalContent: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.xs, paddingBottom: 40 },
-  formContainer: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: Spacing.lg,
-  },
-  modalInsetGroupPadding: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: Spacing.lg,
-  },
-  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  iconOption: {
-    width: 44,
-    height: 44,
-    borderRadius: Radii.icon,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.bg.tertiary,
-  },
-  iconOptionActive: {
-    borderWidth: 1,
-    borderColor: Colors.accent.indigoLight,
-    backgroundColor: Colors.accent.indigoDim,
-  },
+  emptyCard: { alignItems: "center", justifyContent: "center", padding: Spacing.xl, marginTop: Spacing.md },
+  emptyTitle: { fontSize: 18, fontWeight: "800", color: "#FFFFFF" },
+  emptySub: { fontSize: 13, color: Colors.duolingo.textMuted, marginTop: 4, textAlign: "center" },
+
+  deckGrid: { gap: 12 },
+  deckCardItem: { padding: Spacing.md },
+  deckCardTop: { flexDirection: "row", alignItems: "center", gap: 12 },
+  deckIconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.duolingo.blueDim, alignItems: "center", justifyContent: "center" },
+  deckCardMain: { flex: 1 },
+  deckTitle: { fontSize: 18, fontWeight: "800", color: "#FFFFFF" },
+  deckSubInfo: { fontSize: 12, color: Colors.duolingo.textMuted, marginTop: 2, fontWeight: "600" },
+  deleteBtn: { padding: 4 },
+  deckDesc: { fontSize: 13, color: Colors.duolingo.textMuted, marginTop: 6 },
+
+  modalContainer: { flex: 1, backgroundColor: Colors.duolingo.bg },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.pageMargin, paddingBottom: Spacing.md, borderBottomWidth: 2, borderBottomColor: Colors.duolingo.cardBorder },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#FFFFFF" },
+  modalScroll: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.md, paddingBottom: 40 },
+
+  iconGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: Spacing.md },
+  iconPickerItem: { width: 52, height: 52, borderRadius: 14, backgroundColor: Colors.duolingo.bgSoftDark, alignItems: "center", justifyContent: "center", borderBottomWidth: 3, borderBottomColor: "#18242B" },
+  iconPickerSelected: { backgroundColor: Colors.duolingo.blueDim, borderBottomColor: Colors.duolingo.blueDark },
 });

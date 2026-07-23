@@ -1,697 +1,368 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
-  Animated,
-  useWindowDimensions,
+  TouchableOpacity,
   ActivityIndicator,
-  ScrollView,
-  PanResponder,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import * as Speech from "expo-speech";
 import { useStore } from "../../store/useStore";
-import { SRS_GRADES } from "../../lib/srs";
-import { getPinyinToneColor } from "../../lib/pinyinColor";
+import { generateQuizQuestion, QuizQuestion } from "../../lib/quizGenerator";
+import { isDue, calculateSRS, createDefaultSRSState, SRSGrade, SRS_GRADES } from "../../lib/srs";
+import { recordReviewToday } from "../../lib/reviewTracker";
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
-import { ProgressBar } from "../../components/ui/ProgressBar";
-import { SRSButtons } from "../../components/study/SRSButtons";
+import { FlashcardView, ShortTermGrade } from "../../components/study/FlashcardView";
+import { QuizCardView } from "../../components/study/QuizCardView";
 import { SessionDoneScreen } from "../../components/study/SessionDoneScreen";
+import { ProgressBar } from "../../components/ui/ProgressBar";
+import { StudySession, Card } from "../../store/slices/types";
 
-const SWIPE_THRESHOLD = 90;
+type StudyMode = "flashcard" | "quiz";
 
 export default function StudyScreen() {
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
-  const cardWidth = width - Spacing.pageMargin * 2;
-  const cardHeight = height * 0.54;
-
   const { deckId } = useLocalSearchParams<{ deckId: string }>();
-  const { session, startSession, endSession, advanceSession, gradeCard, decks } = useStore();
+  const decks = useStore((s) => s.decks);
+  const cards = useStore((s) => s.cards);
+  const updateCard = useStore((s) => s.updateCard);
+  const fetchCards = useStore((s) => s.fetchCards);
+  const isLoading = useStore((s) => s.isLoading);
 
-  const [flipped, setFlipped] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  const [activeSwipeDirection, setActiveSwipeDirection] = useState<
-    "left" | "right" | "up" | "down" | null
-  >(null);
+  const deck = useMemo(() => decks.find((d) => d.id === deckId), [decks, deckId]);
+  const deckCards = useMemo(() => cards[deckId] || [], [cards, deckId]);
 
-  const slideAnim = useRef(new Animated.Value(0)).current; // 0 (front) -> 1 (revealed/expanded)
-  const pan = useRef(new Animated.ValueXY()).current;
-  const isProcessingRef = useRef(false);
-
-  // Computed values
-  const deck = decks.find((d) => d.id === deckId);
-  const currentCard = session?.queue[session.currentIndex ?? 0];
-  const isSessionDone = session && session.currentIndex >= session.queue.length;
-  const progress = session ? session.currentIndex / Math.max(session.queue.length, 1) : 0;
-
-  // Refs for PanResponder handlers
-  const flippedRef = useRef(flipped);
-  const currentCardRef = useRef(currentCard);
-  const sessionRef = useRef(session);
-  useEffect(() => {
-    flippedRef.current = flipped;
-  }, [flipped]);
-  useEffect(() => {
-    currentCardRef.current = currentCard;
-  }, [currentCard]);
-  useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
+  const [mode, setMode] = useState<StudyMode>("flashcard");
+  const [session, setSession] = useState<StudySession | null>(null);
+  const [targetCards, setTargetCards] = useState<Card[]>([]);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [isDone, setIsDone] = useState(false);
 
   useEffect(() => {
-    if (deckId) startSession(deckId);
-    return () => {
-      Speech.stop();
-    };
+    if (deckId) fetchCards(deckId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deckId]);
 
-  // Apple / Duolingo Style Reveal (Smooth Slide Up & Spring Expand)
-  const flipCard = () => {
-    if (flipped) return;
-    triggerHaptic("light");
-    setFlipped(true);
-
-    Animated.spring(slideAnim, {
-      toValue: 1,
-      friction: 7,
-      tension: 65,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const resetCardPosition = () => {
-    slideAnim.setValue(0);
-    pan.setValue({ x: 0, y: 0 });
-    setFlipped(false);
-    setActiveSwipeDirection(null);
-    isProcessingRef.current = false;
-  };
-
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    resetCardPosition();
+    if (deckCards.length > 0 && !session && !isDone) {
+      const dueCards = deckCards.filter((c) => isDue(c.srs));
+      const chosenCards = dueCards.length > 0 ? dueCards : deckCards.slice(0, 15);
+      const generatedQuestions: QuizQuestion[] = chosenCards
+        .map((c) => generateQuizQuestion(c, deckCards))
+        .filter((q): q is QuizQuestion => q !== null);
+
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTargetCards(chosenCards);
+      setQuestions(generatedQuestions);
+      setSession({
+        deckId,
+        queue: chosenCards,
+        currentIndex: 0,
+        correctCount: 0,
+        reviewedCount: 0,
+        startTime: new Date(),
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.currentIndex]);
+  }, [deckCards, deckId, isDone]);
 
-  const handleGrade = (grade: number, direction: "left" | "right" | "up" | "down") => {
-    if (isProcessingRef.current) return;
-    const card = currentCardRef.current;
-    const sess = sessionRef.current;
-    if (!card || !sess) return;
+  // Handle Flashcard Short-Term Memory Rating (Quên, Khó, Dễ)
+  const handleFlashcardGrade = async (grade: ShortTermGrade) => {
+    if (!session || targetCards.length === 0) return;
 
-    isProcessingRef.current = true;
+    const currentCard = targetCards[session.currentIndex];
+    const srsGrade: SRSGrade = grade === "again" ? SRS_GRADES.AGAIN : grade === "hard" ? SRS_GRADES.HARD : SRS_GRADES.EASY;
+    const currentSRS = currentCard.srs || createDefaultSRSState();
+    const newSRS = calculateSRS(srsGrade, currentSRS);
 
-    if (grade === SRS_GRADES.AGAIN) triggerHaptic("error");
-    else if (grade === SRS_GRADES.HARD) triggerHaptic("warning");
-    else triggerHaptic("success");
+    await updateCard(currentCard.id, deckId, { srs: newSRS });
+    await recordReviewToday();
 
-    // Async background update - non-blocking for smooth animation
-    gradeCard(card, grade as any).catch((err) => {
-      console.warn("[StudyScreen] Error updating card grade:", err);
-    });
+    let updatedQueue = [...targetCards];
+    const currIdx = session.currentIndex;
 
-    const targetX = direction === "left" ? -width * 1.4 : direction === "right" ? width * 1.4 : 0;
-    const targetY = direction === "up" ? -height * 1.4 : direction === "down" ? height * 1.4 : 0;
+    if (grade === "again") {
+      // QUÊN: Re-insert card after 2 cards in session queue so it repeats soon!
+      const targetPos = Math.min(updatedQueue.length, currIdx + 2);
+      updatedQueue.splice(targetPos, 0, currentCard);
+    } else if (grade === "hard") {
+      // KHÓ: Re-insert card after 4 cards in session queue so it repeats later!
+      const targetPos = Math.min(updatedQueue.length, currIdx + 4);
+      updatedQueue.splice(targetPos, 0, currentCard);
+    }
+    // DỄ: Card is mastered & passes for this session! No re-insertion.
 
-    Animated.timing(pan, {
-      toValue: { x: targetX, y: targetY },
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      advanceSession(card, grade);
-    });
+    const nextIndex = currIdx + 1;
+    const isCorrect = grade === "easy";
+    const newCorrect = isCorrect ? session.correctCount + 1 : session.correctCount;
+    const newReviewed = session.reviewedCount + 1;
+
+    setTargetCards(updatedQueue);
+
+    if (nextIndex >= updatedQueue.length) {
+      setSession({
+        ...session,
+        queue: updatedQueue,
+        currentIndex: nextIndex,
+        correctCount: newCorrect,
+        reviewedCount: newReviewed,
+      });
+      setIsDone(true);
+    } else {
+      setSession({
+        ...session,
+        queue: updatedQueue,
+        currentIndex: nextIndex,
+        correctCount: newCorrect,
+        reviewedCount: newReviewed,
+      });
+    }
   };
 
-  const handleGradeRef = useRef(handleGrade);
-  useEffect(() => {
-    handleGradeRef.current = handleGrade;
-  });
+  // Handle Quiz Answer (Correct / Wrong)
+  const handleQuizAnswer = async (isCorrect: boolean) => {
+    if (!session || questions.length === 0) return;
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        if (isProcessingRef.current) return false;
-        return Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
-      },
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderMove: (_, gestureState) => {
-        if (isProcessingRef.current) return;
-        pan.setValue({ x: gestureState.dx, y: gestureState.dy });
+    const currentQuestion = questions[session.currentIndex];
+    const card = currentQuestion.card;
 
-        const { dx, dy } = gestureState;
-        if (Math.abs(dx) > Math.abs(dy)) {
-          if (dx < -40) setActiveSwipeDirection("left");
-          else if (dx > 40) setActiveSwipeDirection("right");
-          else setActiveSwipeDirection(null);
-        } else {
-          if (dy < -40) setActiveSwipeDirection("up");
-          else if (dy > 40) setActiveSwipeDirection("down");
-          else setActiveSwipeDirection(null);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (isProcessingRef.current) return;
-        const { dx, dy } = gestureState;
-        const absX = Math.abs(dx);
-        const absY = Math.abs(dy);
+    const grade: SRSGrade = isCorrect ? 4 : 1;
+    const currentSRS = card.srs || createDefaultSRSState();
+    const newSRS = calculateSRS(grade, currentSRS);
 
-        if (absX < 12 && absY < 12) {
-          if (!flippedRef.current) {
-            flipCard();
-          }
-          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
-          return;
-        }
+    await updateCard(card.id, deckId, { srs: newSRS });
+    await recordReviewToday();
 
-        if (absX > absY && absX > SWIPE_THRESHOLD) {
-          if (dx < 0) handleGradeRef.current(SRS_GRADES.AGAIN, "left");
-          else handleGradeRef.current(SRS_GRADES.GOOD, "right");
-        } else if (absY > absX && absY > SWIPE_THRESHOLD) {
-          if (dy < 0) handleGradeRef.current(SRS_GRADES.HARD, "up");
-          else {
-            setActiveSwipeDirection(null);
-            Animated.spring(pan, {
-              toValue: { x: 0, y: 0 },
-              friction: 5,
-              useNativeDriver: true,
-            }).start();
-          }
-        } else {
-          setActiveSwipeDirection(null);
-          Animated.spring(pan, {
-            toValue: { x: 0, y: 0 },
-            friction: 5,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-      onPanResponderTerminate: () => {
-        setActiveSwipeDirection(null);
-        Animated.spring(pan, {
-          toValue: { x: 0, y: 0 },
-          friction: 5,
-          useNativeDriver: true,
-        }).start();
-      },
-    }),
-  ).current;
+    const nextIndex = session.currentIndex + 1;
+    const newCorrect = isCorrect ? session.correctCount + 1 : session.correctCount;
+    const newReviewed = session.reviewedCount + 1;
 
-  const speakWord = () => {
-    if (!currentCard) return;
-    triggerHaptic("selection");
-    setSpeaking(true);
-    Speech.speak(currentCard.character, {
-      language: "zh-CN",
-      rate: 0.8,
-      onDone: () => setSpeaking(false),
-      onError: () => setSpeaking(false),
-    });
+    if (nextIndex >= questions.length) {
+      setSession({
+        ...session,
+        currentIndex: nextIndex,
+        correctCount: newCorrect,
+        reviewedCount: newReviewed,
+      });
+      setIsDone(true);
+    } else {
+      setSession({
+        ...session,
+        currentIndex: nextIndex,
+        correctCount: newCorrect,
+        reviewedCount: newReviewed,
+      });
+    }
   };
 
-  const cardRotateStyle = {
-    transform: [
-      { translateX: pan.x },
-      { translateY: pan.y },
-      {
-        rotate: pan.x.interpolate({
-          inputRange: [-width, 0, width],
-          outputRange: ["-10deg", "0deg", "10deg"],
-        }),
-      },
-    ],
+  const endSession = async () => {
+    if (session && session.reviewedCount > 0) {
+      await recordReviewToday();
+    }
   };
 
-  // Interpolations for Apple / Duolingo Slide-Up Reveal
-  const charTranslateY = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [40, -10],
-  });
-
-  const charScale = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0.82],
-  });
-
-  const answerTranslateY = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [30, 0],
-  });
-
-  const answerOpacity = slideAnim.interpolate({
-    inputRange: [0, 0.4, 1],
-    outputRange: [0, 0.2, 1],
-  });
-
-  const tapHintOpacity = slideAnim.interpolate({
-    inputRange: [0, 0.3],
-    outputRange: [1, 0],
-  });
-
-  if (!session) {
+  if (isLoading || (!session && !isDone)) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="small" color={Colors.accent.indigoLight} />
-        <Text style={styles.loadingText}>ĐANG CHUẨN BỊ THẺ HỌC...</Text>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color={Colors.duolingo.green} />
       </View>
     );
   }
 
-  if (isSessionDone || !currentCard) {
+  const totalCount = mode === "flashcard" ? targetCards.length : questions.length;
+
+  if (isDone || !session || session.currentIndex >= totalCount) {
     return (
       <SessionDoneScreen
-        session={session}
+        session={
+          session || {
+            deckId,
+            queue: [],
+            currentIndex: 0,
+            correctCount: 0,
+            reviewedCount: 0,
+            startTime: new Date(),
+          }
+        }
         onDone={() => {
-          endSession();
+          triggerHaptic("medium");
           router.back();
         }}
       />
     );
   }
 
-  const pinyinColor = getPinyinToneColor(currentCard.pinyin);
+  const progress = (session.currentIndex + 1) / totalCount;
+  const currentCard = targetCards[session.currentIndex];
+  const currentQuestion = questions[session.currentIndex];
 
   return (
     <View style={styles.container}>
-      {/* Header Bar (100% Vietnamese) */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 48) }]}>
+      {/* Duolingo Style Header Bar */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 44) }]}>
         <TouchableOpacity
           onPress={() => {
             triggerHaptic("light");
             endSession();
             router.back();
           }}
-          style={styles.headerLeftBtn}
+          style={styles.closeHeaderBtn}
+          activeOpacity={0.8}
         >
-          <Text style={styles.doneTextBtn}>Đóng</Text>
+          <Ionicons name="close" size={26} color={Colors.duolingo.textMuted} />
         </TouchableOpacity>
+
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{deck?.name || "PHIÊN HỌC THẺ"}</Text>
-          <Text style={styles.headerSub}>
-            THẺ {session.currentIndex + 1} / {session.queue.length}
-          </Text>
-        </View>
-        <TouchableOpacity onPress={speakWord} style={styles.headerRightBtn}>
-          <Ionicons
-            name={speaking ? "volume-high" : "volume-medium-outline"}
-            size={20}
-            color={Colors.accent.indigoLight}
+          <ProgressBar
+            progress={progress}
+            height={16}
+            fillColor={Colors.duolingo.green}
           />
+        </View>
+      </View>
+
+      {/* Short Term Memory Study Mode Segment Bar */}
+      <View style={styles.modeSegmentBar}>
+        <TouchableOpacity
+          style={[
+            styles.modeSegmentBtn,
+            mode === "flashcard" && styles.modeSegmentBtnActive,
+          ]}
+          onPress={() => {
+            triggerHaptic("selection");
+            setMode("flashcard");
+          }}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              styles.modeSegmentText,
+              mode === "flashcard" && styles.modeSegmentTextActive,
+            ]}
+          >
+            🎴 LẬT THẺ FLASHCARD
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.modeSegmentBtn,
+            mode === "quiz" && styles.modeSegmentBtnActive,
+          ]}
+          onPress={() => {
+            triggerHaptic("selection");
+            setMode("quiz");
+          }}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              styles.modeSegmentText,
+              mode === "quiz" && styles.modeSegmentTextActive,
+            ]}
+          >
+            🎯 BÀI TẬP QUIZ
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Progress Bar */}
-      <ProgressBar progress={progress} style={{ marginHorizontal: Spacing.pageMargin }} />
-
-      {/* Gesture hints pills (100% compact & responsive) */}
-      <View style={styles.gesturePillRow}>
-        <View style={styles.gesturePill}>
-          <Text style={[styles.gesturePillText, { color: Colors.srs.again }]}>← QUÊN</Text>
-        </View>
-        <View style={styles.gesturePill}>
-          <Text style={[styles.gesturePillText, { color: Colors.srs.hard }]}>↑ KHÓ</Text>
-        </View>
-        <View style={styles.gesturePill}>
-          <Text style={[styles.gesturePillText, { color: Colors.srs.good }]}>→ THUỘC</Text>
-        </View>
-      </View>
-
-      {/* Flashcard Area */}
-      <View style={styles.cardArea}>
-        <Animated.View
-          style={[styles.cardWrapper, { width: cardWidth, height: cardHeight }, cardRotateStyle]}
-          {...panResponder.panHandlers}
-        >
-          {/* Swipe badges */}
-          {activeSwipeDirection === "left" && (
-            <View
-              style={[styles.swipeBadge, { backgroundColor: Colors.neon.coral, left: 20, top: 20 }]}
-            >
-              <Text style={styles.swipeBadgeText}>QUÊN</Text>
-            </View>
-          )}
-          {activeSwipeDirection === "right" && (
-            <View
-              style={[
-                styles.swipeBadge,
-                { backgroundColor: Colors.neon.emerald, right: 20, top: 20 },
-              ]}
-            >
-              <Text style={styles.swipeBadgeText}>THUỘC</Text>
-            </View>
-          )}
-          {activeSwipeDirection === "up" && (
-            <View
-              style={[
-                styles.swipeBadge,
-                { backgroundColor: Colors.neon.purple, top: 20, alignSelf: "center" },
-              ]}
-            >
-              <Text style={styles.swipeBadgeText}>KHÓ</Text>
-            </View>
-          )}
-
-          {/* Unified Card Body (Apple / Duolingo Slide & Expand Style) */}
-          <TouchableOpacity
-            style={[styles.cardCardBody, { width: cardWidth, height: cardHeight }]}
-            onPress={flipCard}
-            activeOpacity={flipped ? 1 : 0.95}
-          >
-            {/* HSK Badge */}
-            {currentCard.hskLevel ? (
-              <View style={styles.hskBadge}>
-                <Text style={styles.hskText}>HSK {currentCard.hskLevel}</Text>
-              </View>
-            ) : null}
-
-            {/* Character Header (Slides up smoothly) */}
-            <Animated.View
-              style={[
-                styles.charHeaderBox,
-                {
-                  transform: [{ translateY: charTranslateY }, { scale: charScale }],
-                },
-              ]}
-            >
-              <Text style={styles.characterBig}>{currentCard.character}</Text>
-              {currentCard.traditional && currentCard.traditional !== currentCard.character && (
-                <Text style={styles.traditional}>{currentCard.traditional}</Text>
-              )}
-
-              <TouchableOpacity style={styles.speakBtn} onPress={speakWord} activeOpacity={0.8}>
-                <Ionicons
-                  name={speaking ? "volume-high" : "volume-medium"}
-                  size={16}
-                  color={Colors.accent.indigoLight}
-                />
-                <Text style={styles.speakBtnText}>{speaking ? "Đang phát âm..." : "Phát âm"}</Text>
-              </TouchableOpacity>
-            </Animated.View>
-
-            {/* Unrevealed Hint */}
-            {!flipped && (
-              <Animated.Text style={[styles.tapHint, { opacity: tapHintOpacity }]}>
-                Chạm vào thẻ để xem đáp án
-              </Animated.Text>
-            )}
-
-            {/* Revealed Answer Content (Slides up & Fades in smoothly) */}
-            {flipped && (
-              <Animated.View
-                style={[
-                  styles.answerContainer,
-                  {
-                    opacity: answerOpacity,
-                    transform: [{ translateY: answerTranslateY }],
-                  },
-                ]}
-              >
-                <ScrollView
-                  contentContainerStyle={styles.answerScrollContent}
-                  showsVerticalScrollIndicator={false}
-                  scrollEnabled={true}
-                >
-                  <Text style={[styles.pinyin, { color: pinyinColor }]}>{currentCard.pinyin}</Text>
-                  <View style={styles.divider} />
-                  <Text style={styles.translation}>{currentCard.translation}</Text>
-
-                  {currentCard.radical ? (
-                    <View style={styles.radicalBox}>
-                      <Text style={styles.radicalTitle}>BỘ THỦ & CẤU TẠO CHỮ</Text>
-                      <Text style={styles.radicalText}>{currentCard.radical}</Text>
-                    </View>
-                  ) : null}
-
-                  {currentCard.examples && currentCard.examples.length > 0 && (
-                    <View style={styles.exampleBox}>
-                      <Text style={styles.exampleCn}>{currentCard.examples[0].chinese}</Text>
-                      <Text style={[styles.examplePy, { color: pinyinColor }]}>
-                        {currentCard.examples[0].pinyin}
-                      </Text>
-                      <Text style={styles.exampleVi}>{currentCard.examples[0].vietnamese}</Text>
-                    </View>
-                  )}
-                </ScrollView>
-              </Animated.View>
-            )}
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-
-      {/* Action Area */}
-      {flipped ? (
-        <SRSButtons cardSRS={currentCard.srs} onGrade={handleGrade} />
+      {/* MAIN VIEW CONTENT */}
+      {mode === "flashcard" ? (
+        currentCard ? (
+          <FlashcardView
+            key={`fc-${currentCard.id}-${session.currentIndex}`}
+            card={currentCard}
+            onGrade={handleFlashcardGrade}
+          />
+        ) : null
       ) : (
-        <View style={[styles.tapArea, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
-          <TouchableOpacity style={styles.revealBtn} onPress={flipCard} activeOpacity={0.8}>
-            <Text style={styles.revealBtnText}>XEM ĐÁP ÁN (HOẶC CHẠM VÀO THẺ)</Text>
-          </TouchableOpacity>
-        </View>
+        currentQuestion ? (
+          <QuizCardView
+            key={`qz-${currentQuestion.card.id}-${session.currentIndex}`}
+            question={currentQuestion}
+            onAnswer={handleQuizAnswer}
+          />
+        ) : null
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg.primary },
-  loading: {
+  container: {
     flex: 1,
+    backgroundColor: Colors.duolingo.bg,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: Colors.duolingo.bg,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: Colors.bg.primary,
   },
-  loadingText: {
-    color: Colors.text.secondary,
-    marginTop: Spacing.md,
-    fontSize: Typography.text.footnote.fontSize,
-    letterSpacing: 1,
-  },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: Spacing.pageMargin,
     paddingBottom: Spacing.xs,
-  },
-  headerLeftBtn: { padding: Spacing.xs },
-  doneTextBtn: {
-    fontSize: Typography.text.footnote.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.bold,
-  },
-  headerRightBtn: { padding: Spacing.xs },
-  headerCenter: { flex: 1, alignItems: "center" },
-  headerTitle: {
-    fontSize: Typography.text.caption1.fontSize,
-    fontWeight: Typography.weight.bold,
-    color: Colors.text.primary,
-    letterSpacing: 1,
-  },
-  headerSub: {
-    fontSize: Typography.text.caption2.fontSize,
-    color: Colors.text.secondary,
-    marginTop: 1,
-    letterSpacing: 0.8,
-  },
-
-  gesturePillRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: Colors.duolingo.bg,
     gap: 8,
-    marginTop: Spacing.xs,
   },
-  gesturePill: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.full,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+  closeHeaderBtn: {
+    padding: 4,
   },
-  gesturePillText: {
-    fontSize: Typography.text.caption2.fontSize,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 0.5,
-  },
-
-  cardArea: {
+  headerCenter: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.bg.primary,
   },
-  cardWrapper: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardCardBody: {
-    borderRadius: Radii.xl,
-    backgroundColor: Colors.bg.secondary,
-    padding: Spacing.lg,
-    overflow: "hidden",
-    position: "relative",
-    alignItems: "center",
-  },
-
-  swipeBadge: {
-    position: "absolute",
-    zIndex: 100,
-    borderRadius: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-  },
-  swipeBadgeText: {
-    color: "#090A0F",
-    fontSize: Typography.text.footnote.fontSize,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 0.8,
-  },
-
-  hskBadge: {
-    position: "absolute",
-    top: Spacing.lg,
-    right: Spacing.lg,
-    backgroundColor: Colors.accent.indigoDim,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    zIndex: 10,
-  },
-  hskText: {
-    fontSize: Typography.text.caption2.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 0.5,
-  },
-
-  charHeaderBox: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  characterBig: {
-    fontSize: Typography.hanzi.xl,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.bold,
-  },
-  traditional: {
-    fontSize: Typography.text.subhead.fontSize,
-    color: Colors.text.secondary,
-    marginTop: 2,
-  },
-  speakBtn: {
+  heartsBox: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: Spacing.md,
-    backgroundColor: Colors.bg.tertiary,
+    gap: 4,
+    backgroundColor: Colors.duolingo.cardBg,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: Radii.full,
-    height: 32,
-    paddingHorizontal: Spacing.md,
-    justifyContent: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.duolingo.cardBottom,
   },
-  speakBtnText: {
-    color: Colors.accent.indigoLight,
-    fontSize: Typography.text.caption1.fontSize,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 0.5,
-    textAlign: "center",
-    textAlignVertical: "center",
-    includeFontPadding: false,
-  },
-  tapHint: {
-    position: "absolute",
-    bottom: Spacing.lg,
-    fontSize: Typography.text.caption2.fontSize,
-    color: Colors.text.tertiary,
-    letterSpacing: 0.8,
+  heartsText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.duolingo.red,
   },
 
-  answerContainer: {
-    flex: 1,
-    width: "100%",
-    marginTop: Spacing.xs,
-  },
-  answerScrollContent: {
-    alignItems: "center",
-    paddingBottom: Spacing.md,
-  },
-  pinyin: {
-    fontSize: Typography.text.title2.fontSize,
-    fontWeight: Typography.weight.bold,
-    marginTop: Spacing.xs,
-  },
-  divider: {
-    height: 1,
-    width: "100%",
-    backgroundColor: Colors.border.separator,
-    marginVertical: Spacing.md,
-  },
-  translation: {
-    fontSize: Typography.text.subhead.fontSize,
-    color: Colors.text.primary,
-    textAlign: "center",
-    fontWeight: Typography.weight.semibold,
-  },
-  radicalBox: {
-    backgroundColor: Colors.bg.tertiary,
-    borderRadius: Radii.card,
-    padding: Spacing.md,
-    marginTop: Spacing.md,
-    width: "100%",
-    alignItems: "flex-start",
-  },
-  radicalTitle: {
-    fontSize: Typography.text.caption2.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 0.8,
+  modeSegmentBar: {
+    flexDirection: "row",
+    backgroundColor: Colors.duolingo.cardBg,
+    marginHorizontal: Spacing.pageMargin,
+    marginTop: 6,
     marginBottom: 4,
+    borderRadius: Radii.full,
+    padding: 3,
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.duolingo.cardBottom,
   },
-  radicalText: {
-    fontSize: Typography.text.footnote.fontSize,
-    color: Colors.text.primary,
-    lineHeight: 18,
-    fontWeight: Typography.weight.medium,
-  },
-  exampleBox: {
-    backgroundColor: Colors.bg.tertiary,
-    borderRadius: Radii.card,
-    padding: Spacing.md,
-    marginTop: Spacing.md,
-    width: "100%",
-  },
-  exampleCn: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.semibold,
-  },
-  examplePy: { fontSize: Typography.text.caption1.fontSize, marginTop: 2 },
-  exampleVi: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
-    marginTop: 2,
-  },
-
-  tapArea: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.sm },
-  revealBtn: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    height: 48,
+  modeSegmentBtn: {
+    flex: 1,
+    paddingVertical: 7,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: Radii.full,
   },
-  revealBtnText: {
-    color: Colors.text.primary,
-    fontSize: Typography.text.footnote.fontSize,
-    fontWeight: Typography.weight.bold,
-    letterSpacing: 0.8,
-    textAlign: "center",
-    textAlignVertical: "center",
-    includeFontPadding: false,
+  modeSegmentBtnActive: {
+    backgroundColor: Colors.duolingo.blue,
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.duolingo.blueDark,
+  },
+  modeSegmentText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.duolingo.textMuted,
+    letterSpacing: 0.5,
+  },
+  modeSegmentTextActive: {
+    color: "#FFFFFF",
   },
 });

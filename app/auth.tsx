@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,10 +30,9 @@ import {
   Radii,
   triggerHaptic,
 } from "../constants/theme";
+import { DuolingoButton } from "../components/ui/DuolingoButton";
+import { DuolingoCard } from "../components/ui/DuolingoCard";
 
-// ─────────────────────────────────────────────
-// Reusable Input Field Component
-// ─────────────────────────────────────────────
 interface FieldProps {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
@@ -64,45 +62,47 @@ function Field({
 
   return (
     <Pressable onPress={() => inputRef.current?.focus()}>
-      <View style={styles.fieldCard}>
-        <View style={styles.fieldIconWrap}>
-          <Ionicons
-            name={icon}
-            size={18}
-            color={focused ? Colors.accent.indigoLight : Colors.text.tertiary}
-          />
-        </View>
-        <View style={styles.fieldBody}>
-          <Text style={styles.fieldLabel}>{label}</Text>
-          <TextInput
-            ref={inputRef}
-            style={styles.fieldInput}
-            placeholder={placeholder}
-            placeholderTextColor={Colors.text.quaternary}
-            value={value}
-            onChangeText={onChangeText}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            keyboardType={keyboardType}
-            autoCapitalize={autoCapitalize}
-            autoCorrect={autoCorrect}
-            secureTextEntry={secureTextEntry && !showText}
-          />
-        </View>
-        {secureTextEntry && (
-          <TouchableOpacity
-            onPress={() => setShowText((v) => !v)}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={styles.eyeBtn}
-          >
+      <DuolingoCard style={styles.fieldCard} padding={12}>
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldIconWrap}>
             <Ionicons
-              name={showText ? "eye-off-outline" : "eye-outline"}
-              size={18}
-              color={Colors.text.tertiary}
+              name={icon}
+              size={20}
+              color={focused ? Colors.duolingo.blue : Colors.duolingo.textMuted}
             />
-          </TouchableOpacity>
-        )}
-      </View>
+          </View>
+          <View style={styles.fieldBody}>
+            <Text style={styles.fieldLabel}>{label}</Text>
+            <TextInput
+              ref={inputRef}
+              style={styles.fieldInput}
+              placeholder={placeholder}
+              placeholderTextColor={Colors.duolingo.disabledText}
+              value={value}
+              onChangeText={onChangeText}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              keyboardType={keyboardType}
+              autoCapitalize={autoCapitalize}
+              autoCorrect={autoCorrect}
+              secureTextEntry={secureTextEntry && !showText}
+            />
+          </View>
+          {secureTextEntry && (
+            <TouchableOpacity
+              onPress={() => setShowText((v) => !v)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={styles.eyeBtn}
+            >
+              <Ionicons
+                name={showText ? "eye-off-outline" : "eye-outline"}
+                size={18}
+                color={Colors.duolingo.textMuted}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+      </DuolingoCard>
     </Pressable>
   );
 }
@@ -167,7 +167,7 @@ export default function AuthScreen() {
       triggerHaptic("success");
       Alert.alert(
         "Đã gửi email khôi phục",
-        `Hướng dẫn đặt lại mật khẩu đã được gửi tới ${email.trim()}.\nVui lòng mở ứng dụng Mail / Hộp thư (bao gồm cả thư rác) để đặt lại mật khẩu.`,
+        `Hướng dẫn đặt lại mật khẩu đã được gửi tới ${email.trim()}.\nVui lòng mở hộp thư để đặt lại mật khẩu.`,
       );
     } catch (e: any) {
       triggerHaptic("error");
@@ -198,22 +198,20 @@ export default function AuthScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Header / Branding ── */}
+        {/* Header / Branding */}
         <View style={styles.header}>
-          <View style={styles.glowRing}>
-            <View style={styles.appIconBox}>
-              <Image
-                source={require("../assets/adaptive-icon.png")}
-                style={styles.appIconImage}
-                resizeMode="cover"
-              />
-            </View>
+          <View style={styles.appIconBox}>
+            <Image
+              source={require("../assets/adaptive-icon.png")}
+              style={styles.appIconImage}
+              resizeMode="cover"
+            />
           </View>
-          <Text style={styles.appName}>Anki</Text>
-          <Text style={styles.tagline}>HỆ THỐNG THẺ TỪ VỰNG TIẾNG TRUNG</Text>
+          <Text style={styles.appName}>Anki Tiếng Trung</Text>
+          <Text style={styles.tagline}>HỌC TỪ VỰNG TIẾNG TRUNG THÔNG MINH</Text>
         </View>
 
-        {/* ── Segmented Control ── */}
+        {/* Mode Switcher 3D Segment */}
         <View style={styles.segmentedControl}>
           <TouchableOpacity
             style={[styles.segmentBtn, mode === "login" && styles.segmentBtnActive]}
@@ -221,7 +219,7 @@ export default function AuthScreen() {
             activeOpacity={0.85}
           >
             <Text style={[styles.segmentText, mode === "login" && styles.segmentTextActive]}>
-              Đăng nhập
+              ĐĂNG NHẬP
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -230,12 +228,12 @@ export default function AuthScreen() {
             activeOpacity={0.85}
           >
             <Text style={[styles.segmentText, mode === "register" && styles.segmentTextActive]}>
-              Tạo tài khoản
+              TẠO TÀI KHOẢN
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── Form Fields ── */}
+        {/* Form Fields */}
         <View style={styles.formGroup}>
           {mode === "register" && (
             <Field
@@ -250,7 +248,7 @@ export default function AuthScreen() {
           <Field
             label="Email"
             icon="mail-outline"
-            placeholder="example@icloud.com"
+            placeholder="example@gmail.com"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -267,7 +265,7 @@ export default function AuthScreen() {
           />
         </View>
 
-        {/* ── Forgot Password ── */}
+        {/* Forgot Password */}
         {mode === "login" && (
           <TouchableOpacity
             style={styles.forgotBtn}
@@ -276,38 +274,23 @@ export default function AuthScreen() {
             activeOpacity={0.7}
           >
             {resettingPassword ? (
-              <ActivityIndicator size="small" color={Colors.accent.indigoLight} />
+              <ActivityIndicator size="small" color={Colors.duolingo.blue} />
             ) : (
               <Text style={styles.forgotBtnText}>Quên mật khẩu?</Text>
             )}
           </TouchableOpacity>
         )}
 
-        {/* ── Primary Action Button ── */}
-        <TouchableOpacity
-          style={[styles.actionBtn, loading && styles.btnDisabled]}
-          onPress={handleSubmit}
+        {/* 3D Primary Button */}
+        <DuolingoButton
+          title={loading ? "ĐANG XỬ LÝ..." : mode === "login" ? "ĐĂNG NHẬP ➜" : "TẠO TÀI KHOẢN ➜"}
+          variant="primary"
           disabled={loading}
-          activeOpacity={0.85}
-        >
-          {loading ? (
-            <ActivityIndicator color="#F0F3F6" />
-          ) : (
-            <View style={styles.actionBtnContent}>
-              <Text style={styles.actionBtnText}>
-                {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
-              </Text>
-              <Ionicons
-                name={mode === "login" ? "arrow-forward" : "person-add-outline"}
-                size={16}
-                color="#F0F3F6"
-                style={{ marginLeft: 6 }}
-              />
-            </View>
-          )}
-        </TouchableOpacity>
+          onPress={handleSubmit}
+          height={54}
+        />
 
-        {/* ── Footer toggle ── */}
+        {/* Footer Toggle */}
         <View style={styles.footerToggle}>
           <Text style={styles.footerText}>
             {mode === "login" ? "Chưa có tài khoản?" : "Đã có tài khoản?"}
@@ -326,112 +309,77 @@ export default function AuthScreen() {
   );
 }
 
-// ─────────────────────────────────────────────
-// Styles
-// ─────────────────────────────────────────────
-const SEGMENT_PADDING = 4;
-const SEGMENT_RADIUS = Radii.card; // 16
-const INNER_RADIUS = SEGMENT_RADIUS - SEGMENT_PADDING; // 12 — matches outer curve
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg.primary },
+  container: { flex: 1, backgroundColor: Colors.duolingo.bg },
   scroll: {
     flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: Spacing.pageMargin,
   },
 
-  // ── Branding ──
-  header: { alignItems: "center", marginBottom: Spacing.xxl + 4 },
-  glowRing: {
-    width: 96,
-    height: 96,
-    borderRadius: 26,
-    backgroundColor: Colors.accent.indigoDim,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: "rgba(94, 106, 210, 0.30)",
-    shadowColor: Colors.accent.indigo,
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 4 },
-  },
+  header: { alignItems: "center", marginBottom: Spacing.xl },
   appIconBox: {
     width: 80,
     height: 80,
-    borderRadius: 20,
+    borderRadius: Radii.xl,
     overflow: "hidden",
+    marginBottom: Spacing.sm,
   },
   appIconImage: { width: 80, height: 80 },
   appName: {
-    fontSize: Typography.text.title1.fontSize,
-    lineHeight: Typography.text.title1.lineHeight,
-    fontWeight: Typography.weight.bold,
-    color: Colors.text.primary,
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#FFFFFF",
     letterSpacing: 0.5,
   },
   tagline: {
-    fontSize: Typography.text.caption2.fontSize,
-    lineHeight: Typography.text.caption2.lineHeight,
-    color: Colors.text.tertiary,
+    fontSize: 12,
+    color: Colors.duolingo.textMuted,
     textAlign: "center",
-    marginTop: Spacing.xs,
-    letterSpacing: 1.4,
-    fontWeight: Typography.weight.semibold,
+    marginTop: 4,
+    letterSpacing: 1,
+    fontWeight: "700",
   },
 
-  // ── Segmented Control ──
   segmentedControl: {
     flexDirection: "row",
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: SEGMENT_RADIUS,
-    padding: SEGMENT_PADDING,
-    marginBottom: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.border.separator,
+    backgroundColor: Colors.duolingo.bgSoftDark,
+    borderRadius: Radii.lg,
+    padding: 4,
+    marginBottom: Spacing.lg,
+    borderBottomWidth: 3,
+    borderBottomColor: "#18242B",
   },
   segmentBtn: {
     flex: 1,
-    height: 36,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: INNER_RADIUS,
+    borderRadius: Radii.md,
   },
   segmentBtnActive: {
-    backgroundColor: Colors.bg.tertiary,
-    borderWidth: 1,
-    borderColor: Colors.border.strong,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
+    backgroundColor: Colors.duolingo.blue,
   },
   segmentText: {
-    fontSize: Typography.text.footnote.fontSize,
-    color: Colors.text.tertiary,
-    fontWeight: Typography.weight.semibold,
-    includeFontPadding: false,
+    fontSize: 13,
+    color: Colors.duolingo.textMuted,
+    fontWeight: "700",
   },
   segmentTextActive: {
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.bold,
+    color: "#FFFFFF",
+    fontWeight: "800",
   },
 
-  // ── Form Fields ──
   formGroup: {
     gap: 10,
     marginBottom: Spacing.md,
   },
   fieldCard: {
+    marginBottom: 0,
+  },
+  fieldRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: 10,
-    minHeight: 58,
   },
   fieldIconWrap: {
     width: 32,
@@ -444,58 +392,35 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 11,
-    color: Colors.text.tertiary,
-    fontWeight: Typography.weight.semibold,
+    color: Colors.duolingo.textMuted,
+    fontWeight: "700",
     letterSpacing: 0.5,
     textTransform: "uppercase",
     marginBottom: 2,
   },
   fieldInput: {
-    fontSize: Typography.text.callout.fontSize,
-    color: Colors.text.primary,
+    fontSize: 16,
+    color: "#FFFFFF",
     padding: 0,
-    paddingVertical: 2,
     minHeight: 24,
+    fontWeight: "600",
   },
   eyeBtn: {
     paddingLeft: 8,
   },
 
-  // ── Forgot ──
   forgotBtn: {
     alignSelf: "flex-end",
-    marginBottom: Spacing.lg + 4,
+    marginBottom: Spacing.lg,
     paddingHorizontal: 4,
     paddingVertical: 4,
   },
   forgotBtnText: {
-    fontSize: Typography.text.footnote.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.medium,
+    fontSize: 13,
+    color: Colors.duolingo.blue,
+    fontWeight: "700",
   },
 
-  // ── Action Button ──
-  actionBtn: {
-    backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.card,
-    height: 50,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  btnDisabled: { opacity: 0.55 },
-  actionBtnContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  actionBtnText: {
-    color: "#F0F3F6",
-    fontSize: Typography.text.callout.fontSize,
-    fontWeight: Typography.weight.semibold,
-    letterSpacing: -0.2,
-    includeFontPadding: false,
-  },
-
-  // ── Footer Toggle ──
   footerToggle: {
     flexDirection: "row",
     justifyContent: "center",
@@ -503,12 +428,12 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
   },
   footerText: {
-    fontSize: Typography.text.footnote.fontSize,
-    color: Colors.text.tertiary,
+    fontSize: 14,
+    color: Colors.duolingo.textMuted,
   },
   footerLink: {
-    fontSize: Typography.text.footnote.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.semibold,
+    fontSize: 14,
+    color: Colors.duolingo.blue,
+    fontWeight: "800",
   },
 });

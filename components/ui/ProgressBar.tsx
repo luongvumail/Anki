@@ -12,12 +12,13 @@ interface ProgressBarProps {
 
 export const ProgressBar = React.memo(function ProgressBar({
   progress,
-  height = 4,
-  trackColor = Colors.bg.tertiary,
-  fillColor = Colors.accent.indigo,
+  height = 14,
+  trackColor = Colors.duolingo.disabledBg,
+  fillColor = Colors.duolingo.green,
   style,
 }: ProgressBarProps) {
   const percentage = progress <= 1 ? progress * 100 : Math.min(progress, 100);
+
   return (
     <View style={[styles.track, { height, backgroundColor: trackColor }, style]}>
       <View
@@ -25,19 +26,32 @@ export const ProgressBar = React.memo(function ProgressBar({
           styles.fill,
           { width: `${Math.max(0, percentage)}%`, backgroundColor: fillColor },
         ]}
-      />
+      >
+        <View style={styles.highlightBar} />
+      </View>
     </View>
   );
 });
 
 const styles = StyleSheet.create({
   track: {
-    borderRadius: 2,
+    borderRadius: 999,
     overflow: 'hidden',
     width: '100%',
   },
   fill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 999,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  highlightBar: {
+    position: 'absolute',
+    top: 2,
+    left: 8,
+    right: 8,
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 999,
   },
 });

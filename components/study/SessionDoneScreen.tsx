@@ -1,9 +1,13 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
+import { View, Text, StyleSheet, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { Colors, Spacing, triggerHaptic } from "../../constants/theme";
 import { StudySession } from "../../store/slices/types";
+import { DuolingoCard } from "../ui/DuolingoCard";
+import { DuolingoButton } from "../ui/DuolingoButton";
+import { ProgressBar } from "../ui/ProgressBar";
+import { DuolingoMascot } from "../ui/DuolingoMascot";
 
 interface SessionDoneScreenProps {
   session: StudySession;
@@ -15,9 +19,10 @@ export function SessionDoneScreen({ session, onDone }: SessionDoneScreenProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    triggerHaptic("success");
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 350,
+      duration: 400,
       useNativeDriver: true,
     }).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -27,6 +32,8 @@ export function SessionDoneScreen({ session, onDone }: SessionDoneScreenProps) {
     session.reviewedCount > 0
       ? Math.round((session.correctCount / session.reviewedCount) * 100)
       : 0;
+
+  const xpEarned = session.correctCount * 10 + 20;
 
   return (
     <View
@@ -39,39 +46,44 @@ export function SessionDoneScreen({ session, onDone }: SessionDoneScreenProps) {
       ]}
     >
       <Animated.View style={[styles.innerContent, { opacity: fadeAnim }]}>
-        <View style={styles.doneIconBox}>
-          <Ionicons name="checkmark-circle" size={56} color={Colors.neon.emerald} />
-        </View>
-        <Text style={styles.doneTitle}>HOÀN THÀNH</Text>
-        <Text style={styles.doneSub}>Bạn đã hoàn thành tất cả thẻ cần ôn tập hôm nay!</Text>
+        <DuolingoMascot expression="celebrate" size={90} speechBubbleText="Xuất sắc! 太棒了!" />
+        <Text style={styles.doneTitle}>HOÀN THÀNH BÀI HỌC!</Text>
+        <Text style={styles.doneSub}>Bạn đã hoàn thành tất cả mục tiêu bài học hôm nay</Text>
 
-        <View style={styles.doneInsetGroup}>
-          <View style={styles.doneRow}>
-            <Text style={styles.doneRowLabel}>Tổng số thẻ đã học</Text>
-            <Text style={styles.doneRowValue}>{session.reviewedCount} thẻ</Text>
-          </View>
-          <View style={[styles.doneRow, styles.cellBorderTop]}>
-            <Text style={styles.doneRowLabel}>Tỷ lệ nhớ đúng</Text>
-            <Text style={[styles.doneRowValue, { color: Colors.neon.emerald }]}>{accuracy}%</Text>
-          </View>
-          <View style={[styles.doneRow, styles.cellBorderTop]}>
-            <Text style={styles.doneRowLabel}>Thẻ chưa thuộc (Quên)</Text>
-            <Text style={[styles.doneRowValue, { color: Colors.neon.coral }]}>
-              {session.reviewedCount - session.correctCount}
-            </Text>
-          </View>
+        {/* Celebratory Stats Grid Cards */}
+        <View style={styles.statsGrid}>
+          <DuolingoCard style={styles.statBox}>
+            <Ionicons name="checkmark-circle" size={22} color={Colors.duolingo.green} />
+            <Text style={[styles.statVal, { color: Colors.duolingo.green }]}>{accuracy}%</Text>
+            <Text style={styles.statLabel}>ĐỘ CHÍNH XÁC</Text>
+          </DuolingoCard>
         </View>
 
-        <TouchableOpacity
-          style={styles.doneBtn}
+        {/* XP Daily Goal Progress */}
+        <DuolingoCard style={styles.dailyGoalCard}>
+          <View style={styles.dailyGoalRow}>
+            <Text style={styles.dailyGoalTitle}>MỤC TIÊU XP HÀNG NGÀY</Text>
+            <Text style={styles.dailyGoalValue}>{xpEarned} / 50 XP</Text>
+          </View>
+          <ProgressBar
+            progress={Math.min(1, xpEarned / 50)}
+            height={12}
+            fillColor={Colors.duolingo.green}
+            style={{ marginTop: Spacing.xs }}
+          />
+        </DuolingoCard>
+
+        {/* 3D Full-Width Primary Continue Button */}
+        <DuolingoButton
+          title="TIẾP TỤC ➜"
+          variant="primary"
           onPress={() => {
             triggerHaptic("medium");
             onDone();
           }}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.doneBtnText}>HOÀN THÀNH</Text>
-        </TouchableOpacity>
+          height={54}
+          style={{ marginTop: Spacing.lg }}
+        />
       </Animated.View>
     </View>
   );
@@ -80,7 +92,7 @@ export function SessionDoneScreen({ session, onDone }: SessionDoneScreenProps) {
 const styles = StyleSheet.create({
   doneScreen: {
     flex: 1,
-    backgroundColor: Colors.bg.primary,
+    backgroundColor: Colors.duolingo.bg,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: Spacing.pageMargin,
@@ -90,61 +102,58 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  doneIconBox: { marginBottom: Spacing.lg },
+  doneIconBox: { marginBottom: Spacing.sm },
   doneTitle: {
-    fontSize: Typography.text.largeTitle.fontSize,
-    fontWeight: Typography.weight.bold,
-    color: Colors.text.primary,
-    letterSpacing: 1,
-  },
-  doneSub: {
-    fontSize: Typography.text.subhead.fontSize,
-    color: Colors.text.secondary,
-    marginTop: Spacing.xs,
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
     textAlign: "center",
   },
-  doneInsetGroup: {
-    width: "100%",
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    overflow: "hidden",
-    marginTop: Spacing.xxl,
-    marginBottom: Spacing.xxl,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
+  doneSub: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginTop: 4,
+    marginBottom: Spacing.xl,
+    textAlign: "center",
   },
-  doneRow: {
+
+  statsGrid: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+    marginBottom: Spacing.md,
+  },
+  statBox: {
+    flex: 1,
+    padding: Spacing.md,
+    alignItems: "center",
+  },
+  statEmoji: { fontSize: 22, marginBottom: 2 },
+  statVal: { fontSize: 22, fontWeight: "800", marginTop: 2 },
+  statLabel: {
+    fontSize: 11,
+    color: Colors.text.secondary,
+    fontWeight: "700",
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+
+  dailyGoalCard: {
+    width: "100%",
+    padding: Spacing.md,
+  },
+  dailyGoalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: Spacing.cellVertical,
+    marginBottom: 4,
   },
-  cellBorderTop: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border.separator,
+  dailyGoalTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.text.secondary,
+    letterSpacing: 0.5,
   },
-  doneRowLabel: { fontSize: Typography.text.body.fontSize, color: Colors.text.primary },
-  doneRowValue: {
-    fontSize: Typography.text.body.fontSize,
-    fontWeight: Typography.weight.bold,
-    color: Colors.text.primary,
-  },
-  doneBtn: {
-    width: "100%",
-    backgroundColor: Colors.accent.indigo,
-    borderRadius: Radii.card,
-    height: 50,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  doneBtnText: {
-    color: "#F0F3F6",
-    fontSize: Typography.text.callout.fontSize,
-    fontWeight: Typography.weight.semibold,
-    letterSpacing: -0.2,
-    textAlign: "center",
-    textAlignVertical: "center",
-    includeFontPadding: false,
-  },
+  dailyGoalValue: { fontSize: 12, fontWeight: "800", color: Colors.duolingo.green },
 });

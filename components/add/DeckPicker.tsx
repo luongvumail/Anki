@@ -1,10 +1,17 @@
-import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, TouchableWithoutFeedback } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radii, triggerHaptic } from '../../constants/theme';
-import { Deck } from '../../store/slices/types';
-import { DeckIcon } from '../ui/DeckIcon';
-import { InsetGroup } from '../ui/InsetGroup';
+import React from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  ScrollView,
+  TouchableWithoutFeedback,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Colors, Radii, Spacing, triggerHaptic } from "../../constants/theme";
+import { Deck } from "../../store/slices/types";
+import { DeckIcon } from "../ui/DeckIcon";
 
 interface DeckPickerProps {
   decks: Deck[];
@@ -21,231 +28,245 @@ export const DeckPicker = React.memo(function DeckPicker({
   onToggleOpen,
   onSelectDeck,
 }: DeckPickerProps) {
-  const selectedDeck = useMemo(() => decks.find((d) => d.id === selectedDeckId), [decks, selectedDeckId]);
-
   if (decks.length === 0) {
     return (
       <View style={styles.warningBox}>
         <Text style={styles.warningText}>
-          Chưa có bộ thẻ. Hãy tạo bộ thẻ trước trong tab "Bộ thẻ".
+          Chưa có bộ thẻ. Hãy tạo bộ thẻ trước trong tab "Từ vựng".
         </Text>
       </View>
     );
   }
 
   return (
-    <>
-      <InsetGroup>
-        <TouchableOpacity
-          style={styles.pickerCell}
-          onPress={() => {
-            triggerHaptic('light');
-            onToggleOpen();
-          }}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.cellLabel}>Bộ thẻ</Text>
-          <View style={styles.pickerRight}>
-            {selectedDeck ? (
-              <View style={styles.pickerSelectedRow}>
-                <DeckIcon name={selectedDeck.icon} size={16} color={Colors.accent.indigoLight} style={{ marginRight: 6 }} />
-                <Text style={styles.pickerValue}>{selectedDeck.name}</Text>
-              </View>
-            ) : (
-              <Text style={styles.pickerPlaceholder}>Chọn bộ thẻ...</Text>
-            )}
-            <Ionicons
-              name="chevron-down"
-              size={16}
-              color={Colors.accent.gray3}
-              style={{ marginLeft: 6 }}
-            />
-          </View>
-        </TouchableOpacity>
-      </InsetGroup>
-
-      {/* Non-disruptive iOS Bottom Sheet Modal */}
-      <Modal
-        visible={isOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={onToggleOpen}
-      >
-        <TouchableWithoutFeedback onPress={onToggleOpen}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-              <View style={styles.sheetContainer}>
-                <View style={styles.sheetHeader}>
-                  <View style={styles.dragHandle} />
-                  <Text style={styles.sheetTitle}>Chọn bộ thẻ</Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      triggerHaptic('light');
-                      onToggleOpen();
-                    }}
-                    style={styles.closeBtn}
-                  >
-                    <Ionicons name="close" size={20} color={Colors.text.secondary} />
-                  </TouchableOpacity>
+    <Modal
+      visible={isOpen}
+      transparent
+      animationType="slide"
+      onRequestClose={onToggleOpen}
+    >
+      <TouchableWithoutFeedback onPress={onToggleOpen}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetContainer}>
+              {/* SHEET HEADER */}
+              <View style={styles.sheetHeader}>
+                <View style={styles.dragHandle} />
+                <View style={styles.headerTitleRow}>
+                  <Ionicons name="folder-open" size={20} color={Colors.duolingo.blue} />
+                  <Text style={styles.sheetTitle}>CHỌN BỘ THẺ LƯU TỪ</Text>
                 </View>
 
-                <ScrollView style={styles.sheetList} showsVerticalScrollIndicator={false}>
-                  {decks.map((deck, idx) => {
-                    const isSelected = selectedDeckId === deck.id;
-                    return (
-                      <React.Fragment key={deck.id}>
-                        {idx > 0 && <View style={styles.cellDivider} />}
-                        <TouchableOpacity
-                          style={[styles.sheetItem, isSelected && styles.sheetItemSelected]}
-                          onPress={() => {
-                            triggerHaptic('selection');
-                            onSelectDeck(deck.id);
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <View style={styles.pickerSelectedRow}>
-                            <View style={styles.deckIconTile}>
-                              <DeckIcon name={deck.icon} size={16} color={Colors.accent.indigoLight} />
-                            </View>
-                            <View>
-                              <Text style={[styles.sheetItemText, isSelected && styles.sheetItemTextSelected]}>
-                                {deck.name}
-                              </Text>
-                              <Text style={styles.sheetItemSub}>
-                                {deck.cardCount || 0} từ vựng
-                              </Text>
-                            </View>
-                          </View>
-                          {isSelected && (
-                            <Ionicons name="checkmark-circle" size={20} color={Colors.accent.indigoLight} />
-                          )}
-                        </TouchableOpacity>
-                      </React.Fragment>
-                    );
-                  })}
-                </ScrollView>
+                <TouchableOpacity
+                  onPress={() => {
+                    triggerHaptic("light");
+                    onToggleOpen();
+                  }}
+                  style={styles.closeBtn}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="close" size={22} color={Colors.duolingo.textMuted} />
+                </TouchableOpacity>
               </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-    </>
+
+              {/* DECK LIST */}
+              <ScrollView
+                style={styles.sheetList}
+                contentContainerStyle={styles.sheetListContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {decks.map((deck) => {
+                  const isSelected = selectedDeckId === deck.id;
+                  return (
+                    <TouchableOpacity
+                      key={deck.id}
+                      style={[
+                        styles.deckCard3D,
+                        isSelected && styles.deckCard3DSelected,
+                      ]}
+                      onPress={() => {
+                        triggerHaptic("selection");
+                        onSelectDeck(deck.id);
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <View style={styles.deckCardLeft}>
+                        <View style={styles.deckIconTile}>
+                          <DeckIcon
+                            name={deck.icon}
+                            size={20}
+                            color={isSelected ? Colors.duolingo.blue : Colors.duolingo.textMuted}
+                          />
+                        </View>
+                        <View style={styles.deckInfo}>
+                          <Text
+                            style={[
+                              styles.deckNameText,
+                              isSelected && styles.deckNameTextSelected,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {deck.name}
+                          </Text>
+                          <Text style={styles.deckSubText}>
+                            {deck.cardCount || 0} từ vựng
+                          </Text>
+                        </View>
+                      </View>
+
+                      {isSelected ? (
+                        <View style={styles.selectedBadge}>
+                          <Ionicons name="checkmark-circle" size={18} color={Colors.duolingo.blue} />
+                          <Text style={styles.selectedBadgeText}>ĐÃ CHỌN</Text>
+                        </View>
+                      ) : (
+                        <Ionicons name="chevron-forward" size={18} color={Colors.duolingo.textMuted} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
   );
 });
 
 const styles = StyleSheet.create({
   warningBox: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: Spacing.cellHorizontal,
-    marginBottom: Spacing.lg,
+    backgroundColor: Colors.duolingo.cardBg,
+    borderRadius: Radii.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
   warningText: {
-    color: Colors.text.secondary,
-    fontSize: Typography.text.footnote.fontSize,
-  },
-  pickerCell: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: Spacing.cellVertical,
-    minHeight: Spacing.cellMinHeight,
-  },
-  cellLabel: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.medium,
-  },
-  pickerRight: { flexDirection: 'row', alignItems: 'center' },
-  pickerSelectedRow: { flexDirection: 'row', alignItems: 'center' },
-  pickerValue: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.medium,
-  },
-  pickerPlaceholder: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.secondary,
+    color: Colors.duolingo.textMuted,
+    fontSize: 13,
+    fontWeight: "700",
   },
 
   /* Modal Bottom Sheet Styles */
   modalOverlay: {
     flex: 1,
-    backgroundColor: Colors.bg.overlay,
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(9, 14, 17, 0.75)",
+    justifyContent: "flex-end",
   },
   sheetContainer: {
-    backgroundColor: Colors.bg.secondary,
-    borderTopLeftRadius: Radii.xl,
-    borderTopRightRadius: Radii.xl,
-    maxHeight: '65%',
-    paddingBottom: 30,
+    backgroundColor: Colors.duolingo.bgSoftDark,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "75%",
+    paddingBottom: 34,
+    borderTopWidth: 2,
+    borderTopColor: Colors.duolingo.cardBorder,
   },
   sheetHeader: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
     paddingHorizontal: Spacing.pageMargin,
-    position: 'relative',
+    position: "relative",
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.duolingo.cardBorder,
   },
   dragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.bg.tertiary,
-    marginBottom: 10,
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Colors.duolingo.cardBorder,
+    marginBottom: 12,
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   sheetTitle: {
-    fontSize: Typography.text.headline.fontSize,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.primary,
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.duolingo.blue,
+    letterSpacing: 0.8,
   },
   closeBtn: {
-    position: 'absolute',
+    position: "absolute",
     right: Spacing.pageMargin,
-    top: Spacing.sm + 8,
+    top: Spacing.sm + 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.duolingo.cardBg,
+    alignItems: "center",
+    justifyContent: "center",
   },
   sheetList: {
     paddingHorizontal: Spacing.pageMargin,
   },
-  sheetItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderRadius: Radii.card,
-    paddingHorizontal: 8,
+  sheetListContent: {
+    paddingVertical: Spacing.md,
+    gap: 10,
   },
-  sheetItemSelected: {
-    backgroundColor: Colors.bg.tertiary,
+
+  /* 3D Tactile Deck Item Card */
+  deckCard3D: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: Colors.duolingo.cardBg,
+    borderRadius: Radii.lg,
+    padding: Spacing.md,
+    borderBottomWidth: 4,
+    borderBottomColor: Colors.duolingo.cardBottom,
   },
-  cellDivider: {
-    height: 1,
-    backgroundColor: Colors.border.separator,
-    marginHorizontal: 8,
+  deckCard3DSelected: {
+    backgroundColor: Colors.duolingo.blueDim,
+    borderBottomColor: Colors.duolingo.blueDark,
+  },
+  deckCardLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
   },
   deckIconTile: {
-    width: 32,
-    height: 32,
-    borderRadius: Radii.icon,
-    backgroundColor: Colors.bg.tertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.duolingo.bgSoftDark,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  sheetItemText: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.medium,
+  deckInfo: {
+    flex: 1,
   },
-  sheetItemTextSelected: {
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.bold,
+  deckNameText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
-  sheetItemSub: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
+  deckNameTextSelected: {
+    color: Colors.duolingo.blue,
+  },
+  deckSubText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.duolingo.textMuted,
     marginTop: 2,
+  },
+
+  selectedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.duolingo.bgSoftDark,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radii.full,
+  },
+  selectedBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.duolingo.blue,
   },
 });

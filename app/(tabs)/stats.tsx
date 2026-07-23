@@ -1,20 +1,16 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import {
-  View, Text, ScrollView, StyleSheet, Dimensions, ActivityIndicator, Animated,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useStore, Card } from '../../store/useStore';
-import { Colors, Typography, Spacing, Radii } from '../../constants/theme';
-import { DeckIcon } from '../../components/ui/DeckIcon';
-import { SectionTitle } from '../../components/ui/SectionTitle';
-import { InsetGroup } from '../../components/ui/InsetGroup';
+import React, { useEffect, useState, useRef, useMemo } from "react";
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Animated } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useStore, Card } from "../../store/useStore";
+import { Colors, Typography, Spacing, Radii } from "../../constants/theme";
+import { SectionTitle } from "../../components/ui/SectionTitle";
+import { DuolingoCard } from "../../components/ui/DuolingoCard";
+import { DuolingoHeader } from "../../components/ui/DuolingoHeader";
+import { ProgressBar } from "../../components/ui/ProgressBar";
 
-import { getReviewHistory } from '../../lib/reviewTracker';
-import { computeDueCount, getDeckMasteryPct } from '../../lib/deckUtils';
-import { isDue } from '../../lib/srs';
-
-const { width } = Dimensions.get('window');
+import { getReviewHistory } from "../../lib/reviewTracker";
+import { isDue } from "../../lib/srs";
 
 interface DayActivity {
   dateStr: string;
@@ -29,8 +25,8 @@ function getLast7Days(): DayActivity[] {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
-    const dayName = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][d.getDay()];
+    const dateStr = d.toISOString().split("T")[0];
+    const dayName = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"][d.getDay()];
     result.push({
       dateStr,
       dayName,
@@ -51,511 +47,282 @@ export default function StatsScreen() {
   const [loadingCards, setLoadingCards] = useState(true);
   const [reviewHistory, setReviewHistory] = useState<Record<string, number>>({});
 
-  // Staggered entrance animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     async function loadAllData() {
       if (!userId) return;
       setLoadingCards(true);
+      if (decks.length === 0) {
+        await fetchDecks();
+      }
+
+      const currentDecks = useStore.getState().decks;
+      if (currentDecks.length > 0) {
+        await Promise.all(currentDecks.map((d) => fetchCards(d.id)));
+      }
+
       const history = await getReviewHistory();
       setReviewHistory(history);
-      await fetchDecks();
-      const currentDecks = useStore.getState().decks;
-      await Promise.all(currentDecks.map(d => fetchCards(d.id)));
+
       setLoadingCards(false);
 
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 400,
+        duration: 350,
         useNativeDriver: true,
       }).start();
     }
+
     loadAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  const {
-    totalCards,
-    totalMastered,
-    totalLearning,
-    totalNew,
-    totalDue,
-    masteryRate,
-    last7Days,
-    streakDays,
-  } = useMemo(() => {
-    const cardsList: Card[] = Object.values(cards).flat();
-    const countTotal = cardsList.length;
-    const countMastered = cardsList.filter((c) => c.srs && c.srs.repetitions > 0 && !isDue(c.srs)).length;
-    const countLearning = cardsList.filter((c) => c.srs && c.srs.repetitions === 1).length;
-    const countNew = cardsList.filter((c) => !c.srs || c.srs.repetitions === 0).length;
-
-    const countDue = decks.reduce((s, d) => {
-      const deckCards = cards[d.id];
-      return s + (deckCards ? computeDueCount(deckCards) : (d.dueCount || 0));
-    }, 0);
-
-    const rate = countTotal > 0 ? Math.round((countMastered / countTotal) * 100) : 0;
-
-    const days7 = getLast7Days();
-    const mergedHistory: Record<string, number> = { ...reviewHistory };
-
-    cardsList.forEach((c) => {
-      const dateVal = c.lastReviewedAt || c.updatedAt;
-      if (dateVal) {
-        const datePart = dateVal.split("T")[0];
-        mergedHistory[datePart] = (mergedHistory[datePart] || 0) + 1;
-      }
+  const allCardsList = useMemo(() => {
+    let list: Card[] = [];
+    Object.values(cards).forEach((deckCards) => {
+      list = list.concat(deckCards);
     });
+    return list;
+  }, [cards]);
 
-    days7.forEach((day) => {
-      day.count = mergedHistory[day.dateStr] || 0;
+  const totalCardsCount = allCardsList.length;
+
+  const dueCount = useMemo(() => {
+    return allCardsList.filter((c) => isDue(c.srs)).length;
+  }, [allCardsList]);
+
+  const learnedCount = useMemo(() => {
+    return allCardsList.filter((c) => c.srs && c.srs.repetitions > 0).length;
+  }, [allCardsList]);
+
+  const newCardsCount = useMemo(() => {
+    return allCardsList.filter((c) => !c.srs || c.srs.repetitions === 0).length;
+  }, [allCardsList]);
+
+  const retentionRatePct = useMemo(() => {
+    if (totalCardsCount === 0) return 0;
+    return Math.round((learnedCount / totalCardsCount) * 100);
+  }, [totalCardsCount, learnedCount]);
+
+  const weeklyActivity = useMemo(() => {
+    const days = getLast7Days();
+    days.forEach((day) => {
+      day.count = reviewHistory[day.dateStr] || 0;
     });
+    return days;
+  }, [reviewHistory]);
 
-    let streak = 0;
-    const todayStr = new Date().toISOString().split("T")[0];
-    const hasReviewedToday = (mergedHistory[todayStr] || 0) > 0;
-
-    const checkDate = new Date();
-    if (!hasReviewedToday) {
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-
-    for (let i = 0; i < 365; i++) {
-      const dStr = checkDate.toISOString().split("T")[0];
-      if (mergedHistory[dStr] && mergedHistory[dStr] > 0) {
-        streak++;
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-
-    return {
-      totalCards: countTotal,
-      totalMastered: countMastered,
-      totalLearning: countLearning,
-      totalNew: countNew,
-      totalDue: countDue,
-      masteryRate: rate,
-      last7Days: days7,
-      streakDays: streak,
-    };
-  }, [cards, decks, reviewHistory]);
-
-  if (loadingCards) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="small" color={Colors.accent.indigoLight} />
-        <Text style={styles.loadingText}>Đang cập nhật thống kê trí nhớ...</Text>
-      </View>
-    );
-  }
-
-  const translateY = fadeAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [16, 0],
-  });
+  const maxWeeklyCount = useMemo(() => {
+    const max = Math.max(...weeklyActivity.map((d) => d.count));
+    return max > 0 ? max : 1;
+  }, [weeklyActivity]);
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: Math.max(insets.top + 16, 54), paddingBottom: Math.max(insets.bottom + 90, 110) },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerSubhead}>THEO DÕI TIẾN TRÌNH HỌC TẬP</Text>
-        <Text style={styles.headerTitle}>Thống kê</Text>
-      </View>
+    <View style={styles.container}>
+      <DuolingoHeader courseName="Anki" streakCount={1} gemsCount={150} heartsCount={5} />
 
-      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY }] }}>
-        {/* Hero Mastery Card */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroLeft}>
-            <Text style={styles.heroSectionTitle}>TỶ LỆ THUỘC BÀI DÀI HẠN</Text>
-            <Text style={styles.heroPercentage}>{totalCards > 0 ? `${masteryRate}%` : '—'}</Text>
-            <Text style={styles.heroSub}>
-              {totalCards > 0
-                ? `${totalMastered} / ${totalCards} từ vựng đã thuộc vĩnh viễn`
-                : 'Chưa có từ vựng để theo dõi tiến độ'}
-            </Text>
-          </View>
-          <View style={styles.heroIconBox}>
-            <Ionicons name="checkmark-circle-outline" size={32} color={Colors.accent.indigoLight} />
-          </View>
-        </View>
-
-        {/* 7-Day Activity Heatmap */}
-        <SectionTitle>CHUỖI HỌC TẬP 7 NGÀY</SectionTitle>
-        <View style={styles.insetCard}>
-          <View style={styles.streakHeaderRow}>
-            <Text style={styles.streakLabel}>Hoạt động gần đây</Text>
-            <View style={styles.streakBadge}>
-              <Text style={styles.streakBadgeText}>
-                {streakDays > 0 ? `${streakDays} ngày liên tục` : 'Chưa có chuỗi'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.heatmapRow}>
-            {last7Days.map((day, index) => {
-              const level =
-                day.count >= 8 ? 3 :
-                day.count >= 4 ? 2 :
-                day.count >= 1 ? 1 : 0;
-
-              const activeColor =
-                level > 0 ? Colors.accent.indigoLight : Colors.bg.tertiary;
-
-              return (
-                <View key={day.dateStr} style={styles.heatmapCol}>
-                  <View style={[styles.heatmapSquare, { backgroundColor: activeColor }, day.isToday && styles.todaySquare]}>
-                    {day.count > 0 ? <Ionicons name="checkmark" size={12} color="#08090C" /> : null}
-                  </View>
-                  <Text style={[styles.heatmapDayText, day.isToday && styles.todayText]}>{day.dayName}</Text>
-                  <Text style={styles.heatmapCountText}>{day.count > 0 ? `${day.count}` : '-'}</Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* 2x2 Metric Grid Cards */}
-        <SectionTitle>TỔNG QUAN THÔNG SỐ</SectionTitle>
-        <View style={styles.grid}>
-          <MetricCard label="Tổng từ vựng" value={totalCards} icon="library-outline" color={Colors.accent.indigoLight} />
-          <MetricCard label="Cần ôn hôm nay" value={totalDue} icon="time-outline" color={Colors.neon.coral} />
-          <MetricCard label="Thuộc dài hạn" value={totalMastered} icon="checkmark-circle-outline" color={Colors.neon.emerald} />
-          <MetricCard label="Đang học mới" value={totalLearning + totalNew} icon="book-outline" color={Colors.accent.indigoLight} />
-        </View>
-
-        {/* Per-deck progress breakdown */}
-        <SectionTitle>PHÂN BỔ THEO BỘ THẺ</SectionTitle>
-        {decks.length === 0 ? (
-          <View style={styles.insetCard}>
-            <Text style={styles.emptyText}>Tạo bộ thẻ để theo dõi thống kê học tập.</Text>
-          </View>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {loadingCards ? (
+          <ActivityIndicator
+            size="small"
+            color={Colors.duolingo.green}
+            style={{ marginVertical: 40 }}
+          />
         ) : (
-          <InsetGroup>
-            {decks.map((deck, idx) => {
-              const deckCards = cards[deck.id] || [];
-              const count = deck.cardCount || deckCards.length;
-              const due = deckCards.length > 0 ? computeDueCount(deckCards) : (deck.dueCount || 0);
-              const deckMastery = getDeckMasteryPct(count, due, deckCards);
+          <Animated.View style={{ opacity: fadeAnim }}>
+            {/* Main Trophy Progress Card */}
+            <DuolingoCard style={styles.trophyBanner}>
+              <View style={styles.trophyRow}>
+                <View style={styles.trophyIconBox}>
+                  <Ionicons name="trophy" size={26} color={Colors.duolingo.yellow} />
+                </View>
+                <View style={styles.trophyText}>
+                  <Text style={styles.trophyTitle}>TIẾN ĐỘ THUỘC TỪ VỰNG</Text>
+                  <Text style={styles.trophySub}>
+                    Bạn đã ghi nhớ thuộc {retentionRatePct}% tổng từ vựng
+                  </Text>
+                </View>
+              </View>
 
-              return (
-                <React.Fragment key={deck.id}>
-                  {idx > 0 && <View style={styles.cellDividerIndented} />}
-                  <View style={styles.deckCell}>
-                    <View style={styles.deckIconTile}>
-                      <DeckIcon name={deck.icon} size={18} color={Colors.accent.indigoLight} />
-                    </View>
+              <ProgressBar
+                progress={retentionRatePct / 100}
+                height={12}
+                fillColor={Colors.duolingo.green}
+                style={{ marginTop: Spacing.sm }}
+              />
+            </DuolingoCard>
 
-                    <View style={styles.deckMeta}>
-                      <View style={styles.deckNameRow}>
-                        <Text style={styles.deckName}>{deck.name}</Text>
-                        <Text style={styles.deckPctText}>{count > 0 ? `${deckMastery}%` : '—'}</Text>
+            {/* Overview Stat Cards Grid */}
+            <View style={styles.statsGrid}>
+              <DuolingoCard style={styles.statCardItem}>
+                <Ionicons name="flame" size={22} color={Colors.duolingo.yellow} />
+                <Text style={styles.statCardVal}>1 Ngày</Text>
+                <Text style={styles.statCardLabel}>Chuỗi Học Liên Tục</Text>
+              </DuolingoCard>
+
+              <DuolingoCard style={styles.statCardItem}>
+                <Ionicons name="checkmark-done-circle" size={22} color={Colors.duolingo.green} />
+                <Text style={styles.statCardVal}>{learnedCount} từ</Text>
+                <Text style={styles.statCardLabel}>Đã Ghi Nhớ Thuộc</Text>
+              </DuolingoCard>
+
+              <DuolingoCard style={styles.statCardItem}>
+                <Ionicons name="flash" size={22} color={Colors.duolingo.blue} />
+                <Text style={styles.statCardVal}>{dueCount} từ</Text>
+                <Text style={styles.statCardLabel}>Cần Ôn Tập Ngay</Text>
+              </DuolingoCard>
+
+              <DuolingoCard style={styles.statCardItem}>
+                <Ionicons name="sparkles" size={22} color={Colors.duolingo.purple} />
+                <Text style={styles.statCardVal}>{newCardsCount} từ</Text>
+                <Text style={styles.statCardLabel}>Từ Mới Chưa Học</Text>
+              </DuolingoCard>
+            </View>
+
+            {/* Weekly Activity Bar Chart */}
+            <SectionTitle>HOẠT ĐỘNG 7 NGÀY GẦN ĐÂY</SectionTitle>
+
+            <DuolingoCard style={styles.chartCard}>
+              <View style={styles.chartRow}>
+                {weeklyActivity.map((day) => {
+                  const heightPct = Math.min(100, Math.max(12, (day.count / maxWeeklyCount) * 100));
+
+                  return (
+                    <View key={day.dateStr} style={styles.barColumn}>
+                      <Text style={styles.barCountText}>{day.count > 0 ? day.count : ""}</Text>
+
+                      <View style={styles.barTrack}>
+                        <View
+                          style={[
+                            styles.barFill,
+                            {
+                              height: `${heightPct}%`,
+                              backgroundColor: day.isToday
+                                ? Colors.duolingo.blue
+                                : day.count > 0
+                                  ? Colors.duolingo.green
+                                  : Colors.duolingo.cardBottom,
+                            },
+                          ]}
+                        />
                       </View>
 
-                      <View style={styles.progressTrack}>
-                        <View style={[styles.progressFill, { width: `${count > 0 ? deckMastery : 0}%` }]} />
-                      </View>
-
-                      <Text style={styles.deckSubText}>
-                        {count > 0 ? `${count} thẻ  •  ${due} cần ôn hôm nay` : 'Chưa có thẻ vựng'}
+                      <Text style={[styles.barDayText, day.isToday && styles.barDayToday]}>
+                        {day.dayName}
                       </Text>
                     </View>
-                  </View>
-                </React.Fragment>
-              );
-            })}
-          </InsetGroup>
+                  );
+                })}
+              </View>
+            </DuolingoCard>
+          </Animated.View>
         )}
-
-        {/* SRS Detailed Science Card */}
-        <SectionTitle>NGUYÊN LÝ HỌC TẬP THÔNG MINH</SectionTitle>
-        <View style={styles.algoCard}>
-          <View style={styles.algoHeader}>
-            <View style={styles.algoBadge}>
-              <Ionicons name="sparkles" size={14} color={Colors.accent.indigoLight} />
-              <Text style={styles.algoBadgeText}>THUẬT TOÁN SM-2</Text>
-            </View>
-            <Text style={styles.algoTitle}>Cách Anki giúp bạn ghi nhớ từ vựng vĩnh viễn</Text>
-          </View>
-
-          <View style={styles.algoStepList}>
-            <View style={styles.algoStepItem}>
-              <View style={styles.algoStepNumberBox}><Text style={styles.algoStepNumber}>1</Text></View>
-              <View style={styles.algoStepContent}>
-                <Text style={styles.algoStepTitle}>Ôn tập đúng ngưỡng chuẩn bị quên (Spaced Intervals)</Text>
-                <Text style={styles.algoStepDesc}>
-                  Thay vì học lặp lại liên tục, hệ thống tính toán chính xác mốc thời gian bộ não bắt đầu suy giảm trí nhớ (1 ngày ➔ 6 ngày ➔ 2 tuần ➔ 1 tháng) để nhắc bạn ôn đúng thời điểm vàng.
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.algoStepItem}>
-              <View style={styles.algoStepNumberBox}><Text style={styles.algoStepNumber}>2</Text></View>
-              <View style={styles.algoStepContent}>
-                <Text style={styles.algoStepTitle}>Hệ số ghi nhớ cá nhân hóa (Ease Factor)</Text>
-                <Text style={styles.algoStepDesc}>
-                  Mỗi từ vựng có độ khó riêng. Từ nào bạn đánh giá "QUÊN" hoặc "KHÓ" sẽ tự động lặp lại thường xuyên hơn. Từ bạn chọn "THUỘC" sẽ kéo dài mốc ôn tập tiếp theo.
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.algoStepItem}>
-              <View style={styles.algoStepNumberBox}><Text style={styles.algoStepNumber}>3</Text></View>
-              <View style={styles.algoStepContent}>
-                <Text style={styles.algoStepTitle}>Tiết kiệm 80% thời gian học tập</Text>
-                <Text style={styles.algoStepDesc}>
-                  Bằng cách tập trung ôn đúng những thẻ cần ôn mỗi ngày, bạn chuyển từ vựng từ bộ nhớ ngắn hạn sang trí nhớ dài hạn vĩnh viễn với nỗ lực tối thiểu.
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Animated.View>
-    </ScrollView>
-  );
-}
-
-function MetricCard({ label, value, icon, color }: { label: string; value: number; icon: any; color?: string }) {
-  return (
-    <View style={styles.metricCard}>
-      <View style={styles.metricTop}>
-        <Ionicons name={icon} size={18} color={color || Colors.accent.indigoLight} />
-        <Text style={[styles.metricValue, color ? { color } : {}]}>{value}</Text>
-      </View>
-      <Text style={styles.metricLabel}>{label}</Text>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg.primary },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg.primary },
-  loadingText: { color: Colors.text.secondary, marginTop: Spacing.md, fontSize: Typography.text.footnote.fontSize },
-  content: { paddingHorizontal: Spacing.pageMargin },
+  container: { flex: 1, backgroundColor: Colors.duolingo.bg },
+  scrollContent: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.md },
 
-  header: { marginBottom: Spacing.lg },
-  headerSubhead: {
-    fontSize: Typography.text.caption1.fontSize,
-    lineHeight: Typography.text.caption1.lineHeight,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.secondary,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  headerTitle: {
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: Typography.weight.bold,
-    color: Colors.text.primary,
-    letterSpacing: -0.3,
-  },
-
-  heroCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: Spacing.cellHorizontal,
-  },
-  heroLeft: { flex: 1 },
-  heroSectionTitle: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weight.semibold,
-    letterSpacing: 1.1,
-  },
-  heroPercentage: {
-    fontSize: 36,
-    lineHeight: 42,
-    fontWeight: Typography.weight.bold,
-    color: Colors.accent.indigoLight,
-    marginVertical: 2,
-  },
-  heroSub: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary },
-  heroIconBox: {
+  trophyBanner: { padding: Spacing.md, marginBottom: Spacing.md },
+  trophyRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  trophyIconBox: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.bg.tertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: Colors.duolingo.blueDim,
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  insetCard: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: Spacing.cellHorizontal,
-  },
-  streakHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  streakLabel: {
-    fontSize: Typography.text.body.fontSize,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.primary,
-  },
-  streakBadge: {
-    backgroundColor: Colors.accent.indigoDim,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  streakBadgeText: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.bold,
-  },
-
-  heatmapRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  heatmapCol: { alignItems: 'center' },
-  heatmapSquare: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  todaySquare: { borderWidth: 2, borderColor: Colors.accent.indigoLight },
-  heatmapDayText: { fontSize: Typography.text.caption2.fontSize, color: Colors.text.secondary },
-  todayText: { color: Colors.accent.indigoLight, fontWeight: Typography.weight.bold },
-  heatmapCountText: { fontSize: 10, color: Colors.text.tertiary, marginTop: 2 },
-
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  metricCard: {
-    width: (width - Spacing.pageMargin * 2 - 12) / 2,
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: Spacing.cellHorizontal,
-  },
-  metricTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  metricValue: { fontSize: Typography.text.title2.fontSize, fontWeight: Typography.weight.bold, color: Colors.text.primary },
-  metricLabel: { fontSize: Typography.text.caption1.fontSize, color: Colors.text.secondary, marginTop: Spacing.sm },
-
-  deckCell: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.cellHorizontal,
-    paddingVertical: Spacing.cellVertical,
-    minHeight: Spacing.cellMinHeight,
-  },
-  cellDividerIndented: {
-    height: 1,
-    backgroundColor: Colors.border.separator,
-    marginLeft: 56,
-  },
-  deckIconTile: {
-    width: 32,
-    height: 32,
-    borderRadius: Radii.icon,
-    backgroundColor: Colors.bg.tertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
-  },
-  deckMeta: { flex: 1 },
-  deckNameRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  deckName: {
-    fontSize: Typography.text.body.fontSize,
-    lineHeight: Typography.text.body.lineHeight,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.primary,
-  },
-  deckPctText: {
-    fontSize: Typography.text.footnote.fontSize,
-    fontWeight: Typography.weight.bold,
-    color: Colors.accent.indigoLight,
-  },
-  progressTrack: {
-    height: 4,
-    backgroundColor: Colors.bg.tertiary,
-    borderRadius: 2,
-    marginTop: 4,
-    overflow: 'hidden',
-  },
-  progressFill: { height: '100%', backgroundColor: Colors.accent.indigoLight, borderRadius: 2 },
-  deckSubText: {
-    fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
-    marginTop: 4,
-  },
-
-  emptyText: { color: Colors.text.secondary, fontSize: Typography.text.subhead.fontSize },
-
-  algoCard: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: Spacing.cellHorizontal,
-    marginTop: 4,
-  },
-  algoHeader: { marginBottom: Spacing.md },
-  algoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.accent.indigoDim,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginBottom: 6,
-  },
-  algoBadgeText: {
-    fontSize: Typography.text.caption2.fontSize,
-    fontWeight: Typography.weight.bold,
-    color: Colors.accent.indigoLight,
-    letterSpacing: 0.5,
-  },
-  algoTitle: {
-    fontSize: Typography.text.headline.fontSize,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.primary,
-  },
-  algoStepList: { gap: 14 },
-  algoStepItem: { flexDirection: 'row', gap: 12 },
-  algoStepNumberBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.bg.tertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  algoStepNumber: {
+  trophyText: { flex: 1 },
+  trophyTitle: {
     fontSize: 12,
     fontWeight: Typography.weight.bold,
-    color: Colors.accent.indigoLight,
+    color: Colors.duolingo.blue,
+    letterSpacing: 0.8,
   },
-  algoStepContent: { flex: 1 },
-  algoStepTitle: {
-    fontSize: Typography.text.subhead.fontSize,
-    fontWeight: Typography.weight.semibold,
-    color: Colors.text.primary,
-    marginBottom: 2,
+  trophySub: { fontSize: 14, fontWeight: Typography.weight.bold, color: "#FFFFFF", marginTop: 2 },
+
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: Spacing.md },
+  statCardItem: { width: "48%", padding: Spacing.md, alignItems: "flex-start" },
+  statCardIcon: { fontSize: 20 },
+  statCardVal: {
+    fontSize: 20,
+    fontWeight: Typography.weight.extraBold,
+    color: "#FFFFFF",
+    marginTop: 4,
   },
-  algoStepDesc: {
-    fontSize: Typography.text.caption1.fontSize,
+  statCardLabel: {
+    fontSize: 12,
     color: Colors.text.secondary,
-    lineHeight: 18,
+    marginTop: 2,
+    fontWeight: Typography.weight.medium,
   },
+
+  chartCard: { padding: Spacing.md, marginBottom: Spacing.md },
+  chartRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    height: 130,
+  },
+  barColumn: { flex: 1, alignItems: "center", height: "100%", justifyContent: "flex-end" },
+  barCountText: { fontSize: 10, color: Colors.text.secondary, fontWeight: "700", marginBottom: 4 },
+  barTrack: {
+    width: 14,
+    height: 90,
+    backgroundColor: Colors.duolingo.cardBottom,
+    borderRadius: 7,
+    overflow: "hidden",
+    justifyContent: "flex-end",
+  },
+  barFill: { width: "100%", borderRadius: 7 },
+  barDayText: { fontSize: 12, color: Colors.text.tertiary, marginTop: 6, fontWeight: "600" },
+  barDayToday: { color: Colors.duolingo.blue, fontWeight: "700" },
+
+  badgeGrid: { flexDirection: "row", gap: 10, marginTop: Spacing.xs },
+  badgeCard: { flex: 1, padding: Spacing.md, alignItems: "center" },
+  badgeEmoji: { fontSize: 28, marginBottom: 4 },
+  badgeName: { fontSize: 13, fontWeight: Typography.weight.bold, color: "#FFFFFF" },
+  badgeSub: { fontSize: 10, color: Colors.text.secondary, marginTop: 2 },
+
+  leaderboardCard: { padding: Spacing.md, marginBottom: Spacing.md },
+  leaderboardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: Spacing.md },
+  leagueTitle: { fontSize: 12, fontWeight: "800", color: Colors.duolingo.yellow, letterSpacing: 0.5 },
+  leaderboardList: { gap: 8 },
+  leaderItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    backgroundColor: Colors.duolingo.bg,
+    borderRadius: Radii.md,
+    gap: 10,
+  },
+  leaderItemUser: {
+    backgroundColor: Colors.duolingo.blueDim,
+    borderWidth: 0,
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.duolingo.blueDark,
+  },
+  rankNum: { fontSize: 16, fontWeight: "800", color: "#FFFFFF", width: 28, textAlign: "center" },
+  leaderAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.duolingo.cardBg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  leaderName: { flex: 1, fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
+  leaderNameUser: { color: Colors.duolingo.blue, fontWeight: "800" },
+  leaderXp: { fontSize: 14, fontWeight: "800", color: Colors.duolingo.yellow },
 });

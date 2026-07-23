@@ -14,10 +14,11 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as Speech from "expo-speech";
 import { useStore } from "../../store/useStore";
 import { isDue } from "../../lib/srs";
+import { getPinyinToneColor } from "../../lib/pinyinColor";
 import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
 import { SectionTitle } from "../../components/ui/SectionTitle";
-import { InsetGroup } from "../../components/ui/InsetGroup";
-import { InsetRow } from "../../components/ui/InsetRow";
+import { DuolingoCard } from "../../components/ui/DuolingoCard";
+import { DuolingoButton } from "../../components/ui/DuolingoButton";
 
 export default function CardDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -46,7 +47,7 @@ export default function CardDetailScreen() {
         text: "Xóa thẻ",
         style: "destructive",
         onPress: async () => {
-          triggerHaptic("medium");
+          triggerHaptic("heavy");
           await deleteCard(card.id, deckId);
           router.back();
         },
@@ -68,241 +69,184 @@ export default function CardDetailScreen() {
 
   if (!card) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={Colors.accent.indigoLight} size="small" />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color={Colors.duolingo.blue} />
       </View>
     );
   }
 
-  const due = isDue(card.srs);
+  const pinyinColor = getPinyinToneColor(card.pinyin);
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: Math.max(insets.top + 16, 54),
-          paddingBottom: Math.max(insets.bottom + 20, 40),
-        },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Top Header Navigation */}
-      <View style={styles.topNavRow}>
+    <View style={styles.container}>
+      {/* Header Bar */}
+      <View style={[styles.headerBar, { paddingTop: Math.max(insets.top + 8, 44) }]}>
         <TouchableOpacity
+          style={styles.backBtn}
           onPress={() => {
             triggerHaptic("light");
             router.back();
           }}
-          style={styles.backBtn}
         >
-          <Ionicons name="chevron-back" size={22} color={Colors.accent.indigoLight} />
-          <Text style={styles.backText}>Quay lại</Text>
+          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={handleDelete} style={styles.deleteHeaderBtn} activeOpacity={0.7}>
-          <Ionicons name="trash-outline" size={20} color={Colors.neon.coral} />
+        <Text style={styles.headerTitle}>CHI TIẾT TỪ VỰNG</Text>
+
+        <TouchableOpacity style={styles.deleteCardBtn} onPress={handleDelete}>
+          <Ionicons name="trash-outline" size={22} color={Colors.duolingo.red} />
         </TouchableOpacity>
       </View>
 
-      {/* Word Hero Card */}
-      <View style={styles.wordHeroCard}>
-        <View style={styles.wordHeaderRow}>
-          <Text style={styles.characterText}>{card.character}</Text>
-          {card.hskLevel ? (
-            <View style={styles.hskChip}>
-              <Text style={styles.hskChipText}>HSK {card.hskLevel}</Text>
-            </View>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom + 40, 60) },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Flashcard Hero Banner */}
+        <DuolingoCard style={styles.heroCard}>
+          <Text style={styles.characterBig}>{card.character}</Text>
+          {card.traditional && card.traditional !== card.character ? (
+            <Text style={styles.traditionalText}>Phồn thể: {card.traditional}</Text>
           ) : null}
-        </View>
 
-        <View style={styles.subInfoRow}>
-          <Text style={styles.pinyinText}>{card.pinyin}</Text>
-        </View>
+          <Text style={[styles.pinyinBig, { color: pinyinColor }]}>{card.pinyin}</Text>
+          <Text style={styles.translationBig}>{card.translation}</Text>
 
-        <Text style={styles.translationText}>{card.translation}</Text>
-
-        <TouchableOpacity style={styles.speakPillBtn} onPress={speak} activeOpacity={0.8}>
-          <Ionicons
-            name={speaking ? "volume-high" : "volume-medium"}
-            size={16}
-            color={Colors.accent.indigoLight}
+          {/* 3D Audio Push Button */}
+          <DuolingoButton
+            title={speaking ? "ĐANG PHÁT..." : "🔊 NGHE PHÁT ÂM"}
+            variant="blue"
+            onPress={speak}
+            height={48}
+            style={{ marginTop: Spacing.md }}
           />
-          <Text style={styles.speakPillText}>{speaking ? "Đang phát âm..." : "Nghe phát âm"}</Text>
-        </TouchableOpacity>
-      </View>
+        </DuolingoCard>
 
-      {/* Info Group */}
-      <SectionTitle>THÔNG TIN TỪ VỰNG</SectionTitle>
-      <InsetGroup>
-        <InsetRow label="Pinyin" value={card.pinyin} valueColor={Colors.neon.cyan} labelStyle={{ width: 100 }} />
-        <InsetRow label="Nghĩa TV" value={card.translation} isBorder labelStyle={{ width: 100 }} />
-        {card.traditional && card.traditional !== card.character && (
-          <InsetRow label="Phồn thể" value={card.traditional} isBorder labelStyle={{ width: 100 }} />
-        )}
-        {card.radical ? (
-          <InsetRow label="Bộ thủ" value={card.radical} isBorder labelStyle={{ width: 100 }} />
-        ) : null}
-        {card.strokeCount ? (
-          <InsetRow label="Số nét" value={`${card.strokeCount} nét`} isBorder labelStyle={{ width: 100 }} />
-        ) : null}
-        {card.tags && card.tags.length > 0 && (
-          <InsetRow label="Phân loại" value={card.tags.join(", ")} isBorder labelStyle={{ width: 100 }} />
-        )}
-      </InsetGroup>
+        {/* SRS Learning Status Card */}
+        <SectionTitle>TRẠNG THÁI TRÍ NHỚ (SRS)</SectionTitle>
+        <DuolingoCard style={styles.detailCard}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Trạng thái hiện tại</Text>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor: isDue(card.srs)
+                    ? Colors.duolingo.red
+                    : card.srs?.repetitions > 0
+                    ? Colors.duolingo.green
+                    : Colors.duolingo.blue,
+                },
+              ]}
+            >
+              <Text style={styles.statusBadgeText}>
+                {isDue(card.srs)
+                  ? "⚡ CẦN ÔN TẬP"
+                  : card.srs?.repetitions > 0
+                  ? "✓ ĐÃ THUỘC"
+                  : "✨ TỪ MỚI"}
+              </Text>
+            </View>
+          </View>
 
-      {/* SRS Memory Group */}
-      <SectionTitle>TRẠNG THÁI TRÍ NHỚ (ANKI)</SectionTitle>
-      <InsetGroup>
-        <InsetRow label="Lần ôn" value={`${card.srs.repetitions} lần`} labelStyle={{ width: 100 }} />
-        <InsetRow label="Khoảng cách" value={`${card.srs.interval} ngày`} isBorder labelStyle={{ width: 100 }} />
-        <InsetRow label="Hệ số Ease" value={`${card.srs.easeFactor}`} isBorder labelStyle={{ width: 100 }} />
-        <InsetRow
-          label="Trạng thái"
-          value={due ? "Cần ôn ngay" : "Đã thuộc"}
-          valueColor={due ? Colors.neon.coral : Colors.neon.emerald}
-          isBorder
-          labelStyle={{ width: 100 }}
-        />
-        <InsetRow
-          label="Lần ôn tiếp"
-          value={new Date(card.srs.dueDate).toLocaleDateString("vi-VN")}
-          isBorder
-          labelStyle={{ width: 100 }}
-        />
-      </InsetGroup>
+          <View style={[styles.detailRow, styles.borderTop]}>
+            <Text style={styles.detailLabel}>Số lần đã ôn thành công</Text>
+            <Text style={styles.detailVal}>{card.srs?.repetitions || 0} lần</Text>
+          </View>
 
-      {/* Examples Group */}
-      {card.examples && card.examples.length > 0 && (
-        <>
-          <SectionTitle>CÂU VÍ DỤ NGUYÊN CẢNH</SectionTitle>
-          <InsetGroup>
-            {card.examples.map((ex, i) => (
-              <View key={i} style={[styles.exampleItem, i > 0 && styles.cellBorderTop]}>
-                <Text style={styles.exCn}>{ex.chinese}</Text>
-                <Text style={styles.exPy}>{ex.pinyin}</Text>
-                <Text style={styles.exVi}>{ex.vietnamese}</Text>
-              </View>
+          <View style={[styles.detailRow, styles.borderTop]}>
+            <Text style={styles.detailLabel}>Khoảng cách lặp lại (Interval)</Text>
+            <Text style={styles.detailVal}>{card.srs?.interval || 0} ngày</Text>
+          </View>
+
+          <View style={[styles.detailRow, styles.borderTop]}>
+            <Text style={styles.detailLabel}>Hệ số dễ (Ease Factor)</Text>
+            <Text style={styles.detailVal}>{((card.srs?.easeFactor || 2.5) * 100).toFixed(0)}%</Text>
+          </View>
+        </DuolingoCard>
+
+        {/* Example Sentences */}
+        {card.examples && card.examples.length > 0 ? (
+          <>
+            <SectionTitle>CÂU VÍ DỤ MINH HỌA</SectionTitle>
+            {card.examples.map((ex, idx) => (
+              <DuolingoCard key={idx} style={styles.exampleCard}>
+                <Text style={styles.exampleCn}>{ex.chinese}</Text>
+                {ex.pinyin ? (
+                  <Text style={[styles.examplePy, { color: pinyinColor }]}>{ex.pinyin}</Text>
+                ) : null}
+                <Text style={styles.exampleVi}>{ex.vietnamese}</Text>
+              </DuolingoCard>
             ))}
-          </InsetGroup>
-        </>
-      )}
-    </ScrollView>
+          </>
+        ) : null}
+
+        {/* Delete Button */}
+        <DuolingoButton
+          title="🗑️ XÓA THẺ TỪ VỰNG NÀY"
+          variant="error"
+          onPress={handleDelete}
+          height={48}
+          style={{ marginTop: Spacing.md }}
+        />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg.primary },
-  content: { paddingHorizontal: Spacing.pageMargin },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.bg.primary,
-  },
+  container: { flex: 1, backgroundColor: Colors.duolingo.bg },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.duolingo.bg },
 
-  topNavRow: {
+  headerBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.pageMargin,
+    paddingBottom: Spacing.xs,
+    backgroundColor: Colors.duolingo.bg,
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.duolingo.cardBorder,
   },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 2 },
-  backText: {
-    color: Colors.accent.indigoLight,
-    fontSize: Typography.text.body.fontSize,
-    fontWeight: Typography.weight.medium,
+  backBtn: { padding: 4 },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
-  deleteHeaderBtn: {
-    padding: Spacing.xs,
-  },
+  deleteCardBtn: { padding: 4 },
 
-  wordHeroCard: {
-    backgroundColor: Colors.bg.secondary,
-    borderRadius: Radii.card,
-    padding: Spacing.lg,
-    marginBottom: Spacing.xl,
-    alignItems: "flex-start",
-  },
-  wordHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  characterText: {
-    fontSize: 34,
-    lineHeight: 40,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.bold,
-  },
-  hskChip: {
-    backgroundColor: Colors.bg.tertiary,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  hskChipText: {
-    fontSize: Typography.text.caption2.fontSize,
-    color: Colors.accent.indigoLight,
-    fontWeight: Typography.weight.bold,
-  },
-  subInfoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 4,
-  },
-  pinyinText: {
-    fontSize: Typography.text.callout.fontSize,
-    color: Colors.neon.cyan,
-    fontWeight: Typography.weight.semibold,
-  },
-  dotSeparator: {
-    color: Colors.text.tertiary,
-    fontSize: 12,
-  },
-  hanvietText: {
-    fontSize: Typography.text.subhead.fontSize,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weight.medium,
-  },
-  translationText: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.semibold,
-    marginTop: 8,
-  },
-  speakPillBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: Spacing.md,
-    backgroundColor: Colors.bg.tertiary,
+  scrollContent: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.md },
+
+  heroCard: { padding: Spacing.xl, alignItems: "center", marginBottom: Spacing.lg },
+  characterBig: { fontSize: 64, fontWeight: "800", color: "#FFFFFF" },
+  traditionalText: { fontSize: 13, color: Colors.duolingo.textMuted, marginTop: 2 },
+  pinyinBig: { fontSize: 22, fontWeight: "800", marginTop: Spacing.xs },
+  translationBig: { fontSize: 18, fontWeight: "700", color: "#FFFFFF", marginTop: 4, textAlign: "center" },
+
+  detailCard: { padding: Spacing.md, marginBottom: Spacing.lg },
+  detailRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: Spacing.sm },
+  borderTop: { borderTopWidth: 1, borderTopColor: Colors.duolingo.cardBorder },
+  detailLabel: { fontSize: 14, color: Colors.duolingo.textMuted, fontWeight: "600" },
+  detailVal: { fontSize: 14, fontWeight: "800", color: "#FFFFFF" },
+
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: Radii.full,
-    height: 32,
-    paddingHorizontal: Spacing.md,
   },
-  speakPillText: {
-    color: Colors.accent.indigoLight,
-    fontSize: Typography.text.caption1.fontSize,
-    fontWeight: Typography.weight.bold,
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
 
-  cellBorderTop: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.border.separator,
-  },
-
-  exampleItem: {
-    padding: Spacing.cellHorizontal,
-  },
-  exCn: {
-    fontSize: Typography.text.body.fontSize,
-    color: Colors.text.primary,
-    fontWeight: Typography.weight.semibold,
-  },
-  exPy: { fontSize: Typography.text.footnote.fontSize, color: Colors.neon.cyan, marginTop: 2 },
-  exVi: { fontSize: Typography.text.footnote.fontSize, color: Colors.text.secondary, marginTop: 2 },
+  exampleCard: { padding: Spacing.md, marginBottom: 10 },
+  exampleCn: { fontSize: 16, fontWeight: "800", color: "#FFFFFF" },
+  examplePy: { fontSize: 13, marginTop: 2, fontWeight: "600" },
+  exampleVi: { fontSize: 13, color: Colors.duolingo.textMuted, marginTop: 2 },
 });

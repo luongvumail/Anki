@@ -197,7 +197,7 @@ export function AccountModal({
                 variant="primary"
                 disabled={!newPassword || loadingPass}
                 onPress={handlePasswordSubmit}
-                height={48}
+                height={52}
               />
 
               <TouchableOpacity

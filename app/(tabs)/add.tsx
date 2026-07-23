@@ -328,15 +328,14 @@ export default function AddCardScreen() {
               <SectionTitle>KẾT QUẢ TỰ ĐỘNG TẠO ({wordItems.length})</SectionTitle>
 
               {unsavedDoneCount > 0 && (
-                <TouchableOpacity
-                  style={styles.saveAllBtn}
-                  onPress={handleSaveAll}
+                <DuolingoButton
+                  title={bulkSaving ? "ĐANG LƯU..." : "LƯU TẤT CẢ ➜"}
+                  variant="success"
                   disabled={bulkSaving}
-                >
-                  <Text style={styles.saveAllBtnText}>
-                    {bulkSaving ? "LƯU..." : "LƯU TẤT CẢ"}
-                  </Text>
-                </TouchableOpacity>
+                  onPress={handleSaveAll}
+                  height={40}
+                  style={{ width: "auto", paddingHorizontal: 14 }}
+                />
               )}
             </View>
 

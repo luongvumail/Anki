@@ -46,22 +46,12 @@ export function SessionDoneScreen({ session, onDone }: SessionDoneScreenProps) {
       ]}
     >
       <Animated.View style={[styles.innerContent, { opacity: fadeAnim }]}>
-        <DuolingoMascot
-          expression="celebrate"
-          size={90}
-          speechBubbleText="Xuất sắc! 太棒了!"
-        />
+        <DuolingoMascot expression="celebrate" size={90} speechBubbleText="Xuất sắc! 太棒了!" />
         <Text style={styles.doneTitle}>HOÀN THÀNH BÀI HỌC!</Text>
         <Text style={styles.doneSub}>Bạn đã hoàn thành tất cả mục tiêu bài học hôm nay</Text>
 
         {/* Celebratory Stats Grid Cards */}
         <View style={styles.statsGrid}>
-          <DuolingoCard style={styles.statBox}>
-            <Text style={styles.statEmoji}>⚡</Text>
-            <Text style={[styles.statVal, { color: Colors.duolingo.yellow }]}>+{xpEarned} XP</Text>
-            <Text style={styles.statLabel}>ĐIỂM XP ĐẠT ĐƯỢC</Text>
-          </DuolingoCard>
-
           <DuolingoCard style={styles.statBox}>
             <Ionicons name="checkmark-circle" size={22} color={Colors.duolingo.green} />
             <Text style={[styles.statVal, { color: Colors.duolingo.green }]}>{accuracy}%</Text>
@@ -75,7 +65,12 @@ export function SessionDoneScreen({ session, onDone }: SessionDoneScreenProps) {
             <Text style={styles.dailyGoalTitle}>MỤC TIÊU XP HÀNG NGÀY</Text>
             <Text style={styles.dailyGoalValue}>{xpEarned} / 50 XP</Text>
           </View>
-          <ProgressBar progress={Math.min(1, xpEarned / 50)} height={12} fillColor={Colors.duolingo.green} style={{ marginTop: Spacing.xs }} />
+          <ProgressBar
+            progress={Math.min(1, xpEarned / 50)}
+            height={12}
+            fillColor={Colors.duolingo.green}
+            style={{ marginTop: Spacing.xs }}
+          />
         </DuolingoCard>
 
         {/* 3D Full-Width Primary Continue Button */}
@@ -136,7 +131,13 @@ const styles = StyleSheet.create({
   },
   statEmoji: { fontSize: 22, marginBottom: 2 },
   statVal: { fontSize: 22, fontWeight: "800", marginTop: 2 },
-  statLabel: { fontSize: 11, color: Colors.text.secondary, fontWeight: "700", marginTop: 2, letterSpacing: 0.5 },
+  statLabel: {
+    fontSize: 11,
+    color: Colors.text.secondary,
+    fontWeight: "700",
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
 
   dailyGoalCard: {
     width: "100%",
@@ -148,6 +149,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
-  dailyGoalTitle: { fontSize: 12, fontWeight: "700", color: Colors.text.secondary, letterSpacing: 0.5 },
+  dailyGoalTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.text.secondary,
+    letterSpacing: 0.5,
+  },
   dailyGoalValue: { fontSize: 12, fontWeight: "800", color: Colors.duolingo.green },
 });

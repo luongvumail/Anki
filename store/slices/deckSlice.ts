@@ -38,7 +38,51 @@ export const createDeckSlice: StateCreator<DeckSlice & UISlice & CardSlice, [], 
         ),
       );
       const snap = (await Promise.race([getDocs(decksRef(uid)), timeout])) as QuerySnapshot<DocumentData>;
-      const decks = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Deck);
+      let decks = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Deck);
+
+      if (decks.length === 0) {
+        console.log("[fetchDecks] User has 0 decks. Seeding HSK 1, HSK 2, HSK 3 sample decks...");
+        const { SAMPLE_DECKS_DATA } = await import("../../lib/seedData");
+        const { createDefaultSRSState } = await import("../../lib/srs");
+
+        for (const sample of SAMPLE_DECKS_DATA) {
+          const deckRef = doc(decksRef(uid));
+          const newDeck: Deck = {
+            id: deckRef.id,
+            name: sample.name,
+            description: sample.description,
+            icon: sample.icon,
+            color: sample.color,
+            cardCount: sample.cards.length,
+            newCount: sample.cards.length,
+            dueCount: sample.cards.length,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          await setDoc(deckRef, newDeck);
+
+          for (const c of sample.cards) {
+            const cardRef = doc(cardsRef(uid, deckRef.id));
+            const newCard = {
+              id: cardRef.id,
+              deckId: deckRef.id,
+              character: c.character,
+              pinyin: c.pinyin,
+              translation: c.translation,
+              radical: c.radical,
+              examples: c.examples,
+              srs: createDefaultSRSState(),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            await setDoc(cardRef, newCard);
+          }
+        }
+
+        const seededSnap = await getDocs(decksRef(uid));
+        decks = seededSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as Deck);
+      }
+
       console.log("[fetchDecks] Success, got", decks.length, "decks");
       set({ decks, isLoading: false });
       // Pre-fetch cards for all decks in parallel so SRS due states are accurate everywhere immediately

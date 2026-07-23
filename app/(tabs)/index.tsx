@@ -24,14 +24,14 @@ import {
   cancelDailyStudyReminder,
 } from "../../lib/notificationService";
 import { useStore } from "../../store/useStore";
-import { Colors, Typography, Spacing, triggerHaptic } from "../../constants/theme";
+import { Colors, Spacing, triggerHaptic } from "../../constants/theme";
 import { AccountModal } from "../../components/home/AccountModal";
 import { DuolingoButton } from "../../components/ui/DuolingoButton";
 import { DuolingoCard } from "../../components/ui/DuolingoCard";
 import { DuolingoHeader } from "../../components/ui/DuolingoHeader";
 import { ZigZagSkillPath } from "../../components/home/ZigZagSkillPath";
 import { Deck } from "../../store/slices/types";
-import { computeDueCount, computeNewCount, computeLearnedCount } from "../../lib/deckUtils";
+import { computeDueCount } from "../../lib/deckUtils";
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -52,21 +52,14 @@ export default function DashboardScreen() {
   const user = auth.currentUser;
   const displayName = user?.displayName || user?.email?.split("@")[0] || "Học viên";
 
-  const { totalDue, dueCardsMap } = useMemo(() => {
-    const dueMap: Record<string, number> = {};
-    let totalDueVal = 0;
-
+  // Calculate due cards map for all decks
+  const dueCardsMap = useMemo(() => {
+    const map: Record<string, number> = {};
     decks.forEach((d) => {
-      const deckCards = cardsState[d.id];
-      const due = deckCards ? computeDueCount(deckCards) : d.dueCount || 0;
-      dueMap[d.id] = due;
-      totalDueVal += due;
+      const deckCards = cardsState[d.id] || [];
+      map[d.id] = deckCards.length > 0 ? computeDueCount(deckCards) : d.dueCount || 0;
     });
-
-    return {
-      totalDue: totalDueVal,
-      dueCardsMap: dueMap,
-    };
+    return map;
   }, [decks, cardsState]);
 
   useEffect(() => {
@@ -155,26 +148,19 @@ export default function DashboardScreen() {
     }
   };
 
-  const targetDeck = useMemo(() => {
-    const dueDeck = decks.find((d) => (dueCardsMap[d.id] || 0) > 0);
-    return dueDeck || decks[0];
-  }, [decks, dueCardsMap]);
-
   return (
     <View style={styles.container}>
-      {/* Top Stats Bar */}
+      {/* Header Bar with Personalized User Greeting */}
       <DuolingoHeader
-        courseName="Anki"
+        userName={displayName}
         streakCount={1}
-        gemsCount={150}
-        heartsCount={5}
         onProfilePress={() => setShowAccountModal(true)}
       />
 
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: Math.max(insets.bottom + 100, 120) },
+          { paddingBottom: Math.max(insets.bottom + 80, 100) },
         ]}
         refreshControl={
           <RefreshControl
@@ -203,6 +189,7 @@ export default function DashboardScreen() {
             />
           </DuolingoCard>
         ) : (
+          /* REAL DECKS ZIGZAG SKILL PATH (1 NODE = 1 DECK) */
           <ZigZagSkillPath
             decks={decks}
             dueCardsMap={dueCardsMap}
@@ -217,27 +204,6 @@ export default function DashboardScreen() {
           />
         )}
       </ScrollView>
-
-      {/* Floating Bottom Sticky Action CTA */}
-      {targetDeck && (
-        <View
-          style={[styles.bottomCtaContainer, { paddingBottom: Math.max(insets.bottom + 10, 16) }]}
-        >
-          <DuolingoButton
-            title={
-              totalDue > 0
-                ? `ÔN BỘ "${targetDeck.name.toUpperCase()}" (${totalDue}) ➜`
-                : "HỌC BÀI KẾ TIẾP ➜"
-            }
-            variant="primary"
-            onPress={() => {
-              triggerHaptic("medium");
-              router.push(`/study/${targetDeck.id}`);
-            }}
-            height={54}
-          />
-        </View>
-      )}
 
       {/* Account Settings Modal */}
       {showAccountModal && (
@@ -271,16 +237,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
   },
 
-  bottomCtaContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.duolingo.bg,
-    paddingHorizontal: Spacing.pageMargin,
-    paddingTop: Spacing.xs,
-  },
-
   emptyCard: {
     alignItems: "center",
     justifyContent: "center",
@@ -288,13 +244,13 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
   },
   emptyTitle: {
-    fontSize: Typography.text.headline.fontSize,
-    fontWeight: Typography.weight.bold,
-    color: Colors.text.primary,
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
   emptySub: {
-    fontSize: Typography.text.footnote.fontSize,
-    color: Colors.text.secondary,
+    fontSize: 13,
+    color: Colors.duolingo.textMuted,
     marginTop: 4,
     textAlign: "center",
   },

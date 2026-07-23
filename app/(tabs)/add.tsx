@@ -247,7 +247,7 @@ export default function AddCardScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <DuolingoHeader courseName="Tiếng Trung" streakCount={1} gemsCount={150} heartsCount={5} />
+      <DuolingoHeader courseName="Anki" streakCount={1} gemsCount={150} heartsCount={5} />
 
       <ScrollView
         contentContainerStyle={[

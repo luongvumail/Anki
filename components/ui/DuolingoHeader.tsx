@@ -2,9 +2,11 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { auth } from "../../lib/firebase";
 import { Colors, Radii, Spacing, triggerHaptic } from "../../constants/theme";
 
 interface DuolingoHeaderProps {
+  userName?: string;
   courseName?: string;
   streakCount?: number;
   gemsCount?: number;
@@ -16,22 +18,27 @@ interface DuolingoHeaderProps {
 }
 
 export function DuolingoHeader({
-  courseName = "Anki",
+  userName,
   streakCount = 1,
   onProfilePress,
   onStreakPress,
 }: DuolingoHeaderProps) {
   const insets = useSafeAreaInsets();
+  const authUser = auth.currentUser;
+  const resolvedName =
+    userName ||
+    authUser?.displayName ||
+    (authUser?.email ? authUser.email.split("@")[0] : "Bạn");
 
   return (
     <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 8, 44) }]}>
-      {/* App Logo Badge */}
+      {/* Friendly User Greeting - Synchronized & Unified across all screens */}
       <View style={styles.courseSelector}>
-        {/* <Text style={styles.flagIcon}>⚡</Text> */}
-        <Text style={styles.courseTitleText}>{courseName}</Text>
+        <Ionicons name="sparkles" size={15} color={Colors.duolingo.blue} />
+        <Text style={styles.courseTitleText}>Xin chào, {resolvedName}</Text>
       </View>
 
-      {/* Top Indicators Row: Streak Only */}
+      {/* Top Indicators Row: Streak Only with Vector Icons */}
       <View style={styles.statsRow}>
         {/* Streak Pill */}
         <TouchableOpacity
@@ -42,7 +49,7 @@ export function DuolingoHeader({
             if (onStreakPress) onStreakPress();
           }}
         >
-          <Text style={styles.statIcon}>🔥</Text>
+          <Ionicons name="flame" size={16} color={Colors.duolingo.yellow} />
           <Text style={[styles.statValue, { color: Colors.duolingo.yellow }]}>
             {streakCount}
           </Text>
@@ -58,7 +65,7 @@ export function DuolingoHeader({
             }}
             activeOpacity={0.8}
           >
-            <Ionicons name="person-circle" size={28} color={Colors.duolingo.textMuted} />
+            <Ionicons name="person-circle" size={28} color={Colors.duolingo.blue} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -82,14 +89,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     backgroundColor: Colors.duolingo.cardBg,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: Radii.full,
     borderBottomWidth: 2,
     borderBottomColor: Colors.duolingo.cardBottom,
-  },
-  flagIcon: {
-    fontSize: 16,
   },
   courseTitleText: {
     fontSize: 13,
@@ -100,21 +104,18 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   statPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
     backgroundColor: Colors.duolingo.cardBg,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radii.full,
     borderBottomWidth: 2,
     borderBottomColor: Colors.duolingo.cardBottom,
-  },
-  statIcon: {
-    fontSize: 14,
   },
   statValue: {
     fontSize: 13,

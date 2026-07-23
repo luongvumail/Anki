@@ -141,7 +141,7 @@ export default function StatsScreen() {
             <DuolingoCard style={styles.trophyBanner}>
               <View style={styles.trophyRow}>
                 <View style={styles.trophyIconBox}>
-                  <Text style={{ fontSize: 26 }}>🏆</Text>
+                  <Ionicons name="trophy" size={26} color={Colors.duolingo.yellow} />
                 </View>
                 <View style={styles.trophyText}>
                   <Text style={styles.trophyTitle}>TIẾN ĐỘ THUỘC TỪ VỰNG</Text>
@@ -162,7 +162,7 @@ export default function StatsScreen() {
             {/* Overview Stat Cards Grid */}
             <View style={styles.statsGrid}>
               <DuolingoCard style={styles.statCardItem}>
-                <Text style={styles.statCardIcon}>🔥</Text>
+                <Ionicons name="flame" size={22} color={Colors.duolingo.yellow} />
                 <Text style={styles.statCardVal}>1 Ngày</Text>
                 <Text style={styles.statCardLabel}>Chuỗi Học Liên Tục</Text>
               </DuolingoCard>

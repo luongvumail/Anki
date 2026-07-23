@@ -121,25 +121,35 @@ export default function StudyScreen() {
     }
   };
 
-  // Handle Quiz Answer (Correct / Wrong)
+  // Handle Quiz Answer (Correct / Wrong - Short-Term Memory Re-study Loop)
   const handleQuizAnswer = async (isCorrect: boolean) => {
     if (!session || questions.length === 0) return;
 
-    const currentQuestion = questions[session.currentIndex];
+    const currIdx = session.currentIndex;
+    const currentQuestion = questions[currIdx];
     const card = currentQuestion.card;
 
-    const grade: SRSGrade = isCorrect ? 4 : 1;
+    const grade: SRSGrade = isCorrect ? SRS_GRADES.GOOD : SRS_GRADES.AGAIN;
     const currentSRS = card.srs || createDefaultSRSState();
     const newSRS = calculateSRS(grade, currentSRS);
 
     await updateCard(card.id, deckId, { srs: newSRS });
     await recordReviewToday();
 
-    const nextIndex = session.currentIndex + 1;
+    let updatedQuestions = [...questions];
+    if (!isCorrect) {
+      // Short-Term Memory Queue: Re-insert wrong Quiz question 3 slots later so the user must get it right!
+      const targetPos = Math.min(updatedQuestions.length, currIdx + 3);
+      updatedQuestions.splice(targetPos, 0, currentQuestion);
+    }
+
+    const nextIndex = currIdx + 1;
     const newCorrect = isCorrect ? session.correctCount + 1 : session.correctCount;
     const newReviewed = session.reviewedCount + 1;
 
-    if (nextIndex >= questions.length) {
+    setQuestions(updatedQuestions);
+
+    if (nextIndex >= updatedQuestions.length) {
       setSession({
         ...session,
         currentIndex: nextIndex,
@@ -155,6 +165,20 @@ export default function StudyScreen() {
         reviewedCount: newReviewed,
       });
     }
+  };
+
+  const handleSwitchMode = (newMode: StudyMode) => {
+    triggerHaptic("selection");
+    if (newMode === "quiz" && targetCards.length > 0) {
+      // Sync Quiz questions with targetCards (including any re-study queue items from Flashcard mode)
+      const syncedQuestions = targetCards
+        .map((c) => generateQuizQuestion(c, deckCards))
+        .filter((q): q is QuizQuestion => q !== null);
+      if (syncedQuestions.length > 0) {
+        setQuestions(syncedQuestions);
+      }
+    }
+    setMode(newMode);
   };
 
   const endSession = async () => {
@@ -230,10 +254,7 @@ export default function StudyScreen() {
             styles.modeSegmentBtn,
             mode === "flashcard" && styles.modeSegmentBtnActive,
           ]}
-          onPress={() => {
-            triggerHaptic("selection");
-            setMode("flashcard");
-          }}
+          onPress={() => handleSwitchMode("flashcard")}
           activeOpacity={0.8}
         >
           <Text
@@ -251,10 +272,7 @@ export default function StudyScreen() {
             styles.modeSegmentBtn,
             mode === "quiz" && styles.modeSegmentBtnActive,
           ]}
-          onPress={() => {
-            triggerHaptic("selection");
-            setMode("quiz");
-          }}
+          onPress={() => handleSwitchMode("quiz")}
           activeOpacity={0.8}
         >
           <Text

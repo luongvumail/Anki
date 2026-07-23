@@ -13,7 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Speech from "expo-speech";
 import { Card } from "../../store/slices/types";
-import { Colors, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { Colors, Radii, Spacing, triggerHaptic } from "../../constants/theme";
 
 export type ShortTermGrade = "again" | "hard" | "easy";
 
@@ -140,30 +140,14 @@ export function FlashcardView({ card, onGrade }: FlashcardViewProps) {
     })
   ).current;
 
-  // 60fps Native Interpolations
-  const heroTranslateY = revealAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [20, -18],
-  });
-
-  const heroScale = revealAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1.0, 0.75],
-  });
-
   const answerTranslateY = revealAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [40, 0],
+    outputRange: [30, 0],
   });
 
   const answerOpacity = revealAnim.interpolate({
     inputRange: [0, 0.2, 1],
-    outputRange: [0, 0.3, 1],
-  });
-
-  const hintOpacity = revealAnim.interpolate({
-    inputRange: [0, 0.4, 1],
-    outputRange: [1, 0, 0],
+    outputRange: [0, 0.4, 1],
   });
 
   const rotate = pan.x.interpolate({
@@ -190,114 +174,144 @@ export function FlashcardView({ card, onGrade }: FlashcardViewProps) {
             activeOpacity={0.96}
             onPress={handleCardTap}
           >
-            {/* SWIPE OVERLAY BADGES */}
+            {/* SWIPE OVERLAY BADGES WITH VECTOR ICONS */}
             {activeSwipe === "again" && (
               <View style={[styles.swipeBadge, styles.swipeBadgeAgain]}>
-                <Text style={styles.swipeBadgeText}>👈 QUÊN</Text>
+                <View style={styles.badgeIconRow}>
+                  <Ionicons name="arrow-back" size={14} color="#FFFFFF" />
+                  <Text style={styles.swipeBadgeText}>QUÊN</Text>
+                </View>
               </View>
             )}
             {activeSwipe === "hard" && (
               <View style={[styles.swipeBadge, styles.swipeBadgeHard]}>
-                <Text style={styles.swipeBadgeText}>👆 KHÓ</Text>
+                <View style={styles.badgeIconRow}>
+                  <Ionicons name="arrow-up" size={14} color="#FFFFFF" />
+                  <Text style={styles.swipeBadgeText}>KHÓ</Text>
+                </View>
               </View>
             )}
             {activeSwipe === "easy" && (
               <View style={[styles.swipeBadge, styles.swipeBadgeEasy]}>
-                <Text style={styles.swipeBadgeText}>DỄ 👉</Text>
+                <View style={styles.badgeIconRow}>
+                  <Text style={styles.swipeBadgeText}>DỄ</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+                </View>
               </View>
             )}
 
             {/* CARD TOP HEADER: HSK BADGE */}
             <View style={styles.cardTopHeader}>
               <View style={styles.hskBadge}>
+                <Ionicons name="sparkles" size={14} color={Colors.duolingo.blue} />
                 <Text style={styles.hskBadgeText}>HÁN TỰ</Text>
               </View>
             </View>
 
-            {/* HERO CHARACTER: GLIDES UPWARDS */}
-            <Animated.View
-              style={[
-                styles.heroCenterBox,
-                {
-                  transform: [{ translateY: heroTranslateY }, { scale: heroScale }],
-                },
-              ]}
-            >
-              <Text style={styles.characterHero}>{card.character}</Text>
-            </Animated.View>
-
-            {/* TAP HINT (PROPERLY CENTERED AT BOTTOM, FADES OUT ON REVEAL) */}
-            <Animated.View
-              pointerEvents={showAnswer ? "none" : "auto"}
-              style={[styles.tapHintBox, { opacity: hintOpacity }]}
-            >
-              <Ionicons name="sparkles" size={18} color={Colors.duolingo.blue} />
-              <Text style={styles.tapHintText}>CHẠM VÀO THẺ ĐỂ MỞ ĐÁP ÁN</Text>
-            </Animated.View>
-
-            {/* SLIDE-UP ANSWER SHEET */}
-            <Animated.View
-              pointerEvents={showAnswer ? "auto" : "none"}
-              style={[
-                styles.answerSlideContainer,
-                {
-                  opacity: answerOpacity,
-                  transform: [{ translateY: answerTranslateY }],
-                },
-              ]}
-            >
-              <View style={styles.divider} />
-
-              {/* PINYIN ROW WITH COMPACT AUDIO ICON BUTTON */}
-              <View style={styles.pinyinAudioRow}>
-                <Text style={styles.pinyinText}>{card.pinyin}</Text>
-                <TouchableOpacity
-                  style={styles.audioIconBtn3D}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    playTTS();
-                  }}
-                  activeOpacity={0.8}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons
-                    name={speaking ? "volume-high" : "volume-medium"}
-                    size={22}
-                    color={Colors.duolingo.blue}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {/* TRANSLATION */}
-              <Text style={styles.translationText}>{card.translation}</Text>
-
-              {/* RADICAL INFO */}
-              {card.radical ? (
-                <View style={styles.radicalPill}>
-                  <Text style={styles.radicalText}>Bộ thủ: {card.radical}</Text>
+            {/* UNREVEALED STATE: CHARACTER IS 100% DEAD CENTERED IN THE CARD */}
+            {!showAnswer ? (
+              <View style={styles.unrevealedCenterContainer}>
+                <View style={styles.heroCenterBox}>
+                  <Text style={styles.characterHero}>{card.character}</Text>
                 </View>
-              ) : null}
 
-              {/* EXAMPLES CONTAINER */}
-              {card.examples && card.examples.length > 0 && (
-                <ScrollView
-                  style={styles.examplesScroll}
-                  contentContainerStyle={styles.examplesScrollContent}
-                  showsVerticalScrollIndicator={false}
-                >
-                  <View style={styles.examplesBox}>
-                    <Text style={styles.examplesHeader}>CÂU VÍ DỤ MINH HỌA:</Text>
-                    {card.examples.map((ex, idx) => (
-                      <View key={idx} style={styles.exampleItem}>
-                        <Text style={styles.exampleCn}>{ex.chinese}</Text>
-                        {ex.pinyin && <Text style={styles.examplePy}>{ex.pinyin}</Text>}
-                        <Text style={styles.exampleVi}>{ex.vietnamese}</Text>
-                      </View>
-                    ))}
+                {/* BORDERLESS TAP HINT AT BOTTOM OF UNREVEALED CARD */}
+                <View style={styles.tapHintBox}>
+                  <Ionicons name="sparkles" size={16} color={Colors.duolingo.blue} />
+                  <Text style={styles.tapHintText}>CHẠM VÀO THẺ ĐỂ MỞ ĐÁP ÁN</Text>
+                </View>
+              </View>
+            ) : (
+              /* REVEALED STATE: PERFECTLY BALANCED FULL-CARD VERTICAL DISTRIBUTION */
+              <Animated.View
+                style={[
+                  styles.answerSlideContainer,
+                  {
+                    opacity: answerOpacity,
+                    transform: [{ translateY: answerTranslateY }],
+                  },
+                ]}
+              >
+                {/* CHARACTER HEADER AT TOP OF REVEALED STATE */}
+                <View style={styles.revealedHeroHeaderBox}>
+                  <Text style={styles.revealedCharacterHero}>{card.character}</Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                {/* PINYIN ROW WITH 3D AUDIO BUTTON */}
+                <View style={styles.pinyinAudioRow}>
+                  <Text style={styles.pinyinText}>{card.pinyin}</Text>
+                  <TouchableOpacity
+                    style={styles.audioIconBtn3D}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      playTTS();
+                    }}
+                    activeOpacity={0.8}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons
+                      name={speaking ? "volume-high" : "volume-medium"}
+                      size={24}
+                      color={Colors.duolingo.blue}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* TRANSLATION */}
+                <Text style={styles.translationText}>{card.translation}</Text>
+
+                {/* RADICAL INFO */}
+                {card.radical ? (
+                  <View style={styles.radicalPill}>
+                    <Text style={styles.radicalText}>Bộ thủ: {card.radical}</Text>
                   </View>
-                </ScrollView>
-              )}
-            </Animated.View>
+                ) : null}
+
+                {/* EXAMPLES CONTAINER - EXPANDS TO FILL REMAINING SPACE NATURALLY */}
+                {card.examples && card.examples.length > 0 && (
+                  <ScrollView
+                    style={styles.examplesScroll}
+                    contentContainerStyle={styles.examplesScrollContent}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    <View style={styles.examplesBox}>
+                      <Text style={styles.examplesHeader}>CÂU VÍ DỤ MINH HỌA:</Text>
+                      {card.examples.map((ex, idx) => (
+                        <View key={idx} style={styles.exampleItem}>
+                          <Text style={styles.exampleCn}>{ex.chinese}</Text>
+                          {ex.pinyin && <Text style={styles.examplePy}>{ex.pinyin}</Text>}
+                          <Text style={styles.exampleVi}>{ex.vietnamese}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </ScrollView>
+                )}
+              </Animated.View>
+            )}
+
+            {/* SWIPE GESTURE GUIDE LEGEND BAR AT BOTTOM OF CARD BODY */}
+            <View style={styles.swipeGuideFooter}>
+              <View style={[styles.swipeGuidePill, styles.swipeGuideAgain]}>
+                <View style={styles.guidePillRow}>
+                  <Ionicons name="arrow-back" size={12} color={Colors.duolingo.red} />
+                  <Text style={styles.swipeGuideText}>Trái: Quên</Text>
+                </View>
+              </View>
+              <View style={[styles.swipeGuidePill, styles.swipeGuideHard]}>
+                <View style={styles.guidePillRow}>
+                  <Ionicons name="arrow-up" size={12} color={Colors.duolingo.yellow} />
+                  <Text style={styles.swipeGuideText}>Lên: Khó</Text>
+                </View>
+              </View>
+              <View style={[styles.swipeGuidePill, styles.swipeGuideEasy]}>
+                <View style={styles.guidePillRow}>
+                  <Ionicons name="arrow-forward" size={12} color={Colors.duolingo.green} />
+                  <Text style={styles.swipeGuideText}>Phải: Dễ</Text>
+                </View>
+              </View>
+            </View>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -364,6 +378,16 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.5,
   },
+  badgeIconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  guidePillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
 
   cardTopHeader: {
     width: "100%",
@@ -372,9 +396,12 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   hskBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: Colors.duolingo.blueDim,
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: Radii.full,
   },
   hskBadgeText: {
@@ -384,34 +411,38 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  heroCenterBox: {
+  /* UNREVEALED FLEX CONTAINER: CHARACTER IS 100% DEAD CENTERED */
+  unrevealedCenterContainer: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginVertical: Spacing.xs,
+    width: "100%",
+  },
+  heroCenterBox: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   characterHero: {
-    fontSize: 88,
+    fontSize: 98,
     fontWeight: "800",
     color: "#FFFFFF",
     textAlign: "center",
+    letterSpacing: 1,
   },
 
+  /* BORDERLESS TAP HINT AT BOTTOM OF UNREVEALED CARD */
   tapHintBox: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: Colors.duolingo.cardBg,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: Radii.lg,
-    borderBottomWidth: 3,
-    borderBottomColor: Colors.duolingo.cardBottom,
-    zIndex: 10,
+    gap: 6,
+    backgroundColor: "transparent",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: Radii.full,
+    borderWidth: 0,
+    marginBottom: 8,
   },
   tapHintText: {
     fontSize: 13,
@@ -420,58 +451,72 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
+  /* REVEALED STATE CONTAINER: BALANCED VERTICAL SPACING ACROSS WHOLE CARD */
   answerSlideContainer: {
     flex: 1,
     alignItems: "center",
     width: "100%",
+    marginVertical: 4,
+  },
+  revealedHeroHeaderBox: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  revealedCharacterHero: {
+    fontSize: 60,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    textAlign: "center",
   },
   divider: {
     height: 2,
     width: "100%",
     backgroundColor: Colors.duolingo.cardBorder,
-    marginBottom: Spacing.xs,
+    marginVertical: 8,
   },
 
   pinyinAudioRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    marginTop: 2,
+    gap: 14,
+    marginVertical: 6,
   },
   pinyinText: {
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: "800",
     color: Colors.duolingo.blue,
   },
   audioIconBtn3D: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: Colors.duolingo.blueDim,
     alignItems: "center",
     justifyContent: "center",
-    borderBottomWidth: 2,
+    borderBottomWidth: 3,
     borderBottomColor: "#173A4F",
   },
 
   translationText: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: "800",
     color: Colors.duolingo.green,
-    marginTop: 4,
+    marginVertical: 6,
     textAlign: "center",
   },
 
   radicalPill: {
     backgroundColor: Colors.duolingo.cardBg,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
     borderRadius: Radii.full,
-    marginTop: 6,
+    marginVertical: 8,
   },
   radicalText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     color: Colors.duolingo.textMuted,
   },
@@ -479,42 +524,77 @@ const styles = StyleSheet.create({
   examplesScroll: {
     flex: 1,
     width: "100%",
-    marginTop: 8,
+    marginTop: 12,
+    marginBottom: 4,
   },
   examplesScrollContent: {
-    paddingBottom: 4,
+    flexGrow: 1,
+    justifyContent: "center",
   },
   examplesBox: {
     width: "100%",
     backgroundColor: Colors.duolingo.cardBg,
     borderRadius: Radii.lg,
-    padding: Spacing.md,
-    borderBottomWidth: 3,
-    borderBottomColor: Colors.duolingo.cardBottom,
+    padding: Spacing.lg,
+    borderWidth: 0,
   },
   examplesHeader: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
     color: Colors.duolingo.textMuted,
-    marginBottom: 6,
+    marginBottom: 8,
     letterSpacing: 0.5,
   },
   exampleItem: {
-    marginBottom: 6,
+    marginVertical: 4,
   },
   exampleCn: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: "700",
     color: "#FFFFFF",
   },
   examplePy: {
-    fontSize: 12,
+    fontSize: 14,
+    fontWeight: "700",
     color: Colors.duolingo.blue,
-    marginTop: 1,
+    marginTop: 2,
   },
   exampleVi: {
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.duolingo.textMuted,
-    marginTop: 1,
+    marginTop: 2,
+  },
+
+  /* SWIPE GESTURE GUIDE LEGEND BAR AT BOTTOM OF CARD BODY */
+  swipeGuideFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
+  },
+  swipeGuidePill: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    borderRadius: Radii.md,
+  },
+  swipeGuideAgain: {
+    backgroundColor: "rgba(255, 75, 75, 0.15)",
+  },
+  swipeGuideHard: {
+    backgroundColor: "rgba(255, 200, 0, 0.15)",
+  },
+  swipeGuideEasy: {
+    backgroundColor: "rgba(88, 204, 2, 0.15)",
+  },
+  swipeGuideText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.duolingo.textMuted,
   },
 });

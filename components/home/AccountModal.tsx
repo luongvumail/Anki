@@ -8,10 +8,11 @@ import {
   ScrollView,
   Switch,
   Alert,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { Colors, Spacing, triggerHaptic } from "../../constants/theme";
 import { FormField } from "../ui/FormField";
 import { WheelTimePicker } from "./WheelTimePicker";
 import { SectionTitle } from "../ui/SectionTitle";
@@ -86,7 +87,7 @@ export function AccountModal({
       triggerHaptic("success");
       Alert.alert(
         "Đã gửi email khôi phục",
-        "Hướng dẫn đặt lại mật khẩu đã được gửi đến email của bạn."
+        "Hướng dẫn đặt lại mật khẩu đã được gửi đến email của bạn.",
       );
     } catch (e: any) {
       triggerHaptic("error");
@@ -104,8 +105,13 @@ export function AccountModal({
       onRequestClose={onClose}
     >
       <View style={styles.modalContainer}>
-        {/* Header Bar */}
-        <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top + 8, 20) }]}>
+        {/* Header Bar - Compact top padding for PageSheet */}
+        <View
+          style={[
+            styles.modalHeader,
+            { paddingTop: Platform.OS === "ios" ? 14 : Math.max(insets.top, 14) },
+          ]}
+        >
           <Text style={styles.modalTitle}>HỒ SƠ CÁ NHÂN</Text>
           <TouchableOpacity
             style={styles.doneBtn}
@@ -121,31 +127,17 @@ export function AccountModal({
         <ScrollView
           contentContainerStyle={[
             styles.modalScroll,
-            { paddingBottom: Math.max(insets.bottom + 30, 40) },
+            { paddingBottom: Math.max(insets.bottom + 20, 30) },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {/* Profile Hero Avatar Card */}
+          {/* Profile Hero Avatar Card - Sleek & Compact */}
           <DuolingoCard style={styles.profileHeroCard}>
             <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={40} color={Colors.duolingo.blue} />
+              <Ionicons name="person" size={32} color={Colors.duolingo.blue} />
             </View>
             <Text style={styles.displayNameText}>{displayName}</Text>
             <Text style={styles.emailText}>{email || "Chưa cập nhật email"}</Text>
-
-            {/* Quick Profile Stat Badges */}
-            <View style={styles.quickStatsRow}>
-              <View style={styles.quickStatItem}>
-                <Text style={styles.quickStatIcon}>🔥</Text>
-                <Text style={styles.quickStatValue}>1</Text>
-                <Text style={styles.quickStatLabel}>STREAK</Text>
-              </View>
-              <View style={styles.quickStatItem}>
-                <Text style={styles.quickStatIcon}>⚡</Text>
-                <Text style={styles.quickStatValue}>+50</Text>
-                <Text style={styles.quickStatLabel}>DIEM XP</Text>
-              </View>
-            </View>
           </DuolingoCard>
 
           {/* Daily Reminder Section */}
@@ -167,6 +159,7 @@ export function AccountModal({
               />
             </View>
 
+            {/* Clean borderless time picker container */}
             {reminderEnabled && (
               <View style={styles.pickerContainer}>
                 <WheelTimePicker
@@ -247,38 +240,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: Spacing.pageMargin,
-    paddingBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
     borderBottomWidth: 2,
     borderBottomColor: Colors.duolingo.cardBorder,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "800",
     color: "#FFFFFF",
     letterSpacing: 0.5,
   },
   doneBtn: { padding: 4 },
-  modalScroll: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.md },
+  modalScroll: { paddingHorizontal: Spacing.pageMargin, paddingTop: Spacing.sm },
 
   profileHeroCard: {
     alignItems: "center",
-    padding: Spacing.lg,
+    padding: Spacing.md,
     marginBottom: Spacing.md,
   },
   avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: Colors.duolingo.blueDim,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.xs,
+    marginBottom: 6,
     borderWidth: 0,
-    borderBottomWidth: 4,
-    borderBottomColor: Colors.duolingo.blueDark,
   },
   displayNameText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "800",
     color: "#FFFFFF",
   },
@@ -287,26 +278,6 @@ const styles = StyleSheet.create({
     color: Colors.duolingo.textMuted,
     marginTop: 2,
   },
-
-  quickStatsRow: {
-    flexDirection: "row",
-    gap: 16,
-    marginTop: Spacing.md,
-    width: "100%",
-    justifyContent: "center",
-  },
-  quickStatItem: {
-    alignItems: "center",
-    backgroundColor: Colors.duolingo.bg,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: Radii.lg,
-    borderBottomWidth: 3,
-    borderBottomColor: "#18242B",
-  },
-  quickStatIcon: { fontSize: 18 },
-  quickStatValue: { fontSize: 18, fontWeight: "800", color: "#FFFFFF", marginTop: 2 },
-  quickStatLabel: { fontSize: 10, fontWeight: "700", color: Colors.duolingo.textMuted, marginTop: 1 },
 
   switchRow: {
     flexDirection: "row",
@@ -324,10 +295,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   pickerContainer: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.duolingo.cardBorder,
-    marginTop: Spacing.md,
-    paddingTop: Spacing.sm,
+    borderTopWidth: 0,
+    marginTop: Spacing.xs,
+    paddingTop: Spacing.xs,
   },
 
   forgotPassBtn: {

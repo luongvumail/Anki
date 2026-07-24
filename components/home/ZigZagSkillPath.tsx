@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   unitBannerTitle: {
     fontSize: 13,
     fontWeight: "800",
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
     letterSpacing: 0.8,
   },
   unitBannerSub: {

@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useStore } from "../../store/useStore";
 import { getFirestoreErrorMessage } from "../../lib/errorHandler";
-import { Colors, Typography, Spacing, Radii, VECTOR_DECK_ICONS, triggerHaptic } from "../../constants/theme";
+import { Colors, Spacing, VECTOR_DECK_ICONS, triggerHaptic } from "../../constants/theme";
 import { DeckIcon } from "../../components/ui/DeckIcon";
 import { SectionTitle } from "../../components/ui/SectionTitle";
 import { FormField } from "../../components/ui/FormField";
@@ -23,6 +23,9 @@ import { DuolingoCard } from "../../components/ui/DuolingoCard";
 import { DuolingoButton } from "../../components/ui/DuolingoButton";
 import { DuolingoHeader } from "../../components/ui/DuolingoHeader";
 import { ProgressBar } from "../../components/ui/ProgressBar";
+
+import { FloatingAddButton } from "../../components/ui/FloatingAddButton";
+import { AIAddCardModal } from "../../components/add/AIAddCardModal";
 
 import {
   computeDueCount,
@@ -38,11 +41,11 @@ export default function DecksScreen() {
   const fetchDecks = useStore((s) => s.fetchDecks);
   const createDeck = useStore((s) => s.createDeck);
   const deleteDeck = useStore((s) => s.deleteDeck);
-  const resetDeckProgress = useStore((s) => s.resetDeckProgress);
   const isLoading = useStore((s) => s.isLoading);
   const userId = useStore((s) => s.userId);
 
   const [showCreate, setShowCreate] = useState(false);
+  const [showAIAddModal, setShowAIAddModal] = useState(false);
   const [deckName, setDeckName] = useState("");
   const [deckDesc, setDeckDesc] = useState("");
   const [selectedIcon, setSelectedIcon] = useState(VECTOR_DECK_ICONS[0]);
@@ -63,10 +66,6 @@ export default function DecksScreen() {
       return { deck, total, due, newCount, reviewCount, masteryPct };
     });
   }, [decks, cardsState]);
-
-  const totalDueCount = useMemo(() => {
-    return deckItemsStats.reduce((sum, item) => sum + item.due, 0);
-  }, [deckItemsStats]);
 
   useEffect(() => {
     if (userId && decks.length === 0) fetchDecks();
@@ -154,11 +153,11 @@ export default function DecksScreen() {
           <DuolingoButton
             title="➕ TẠO BỘ THẺ MỚI"
             variant="primary"
+            size="lg"
             onPress={() => {
               triggerHaptic("light");
               setShowCreate(true);
             }}
-            height={48}
             style={{ marginTop: Spacing.sm }}
           />
         </DuolingoCard>
@@ -217,6 +216,7 @@ export default function DecksScreen() {
                 <DuolingoButton
                   title={due > 0 ? `ÔN NGAY (${due} THẺ)` : "XEM CHI TIẾT ➜"}
                   variant={due > 0 ? "primary" : "secondary"}
+                  size="lg"
                   onPress={() => {
                     triggerHaptic("medium");
                     if (due > 0) {
@@ -225,7 +225,6 @@ export default function DecksScreen() {
                       router.push(`/deck/${deck.id}`);
                     }
                   }}
-                  height={42}
                   style={{ marginTop: Spacing.sm }}
                 />
               </DuolingoCard>
@@ -283,14 +282,25 @@ export default function DecksScreen() {
             <DuolingoButton
               title={creating ? "ĐANG TẠO..." : "TẠO BỘ THẺ ➜"}
               variant="primary"
+              size="lg"
               disabled={creating || !deckName.trim()}
               onPress={handleCreate}
-              height={52}
               style={{ marginTop: Spacing.lg }}
             />
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Floating Action Button (FAB) to AI Add Cards */}
+      <FloatingAddButton onPress={() => setShowAIAddModal(true)} />
+
+      {/* AI Add Card Full Overlay Modal */}
+      {showAIAddModal && (
+        <AIAddCardModal
+          visible={showAIAddModal}
+          onClose={() => setShowAIAddModal(false)}
+        />
+      )}
     </View>
   );
 }

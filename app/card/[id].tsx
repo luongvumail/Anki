@@ -15,7 +15,7 @@ import * as Speech from "expo-speech";
 import { useStore } from "../../store/useStore";
 import { isDue } from "../../lib/srs";
 import { getPinyinToneColor } from "../../lib/pinyinColor";
-import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { Colors, Spacing, Radii, triggerHaptic } from "../../constants/theme";
 import { SectionTitle } from "../../components/ui/SectionTitle";
 import { DuolingoCard } from "../../components/ui/DuolingoCard";
 import { DuolingoButton } from "../../components/ui/DuolingoButton";
@@ -119,8 +119,8 @@ export default function CardDetailScreen() {
           <DuolingoButton
             title={speaking ? "ĐANG PHÁT..." : "🔊 NGHE PHÁT ÂM"}
             variant="blue"
+            size="md"
             onPress={speak}
-            height={48}
             style={{ marginTop: Spacing.md }}
           />
         </DuolingoCard>
@@ -188,8 +188,8 @@ export default function CardDetailScreen() {
         <DuolingoButton
           title="🗑️ XÓA THẺ TỪ VỰNG NÀY"
           variant="error"
+          size="md"
           onPress={handleDelete}
-          height={48}
           style={{ marginTop: Spacing.md }}
         />
       </ScrollView>

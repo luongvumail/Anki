@@ -13,7 +13,7 @@ import { useStore } from "../../store/useStore";
 import { generateQuizQuestion, QuizQuestion } from "../../lib/quizGenerator";
 import { isDue, calculateSRS, createDefaultSRSState, SRSGrade, SRS_GRADES } from "../../lib/srs";
 import { recordReviewToday } from "../../lib/reviewTracker";
-import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { Colors, Spacing, Radii, triggerHaptic } from "../../constants/theme";
 import { FlashcardView, ShortTermGrade } from "../../components/study/FlashcardView";
 import { QuizCardView } from "../../components/study/QuizCardView";
 import { SessionDoneScreen } from "../../components/study/SessionDoneScreen";
@@ -25,13 +25,11 @@ type StudyMode = "flashcard" | "quiz";
 export default function StudyScreen() {
   const insets = useSafeAreaInsets();
   const { deckId } = useLocalSearchParams<{ deckId: string }>();
-  const decks = useStore((s) => s.decks);
   const cards = useStore((s) => s.cards);
   const updateCard = useStore((s) => s.updateCard);
   const fetchCards = useStore((s) => s.fetchCards);
   const isLoading = useStore((s) => s.isLoading);
 
-  const deck = useMemo(() => decks.find((d) => d.id === deckId), [decks, deckId]);
   const deckCards = useMemo(() => cards[deckId] || [], [cards, deckId]);
 
   const [mode, setMode] = useState<StudyMode>("flashcard");

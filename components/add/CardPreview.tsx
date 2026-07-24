@@ -16,7 +16,8 @@ interface CardPreviewProps {
   cardData: CardData;
   targetDeckName?: string;
   saving: boolean;
-  onReGenerate: () => void;
+  saved?: boolean;
+  onReGenerate?: () => void;
   onSave?: () => void;
   /** Optional: show an X button to remove this card from the batch list */
   onRemove?: () => void;
@@ -26,6 +27,7 @@ export const CardPreview = React.memo(function CardPreview({
   cardData,
   targetDeckName,
   saving,
+  saved,
   onReGenerate,
   onSave,
   onRemove,
@@ -104,11 +106,19 @@ export const CardPreview = React.memo(function CardPreview({
         {/* Save Button */}
         {onSave && (
           <DuolingoButton
-            title={saving ? "ĐANG LƯU..." : targetDeckName ? `LƯU VÀO BỘ "${targetDeckName.toUpperCase()}" ➜` : "LƯU VÀO BỘ THẺ ➜"}
-            variant="primary"
-            disabled={saving}
+            title={
+              saved
+                ? "✅ ĐÃ LƯU VÀO BỘ THẺ"
+                : saving
+                ? "ĐANG LƯU..."
+                : targetDeckName
+                ? `LƯU VÀO BỘ "${targetDeckName.toUpperCase()}" ➜`
+                : "LƯU VÀO BỘ THẺ ➜"
+            }
+            variant={saved ? "success" : "primary"}
+            size="lg"
+            disabled={saving || saved}
             onPress={onSave}
-            height={52}
           />
         )}
       </View>

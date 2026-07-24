@@ -273,9 +273,9 @@ export function QuizCardView({ question, onAnswer }: QuizCardViewProps) {
           <DuolingoButton
             title="KIỂM TRA"
             variant="primary"
+            size="lg"
             disabled={selectedIndex === null}
             onPress={handleCheck}
-            height={52}
           />
         </View>
       )}
@@ -317,8 +317,8 @@ export function QuizCardView({ question, onAnswer }: QuizCardViewProps) {
           <DuolingoButton
             title={isCorrect ? "TIẾP TỤC ➜" : "ĐÃ HIỂU ➜"}
             variant={isCorrect ? "primary" : "error"}
+            size="lg"
             onPress={handleContinue}
-            height={52}
             style={{ marginTop: Spacing.sm }}
           />
         </Animated.View>
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   typeBadgeText: {
     fontSize: 11,
     fontWeight: "800",
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
     letterSpacing: 0.5,
   },
 
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   speakBtnText: {
     fontSize: 13,
     fontWeight: "700",
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
   },
 
   audioTargetBox: {

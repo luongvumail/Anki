@@ -13,15 +13,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Speech from "expo-speech";
 import { useStore, Card } from "../../store/useStore";
-import { isDue } from "../../lib/srs";
 import { getPinyinToneColor } from "../../lib/pinyinColor";
-import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { Colors, Spacing, triggerHaptic } from "../../constants/theme";
 import { DeckIcon } from "../../components/ui/DeckIcon";
 import { SectionTitle } from "../../components/ui/SectionTitle";
 import { DuolingoCard } from "../../components/ui/DuolingoCard";
 import { DuolingoButton } from "../../components/ui/DuolingoButton";
-import { DuolingoHeader } from "../../components/ui/DuolingoHeader";
 import { ProgressBar } from "../../components/ui/ProgressBar";
+
+import { FloatingAddButton } from "../../components/ui/FloatingAddButton";
+import { AIAddCardModal } from "../../components/add/AIAddCardModal";
 
 export default function DeckDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -29,17 +30,14 @@ export default function DeckDetailScreen() {
   const decks = useStore((s) => s.decks);
   const cards = useStore((s) => s.cards);
   const fetchCards = useStore((s) => s.fetchCards);
-  const deleteCard = useStore((s) => s.deleteCard);
   const deleteDeck = useStore((s) => s.deleteDeck);
   const resetDeckProgress = useStore((s) => s.resetDeckProgress);
   const isLoading = useStore((s) => s.isLoading);
 
+  const [showAIAddModal, setShowAIAddModal] = useState(false);
+
   const deck = useMemo(() => decks.find((d) => d.id === id), [decks, id]);
   const deckCards = useMemo(() => cards[id] || [], [cards, id]);
-
-  const dueCardsCount = useMemo(() => {
-    return deckCards.filter((c) => isDue(c.srs)).length;
-  }, [deckCards]);
 
   const learnedCardsCount = useMemo(() => {
     return deckCards.filter((c) => c.srs && c.srs.repetitions > 0).length;
@@ -188,6 +186,10 @@ export default function DeckDetailScreen() {
           { paddingBottom: Math.max(insets.bottom + 40, 60) },
         ]}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={8}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
         ListHeaderComponent={
           <View style={styles.listHeader}>
             {/* Deck Summary Hero Card */}
@@ -217,21 +219,32 @@ export default function DeckDetailScreen() {
               <DuolingoButton
                 title="BẮT ĐẦU ÔN BỘ NÀY ➜"
                 variant="primary"
+                size="lg"
                 disabled={deckCards.length === 0}
                 onPress={() => {
                   triggerHaptic("medium");
                   router.push(`/study/${deck.id}`);
                 }}
-                height={50}
                 style={{ marginTop: Spacing.md }}
+              />
+
+              <DuolingoButton
+                title="✨ THÊM TỪ VỰNG BẰNG AI ➜"
+                variant="primary"
+                size="lg"
+                onPress={() => {
+                  triggerHaptic("medium");
+                  setShowAIAddModal(true);
+                }}
+                style={{ marginTop: 8 }}
               />
 
               <DuolingoButton
                 title="ĐẶT LẠI TIẾN ĐỘ BỘ HỌC"
                 variant="secondary"
+                size="md"
                 disabled={deckCards.length === 0}
                 onPress={handleResetProgress}
-                height={42}
                 style={{ marginTop: 8 }}
               />
             </DuolingoCard>
@@ -250,6 +263,18 @@ export default function DeckDetailScreen() {
           )
         }
       />
+
+      {/* Floating Action Button (FAB) to AI Add Cards */}
+      <FloatingAddButton onPress={() => setShowAIAddModal(true)} bottomOffset={Math.max(insets.bottom + 20, 30)} />
+
+      {/* AI Add Card Full Overlay Modal */}
+      {showAIAddModal && (
+        <AIAddCardModal
+          visible={showAIAddModal}
+          onClose={() => setShowAIAddModal(false)}
+          initialDeckId={deck.id}
+        />
+      )}
     </View>
   );
 }

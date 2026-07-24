@@ -9,7 +9,7 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors, Radii, Spacing, triggerHaptic } from "../../constants/theme";
+import { Colors, Typography, Radii, Spacing, triggerHaptic } from "../../constants/theme";
 import { Deck } from "../../store/slices/types";
 import { DeckIcon } from "../ui/DeckIcon";
 
@@ -38,13 +38,49 @@ export const DeckPicker = React.memo(function DeckPicker({
     );
   }
 
+  const currentDeck = decks.find((d) => d.id === selectedDeckId) || decks[0];
+
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="slide"
-      onRequestClose={onToggleOpen}
-    >
+    <>
+      {/* Trigger Card Component to Open Target Deck Picker */}
+      <TouchableOpacity
+        style={styles.pickerTriggerCard}
+        onPress={() => {
+          triggerHaptic("light");
+          onToggleOpen();
+        }}
+        activeOpacity={0.8}
+      >
+        <View style={styles.triggerLeftRow}>
+          <View style={styles.triggerIconTile}>
+            <DeckIcon
+              name={currentDeck?.icon || "folder-open"}
+              size={20}
+              color={Colors.duolingo.blue}
+            />
+          </View>
+          <View style={styles.triggerTextContainer}>
+            <Text style={styles.triggerDeckTitle} numberOfLines={1}>
+              {currentDeck?.name || "Chọn bộ thẻ mục tiêu"}
+            </Text>
+            <Text style={styles.triggerDeckSub}>
+              {currentDeck?.cardCount || 0} từ vựng trong bộ này
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.triggerRightBadge}>
+          <Text style={styles.triggerChangeText}>ĐỔI</Text>
+          <Ionicons name="chevron-down" size={16} color={Colors.duolingo.blue} />
+        </View>
+      </TouchableOpacity>
+
+      <Modal
+        visible={isOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={onToggleOpen}
+      >
       <TouchableWithoutFeedback onPress={onToggleOpen}>
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
@@ -131,10 +167,62 @@ export const DeckPicker = React.memo(function DeckPicker({
         </View>
       </TouchableWithoutFeedback>
     </Modal>
-  );
+  </>
+);
 });
 
 const styles = StyleSheet.create({
+  pickerTriggerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: Colors.duolingo.bg,
+    borderRadius: Radii.lg,
+    padding: Spacing.sm + 2,
+    borderWidth: 2,
+    borderColor: Colors.duolingo.blue,
+  },
+  triggerLeftRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  triggerIconTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.duolingo.blueDim,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  triggerTextContainer: { flex: 1 },
+  triggerDeckTitle: {
+    fontSize: Typography.text.subhead.fontSize,
+    fontWeight: Typography.weight.extraBold,
+    color: "#FFFFFF",
+  },
+  triggerDeckSub: {
+    fontSize: Typography.text.caption2.fontSize,
+    color: Colors.duolingo.textMuted,
+    fontWeight: Typography.weight.semibold,
+    marginTop: 1,
+  },
+  triggerRightBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.duolingo.blueDim,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radii.full,
+  },
+  triggerChangeText: {
+    fontSize: Typography.text.caption2.fontSize,
+    fontWeight: Typography.weight.extraBold,
+    color: "#FFFFFF",
+  },
+
   warningBox: {
     backgroundColor: Colors.duolingo.cardBg,
     borderRadius: Radii.lg,
@@ -143,8 +231,8 @@ const styles = StyleSheet.create({
   },
   warningText: {
     color: Colors.duolingo.textMuted,
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: Typography.text.caption1.fontSize,
+    fontWeight: Typography.weight.bold,
   },
 
   /* Modal Bottom Sheet Styles */
@@ -186,7 +274,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 13,
     fontWeight: "800",
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
     letterSpacing: 0.8,
   },
   closeBtn: {
@@ -246,7 +334,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   deckNameTextSelected: {
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
   },
   deckSubText: {
     fontSize: 12,
@@ -267,6 +355,6 @@ const styles = StyleSheet.create({
   selectedBadgeText: {
     fontSize: 11,
     fontWeight: "800",
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
   },
 });

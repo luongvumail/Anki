@@ -30,6 +30,8 @@ import { DuolingoButton } from "../../components/ui/DuolingoButton";
 import { DuolingoCard } from "../../components/ui/DuolingoCard";
 import { DuolingoHeader } from "../../components/ui/DuolingoHeader";
 import { ZigZagSkillPath } from "../../components/home/ZigZagSkillPath";
+import { FloatingAddButton } from "../../components/ui/FloatingAddButton";
+import { AIAddCardModal } from "../../components/add/AIAddCardModal";
 import { Deck } from "../../store/slices/types";
 import { computeDueCount } from "../../lib/deckUtils";
 
@@ -43,6 +45,7 @@ export default function DashboardScreen() {
 
   // Account Settings Modal States
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showAIAddModal, setShowAIAddModal] = useState(false);
 
   // Daily Study Reminder States
   const [reminderEnabled, setReminderEnabled] = useState(false);
@@ -204,6 +207,17 @@ export default function DashboardScreen() {
           />
         )}
       </ScrollView>
+
+      {/* Floating Action Button (FAB) to AI Add Cards */}
+      <FloatingAddButton onPress={() => setShowAIAddModal(true)} />
+
+      {/* AI Add Card Full Overlay Modal */}
+      {showAIAddModal && (
+        <AIAddCardModal
+          visible={showAIAddModal}
+          onClose={() => setShowAIAddModal(false)}
+        />
+      )}
 
       {/* Account Settings Modal */}
       {showAccountModal && (

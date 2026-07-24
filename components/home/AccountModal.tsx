@@ -195,9 +195,9 @@ export function AccountModal({
               <DuolingoButton
                 title={loadingPass ? "ĐANG ĐỔI MẬT KHẨU..." : "CẬP NHẬT MẬT KHẨU ➜"}
                 variant="primary"
+                size="lg"
                 disabled={!newPassword || loadingPass}
                 onPress={handlePasswordSubmit}
-                height={52}
               />
 
               <TouchableOpacity
@@ -214,6 +214,7 @@ export function AccountModal({
           <DuolingoButton
             title="ĐĂNG XUẤT TÀI KHOẢN"
             variant="error"
+            size="lg"
             onPress={() => {
               triggerHaptic("heavy");
               Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?", [
@@ -225,7 +226,6 @@ export function AccountModal({
                 },
               ]);
             }}
-            height={52}
           />
         </ScrollView>
       </View>
@@ -306,7 +306,8 @@ const styles = StyleSheet.create({
   },
   forgotPassText: {
     fontSize: 13,
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
     fontWeight: "700",
+    textDecorationLine: "underline",
   },
 });

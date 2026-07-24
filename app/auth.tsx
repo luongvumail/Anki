@@ -25,7 +25,6 @@ import { auth } from "../lib/firebase";
 import { getAuthErrorMessage } from "../lib/errorHandler";
 import {
   Colors,
-  Typography,
   Spacing,
   Radii,
   triggerHaptic,
@@ -285,9 +284,10 @@ export default function AuthScreen() {
         <DuolingoButton
           title={loading ? "ĐANG XỬ LÝ..." : mode === "login" ? "ĐĂNG NHẬP ➜" : "TẠO TÀI KHOẢN ➜"}
           variant="primary"
+          size="lg"
           disabled={loading}
           onPress={handleSubmit}
-          height={52}
+          style={{ marginTop: Spacing.md }}
         />
 
         {/* Footer Toggle */}
@@ -417,8 +417,9 @@ const styles = StyleSheet.create({
   },
   forgotBtnText: {
     fontSize: 13,
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
     fontWeight: "700",
+    textDecorationLine: "underline",
   },
 
   footerToggle: {
@@ -433,7 +434,8 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     fontSize: 14,
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
     fontWeight: "800",
+    textDecorationLine: "underline",
   },
 });

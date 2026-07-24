@@ -115,10 +115,7 @@ export function AccountModal({
           <Text style={styles.modalTitle}>HỒ SƠ CÁ NHÂN</Text>
           <TouchableOpacity
             style={styles.doneBtn}
-            onPress={() => {
-              triggerHaptic("light");
-              onClose();
-            }}
+            onPress={onClose}
           >
             <Ionicons name="close-circle" size={28} color={Colors.duolingo.textMuted} />
           </TouchableOpacity>
@@ -150,10 +147,7 @@ export function AccountModal({
               </View>
               <Switch
                 value={reminderEnabled}
-                onValueChange={(val) => {
-                  triggerHaptic("selection");
-                  onToggleReminder(val);
-                }}
+                onValueChange={onToggleReminder}
                 trackColor={{ false: Colors.duolingo.disabledBg, true: Colors.duolingo.green }}
                 thumbColor="#FFFFFF"
               />

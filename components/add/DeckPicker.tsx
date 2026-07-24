@@ -9,7 +9,7 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors, Typography, Radii, Spacing, triggerHaptic } from "../../constants/theme";
+import { Colors, Typography, Radii, Spacing } from "../../constants/theme";
 import { Deck } from "../../store/slices/types";
 import { DeckIcon } from "../ui/DeckIcon";
 
@@ -45,10 +45,7 @@ export const DeckPicker = React.memo(function DeckPicker({
       {/* Trigger Card Component to Open Target Deck Picker */}
       <TouchableOpacity
         style={styles.pickerTriggerCard}
-        onPress={() => {
-          triggerHaptic("light");
-          onToggleOpen();
-        }}
+        onPress={onToggleOpen}
         activeOpacity={0.8}
       >
         <View style={styles.triggerLeftRow}>
@@ -94,10 +91,7 @@ export const DeckPicker = React.memo(function DeckPicker({
                 </View>
 
                 <TouchableOpacity
-                  onPress={() => {
-                    triggerHaptic("light");
-                    onToggleOpen();
-                  }}
+                  onPress={onToggleOpen}
                   style={styles.closeBtn}
                   activeOpacity={0.8}
                 >
@@ -120,10 +114,7 @@ export const DeckPicker = React.memo(function DeckPicker({
                         styles.deckCard3D,
                         isSelected && styles.deckCard3DSelected,
                       ]}
-                      onPress={() => {
-                        triggerHaptic("selection");
-                        onSelectDeck(deck.id);
-                      }}
+                      onPress={() => onSelectDeck(deck.id)}
                       activeOpacity={0.85}
                     >
                       <View style={styles.deckCardLeft}>

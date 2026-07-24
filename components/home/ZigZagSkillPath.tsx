@@ -7,7 +7,7 @@ import {
   Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors, Radii, Spacing, triggerHaptic } from "../../constants/theme";
+import { Colors, Radii, Spacing } from "../../constants/theme";
 import { Deck } from "../../store/slices/types";
 import { DeckIcon } from "../ui/DeckIcon";
 import { DuolingoMascot } from "../ui/DuolingoMascot";
@@ -141,10 +141,7 @@ export function ZigZagSkillPath({
                   {/* Real Deck Node Circle Button */}
                   <TouchableOpacity
                     activeOpacity={0.85}
-                    onPress={() => {
-                      triggerHaptic("medium");
-                      onSelectDeck(deck);
-                    }}
+                    onPress={() => onSelectDeck(deck)}
                     style={[
                       styles.nodeCircle,
                       dueCount > 0

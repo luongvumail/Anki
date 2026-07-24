@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,7 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as Speech from "expo-speech";
 import { useStore, Card } from "../../store/useStore";
 import { getPinyinToneColor } from "../../lib/pinyinColor";
-import { Colors, Spacing, triggerHaptic } from "../../constants/theme";
+import { Colors, Spacing, Radii, triggerHaptic } from "../../constants/theme";
 import { DeckIcon } from "../../components/ui/DeckIcon";
 import { SectionTitle } from "../../components/ui/SectionTitle";
 import { DuolingoCard } from "../../components/ui/DuolingoCard";
@@ -35,9 +36,21 @@ export default function DeckDetailScreen() {
   const isLoading = useStore((s) => s.isLoading);
 
   const [showAIAddModal, setShowAIAddModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const deck = useMemo(() => decks.find((d) => d.id === id), [decks, id]);
   const deckCards = useMemo(() => cards[id] || [], [cards, id]);
+
+  const filteredCards = useMemo(() => {
+    if (!searchQuery.trim()) return deckCards;
+    const q = searchQuery.toLowerCase().trim();
+    return deckCards.filter((c) => {
+      const hanzi = (c.character || "").toLowerCase();
+      const pinyin = (c.pinyin || "").toLowerCase();
+      const trans = (c.translation || "").toLowerCase();
+      return hanzi.includes(q) || pinyin.includes(q) || trans.includes(q);
+    });
+  }, [deckCards, searchQuery]);
 
   const learnedCardsCount = useMemo(() => {
     return deckCards.filter((c) => c.srs && c.srs.repetitions > 0).length;
@@ -122,9 +135,7 @@ export default function DeckDetailScreen() {
             <View style={styles.cardMainInfo}>
               <View style={styles.charRow}>
                 <Text style={styles.cardCharacter}>{item.character}</Text>
-                <Text style={[styles.cardPinyin, { color: pinyinColor }]}>
-                  {item.pinyin}
-                </Text>
+                <Text style={[styles.cardPinyin, { color: pinyinColor }]}>{item.pinyin}</Text>
               </View>
               <Text style={styles.cardMeaning} numberOfLines={1}>
                 {item.translation}
@@ -178,7 +189,7 @@ export default function DeckDetailScreen() {
       </View>
 
       <FlatList
-        data={deckCards}
+        data={filteredCards}
         keyExtractor={(c) => c.id}
         renderItem={renderCardItem}
         contentContainerStyle={[
@@ -221,22 +232,8 @@ export default function DeckDetailScreen() {
                 variant="primary"
                 size="lg"
                 disabled={deckCards.length === 0}
-                onPress={() => {
-                  triggerHaptic("medium");
-                  router.push(`/study/${deck.id}`);
-                }}
+                onPress={() => router.push(`/study/${deck.id}`)}
                 style={{ marginTop: Spacing.md }}
-              />
-
-              <DuolingoButton
-                title="✨ THÊM TỪ VỰNG BẰNG AI ➜"
-                variant="primary"
-                size="lg"
-                onPress={() => {
-                  triggerHaptic("medium");
-                  setShowAIAddModal(true);
-                }}
-                style={{ marginTop: 8 }}
               />
 
               <DuolingoButton
@@ -249,23 +246,66 @@ export default function DeckDetailScreen() {
               />
             </DuolingoCard>
 
-            <SectionTitle>DANH SÁCH TỪ VỰNG ({deckCards.length})</SectionTitle>
+            <SectionTitle>
+              DANH SÁCH TỪ VỰNG ({searchQuery ? `${filteredCards.length}/${deckCards.length}` : deckCards.length})
+            </SectionTitle>
+
+            {/* Smart Search Bar */}
+            {deckCards.length > 0 && (
+              <View style={styles.searchBarBox}>
+                <Ionicons name="search" size={18} color={Colors.duolingo.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Tìm theo Hán tự, Pinyin hoặc nghĩa..."
+                  placeholderTextColor={Colors.duolingo.textMuted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.clearSearchBtn}>
+                    <Ionicons name="close-circle" size={18} color={Colors.duolingo.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
         }
         ListEmptyComponent={
           isLoading ? (
-            <ActivityIndicator size="small" color={Colors.duolingo.blue} style={{ marginVertical: 30 }} />
+            <ActivityIndicator
+              size="small"
+              color={Colors.duolingo.blue}
+              style={{ marginVertical: 30 }}
+            />
+          ) : searchQuery.trim().length > 0 ? (
+            <DuolingoCard style={styles.emptyCard}>
+              <Ionicons name="search-outline" size={36} color={Colors.duolingo.textMuted} style={{ marginBottom: 8 }} />
+              <Text style={styles.emptyTitle}>Không tìm thấy từ vựng!</Text>
+              <Text style={styles.emptySub}>
+                Không có từ nào khớp với từ khóa "{searchQuery}".
+              </Text>
+              <TouchableOpacity style={styles.resetSearchBtn} onPress={() => setSearchQuery("")}>
+                <Text style={styles.resetSearchText}>✖️ Xóa từ khóa tìm kiếm</Text>
+              </TouchableOpacity>
+            </DuolingoCard>
           ) : (
             <DuolingoCard style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>Chưa có từ vựng nào!</Text>
-              <Text style={styles.emptySub}>Dùng chức năng "Thêm thẻ AI" để nạp từ vựng tự động.</Text>
+              <Text style={styles.emptySub}>
+                Dùng chức năng "Thêm thẻ AI" để nạp từ vựng tự động.
+              </Text>
             </DuolingoCard>
           )
         }
       />
 
       {/* Floating Action Button (FAB) to AI Add Cards */}
-      <FloatingAddButton onPress={() => setShowAIAddModal(true)} bottomOffset={Math.max(insets.bottom + 20, 30)} />
+      <FloatingAddButton
+        onPress={() => setShowAIAddModal(true)}
+        bottomOffset={Math.max(insets.bottom + 20, 30)}
+      />
 
       {/* AI Add Card Full Overlay Modal */}
       {showAIAddModal && (
@@ -281,7 +321,12 @@ export default function DeckDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.duolingo.bg },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.duolingo.bg },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.duolingo.bg,
+  },
 
   headerBar: {
     flexDirection: "row",
@@ -338,7 +383,46 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  emptyCard: { alignItems: "center", justifyContent: "center", padding: Spacing.xl, marginTop: Spacing.md },
+  emptyCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.xl,
+    marginTop: Spacing.md,
+  },
   emptyTitle: { fontSize: 18, fontWeight: "800", color: "#FFFFFF" },
   emptySub: { fontSize: 13, color: Colors.duolingo.textMuted, marginTop: 4, textAlign: "center" },
+
+  searchBarBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.duolingo.bgSoftDark,
+    borderRadius: Radii.lg,
+    borderWidth: 2,
+    borderColor: Colors.duolingo.border,
+    paddingHorizontal: Spacing.md,
+    height: 46,
+    marginVertical: Spacing.xs,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  clearSearchBtn: { padding: 4 },
+  resetSearchBtn: {
+    marginTop: Spacing.md,
+    backgroundColor: Colors.duolingo.bgSoftDark,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+    borderColor: Colors.duolingo.border,
+  },
+  resetSearchText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
 });

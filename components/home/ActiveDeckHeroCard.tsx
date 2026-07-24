@@ -91,7 +91,7 @@ export function ActiveDeckHeroCard({
         <View style={[styles.statBox, styles.statBoxNew]}>
           <Text style={styles.statEmoji}>🆕</Text>
           <View>
-            <Text style={[styles.statValueText, { color: Colors.duolingo.blue }]}>
+            <Text style={[styles.statValueText, { color: "#FFFFFF" }]}>
               {newCount}
             </Text>
             <Text style={styles.statLabelText}>Từ mới</Text>
@@ -109,8 +109,8 @@ export function ActiveDeckHeroCard({
             : "➕ THÊM TỪ VỰNG VÀO BỘ"
         }
         variant="primary"
+        size="lg"
         onPress={onStartStudy}
-        height={52}
         style={{ marginTop: Spacing.xs }}
       />
     </View>
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   switchBadgeText: {
     fontSize: 12,
     fontWeight: "800",
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
   },
 
   statsGrid: {

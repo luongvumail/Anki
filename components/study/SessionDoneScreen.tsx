@@ -77,11 +77,11 @@ export function SessionDoneScreen({ session, onDone }: SessionDoneScreenProps) {
         <DuolingoButton
           title="TIẾP TỤC ➜"
           variant="primary"
+          size="lg"
           onPress={() => {
             triggerHaptic("medium");
             onDone();
           }}
-          height={54}
           style={{ marginTop: Spacing.lg }}
         />
       </Animated.View>

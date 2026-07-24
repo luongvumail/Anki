@@ -41,18 +41,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="add"
-        options={{
-          title: "Thêm thẻ",
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={25} color={color} />
-          ),
-        }}
-        listeners={{
-          tabPress: () => triggerHaptic("selection"),
-        }}
-      />
-      <Tabs.Screen
         name="stats"
         options={{
           title: "Thống kê",

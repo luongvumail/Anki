@@ -14,11 +14,12 @@ export const SectionTitle = React.memo(function SectionTitle({ children, style }
 const styles = StyleSheet.create({
   title: {
     fontSize: Typography.text.caption1.fontSize,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weight.semibold,
-    letterSpacing: -0.08,
+    color: Colors.duolingo.textMuted,
+    fontWeight: Typography.weight.extraBold,
+    letterSpacing: 0.8,
     marginTop: Spacing.lg,
     marginBottom: Spacing.xs,
     marginLeft: 4,
+    textTransform: "uppercase",
   },
 });

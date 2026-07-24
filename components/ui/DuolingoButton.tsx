@@ -8,10 +8,23 @@ import {
 } from "react-native";
 import { Colors, Radii, triggerHaptic } from "../../constants/theme";
 
+export type DuolingoButtonVariant =
+  | "primary"
+  | "success"
+  | "blue"
+  | "error"
+  | "purple"
+  | "yellow"
+  | "secondary"
+  | "ghost";
+
+export type DuolingoButtonSize = "lg" | "md" | "sm";
+
 export interface DuolingoButtonProps {
   title: string;
   onPress: () => void;
-  variant?: "primary" | "success" | "blue" | "error" | "purple" | "yellow" | "secondary" | "ghost";
+  variant?: DuolingoButtonVariant;
+  size?: DuolingoButtonSize;
   disabled?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
@@ -23,13 +36,29 @@ export function DuolingoButton({
   title,
   onPress,
   variant = "primary",
+  size = "lg",
   disabled = false,
   style,
   textStyle,
   icon,
-  height = 52,
+  height,
 }: DuolingoButtonProps) {
   const [pressed, setPressed] = useState(false);
+
+  // Size Presets (Hoạt động giống CSS classes: btn-lg=52px, btn-md=44px, btn-sm=36px)
+  const getSizeStyle = () => {
+    switch (size) {
+      case "sm":
+        return { height: height || 36, fontSize: 13, paddingHorizontal: 12 };
+      case "md":
+        return { height: height || 44, fontSize: 14, paddingHorizontal: 14 };
+      case "lg":
+      default:
+        return { height: height || 52, fontSize: 16, paddingHorizontal: 16 };
+    }
+  };
+
+  const sizeStyle = getSizeStyle();
 
   const getVariantStyles = () => {
     if (disabled) {
@@ -110,7 +139,8 @@ export function DuolingoButton({
       style={[
         styles.buttonBase,
         {
-          height,
+          height: sizeStyle.height,
+          paddingHorizontal: sizeStyle.paddingHorizontal,
           backgroundColor: vColors.bg,
           borderBottomColor: vColors.bottom,
           borderBottomWidth: pressed ? 0 : 4,
@@ -123,7 +153,10 @@ export function DuolingoButton({
       <Text
         style={[
           styles.buttonText,
-          { color: vColors.text },
+          {
+            fontSize: sizeStyle.fontSize,
+            color: vColors.text,
+          },
           textStyle,
         ]}
       >
@@ -136,17 +169,15 @@ export function DuolingoButton({
 const styles = StyleSheet.create({
   buttonBase: {
     width: "100%",
-    borderRadius: Radii.lg,              // --radius-lg: 16px
-    borderWidth: 0,                       // KHÔNG border mảnh bao quanh (Rule 2)
+    borderRadius: Radii.lg, // --radius-lg: 16px
+    borderWidth: 0, // KHÔNG border mảnh bao quanh (Rule 2)
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingHorizontal: 16,
   },
   buttonText: {
-    fontSize: 16,                         // --fs-body
-    fontWeight: "800",                    // font-weight: 800
+    fontWeight: "800", // font-weight: 800
     letterSpacing: 0.5,
     textAlign: "center",
     textAlignVertical: "center",

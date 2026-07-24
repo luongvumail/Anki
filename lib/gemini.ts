@@ -40,6 +40,32 @@ function sanitizeInput(input: string): string {
     .replace(/["'\\n\r]/g, " ");
 }
 
+/**
+ * Robust JSON extraction helper: strips markdown blocks, preamble/postscript text, and trailing commas.
+ */
+function extractCleanJson(rawText: string): string {
+  let cleaned = rawText.trim();
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+
+  const firstBrace = cleaned.indexOf("{");
+  const firstBracket = cleaned.indexOf("[");
+
+  if (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
+    const lastBracket = cleaned.lastIndexOf("]");
+    if (lastBracket !== -1) {
+      cleaned = cleaned.slice(firstBracket, lastBracket + 1);
+    }
+  } else if (firstBrace !== -1) {
+    const lastBrace = cleaned.lastIndexOf("}");
+    if (lastBrace !== -1) {
+      cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+    }
+  }
+
+  cleaned = cleaned.replace(/,\s*([\}\]])/g, "$1");
+  return cleaned;
+}
+
 export interface CardData {
   character: string;
   traditional?: string;
@@ -89,11 +115,8 @@ Trả về JSON (CHỈ JSON, không markdown):
   "tags": ["loại từ"]
 }`;
 
-  const text = (await generateWithFallback(prompt)).trim();
-  const jsonText = text
-    .replace(/^```json?\s*/i, "")
-    .replace(/```\s*$/, "")
-    .trim();
+  const text = await generateWithFallback(prompt);
+  const jsonText = extractCleanJson(text);
   return JSON.parse(jsonText) as CardData;
 }
 
@@ -140,11 +163,8 @@ Trả về JSON array (CHỈ JSON array, không markdown), với mỗi phần t�
 ]`;
 
   try {
-    const text = (await generateWithFallback(prompt)).trim();
-    const jsonText = text
-      .replace(/^```json?\s*/i, "")
-      .replace(/```\s*$/, "")
-      .trim();
+    const text = await generateWithFallback(prompt);
+    const jsonText = extractCleanJson(text);
     const results = JSON.parse(jsonText) as CardData[];
     if (!Array.isArray(results) || results.length !== inputs.length) {
       throw new Error(`Expected ${inputs.length} results, got ${results.length}`);
@@ -178,10 +198,7 @@ Trả về JSON:
   "vietnamese": "dịch nghĩa tiếng Việt"
 }`;
 
-  const text = (await generateWithFallback(prompt)).trim();
-  const jsonText = text
-    .replace(/^```json?\s*/i, "")
-    .replace(/```\s*$/, "")
-    .trim();
+  const text = await generateWithFallback(prompt);
+  const jsonText = extractCleanJson(text);
   return JSON.parse(jsonText);
 }

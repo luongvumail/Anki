@@ -46,6 +46,10 @@ export function FlashcardView({ card, onGrade }: FlashcardViewProps) {
     setActiveSwipe(null);
     revealAnim.setValue(0);
     pan.setValue({ x: 0, y: 0 });
+
+    return () => {
+      Speech.stop();
+    };
   }, [card, pan, revealAnim, onGrade]);
 
   const handleCardTap = () => {
@@ -407,7 +411,7 @@ const styles = StyleSheet.create({
   hskBadgeText: {
     fontSize: 12,
     fontWeight: "800",
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
     letterSpacing: 0.5,
   },
 
@@ -447,7 +451,7 @@ const styles = StyleSheet.create({
   tapHintText: {
     fontSize: 13,
     fontWeight: "800",
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
     letterSpacing: 0.5,
   },
 
@@ -487,7 +491,7 @@ const styles = StyleSheet.create({
   pinyinText: {
     fontSize: 32,
     fontWeight: "800",
-    color: Colors.duolingo.blue,
+    color: "#FFFFFF",
   },
   audioIconBtn3D: {
     width: 44,

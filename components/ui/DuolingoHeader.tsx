@@ -26,15 +26,12 @@ export function DuolingoHeader({
   const insets = useSafeAreaInsets();
   const authUser = auth.currentUser;
   const resolvedName =
-    userName ||
-    authUser?.displayName ||
-    (authUser?.email ? authUser.email.split("@")[0] : "Bạn");
+    userName || authUser?.displayName || (authUser?.email ? authUser.email.split("@")[0] : "Bạn");
 
   return (
     <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top + 8, 44) }]}>
       {/* Friendly User Greeting - Synchronized & Unified across all screens */}
       <View style={styles.courseSelector}>
-        <Ionicons name="sparkles" size={15} color={Colors.duolingo.blue} />
         <Text style={styles.courseTitleText}>Xin chào, {resolvedName}</Text>
       </View>
 
@@ -50,9 +47,7 @@ export function DuolingoHeader({
           }}
         >
           <Ionicons name="flame" size={16} color={Colors.duolingo.yellow} />
-          <Text style={[styles.statValue, { color: Colors.duolingo.yellow }]}>
-            {streakCount}
-          </Text>
+          <Text style={[styles.statValue, { color: Colors.duolingo.yellow }]}>{streakCount}</Text>
         </TouchableOpacity>
 
         {/* Profile Avatar */}

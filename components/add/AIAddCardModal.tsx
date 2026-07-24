@@ -236,12 +236,10 @@ export function AIAddCardModal({ visible, onClose, initialDeckId }: AIAddCardMod
   };
 
   const handleRemoveItem = (index: number) => {
-    triggerHaptic("light");
     setWordItems((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleChipClick = (historyWord: string) => {
-    triggerHaptic("light");
     const currentList = parseWords(input);
     if (currentList.includes(historyWord)) return;
 
@@ -279,10 +277,7 @@ export function AIAddCardModal({ visible, onClose, initialDeckId }: AIAddCardMod
           </View>
           <TouchableOpacity
             style={styles.closeBtn}
-            onPress={() => {
-              triggerHaptic("light");
-              onClose();
-            }}
+            onPress={onClose}
           >
             <Ionicons name="close-circle" size={26} color={Colors.duolingo.textMuted} />
           </TouchableOpacity>

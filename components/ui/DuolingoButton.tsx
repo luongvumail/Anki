@@ -6,7 +6,7 @@ import {
   ViewStyle,
   TextStyle,
 } from "react-native";
-import { Colors, Radii, triggerHaptic } from "../../constants/theme";
+import { Colors, Radii } from "../../constants/theme";
 
 export type DuolingoButtonVariant =
   | "primary"
@@ -121,7 +121,6 @@ export function DuolingoButton({
   const handlePressIn = () => {
     if (disabled) return;
     setPressed(true);
-    triggerHaptic("light");
   };
 
   const handlePressOut = () => {

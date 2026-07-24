@@ -1,7 +1,7 @@
 import React, { useRef, useCallback } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors, Typography, Spacing, Radii, triggerHaptic } from "../../constants/theme";
+import { Colors, Typography, Spacing, Radii } from "../../constants/theme";
 
 const ITEM_HEIGHT = 48;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -77,7 +77,6 @@ export const WheelTimePicker = React.memo(function WheelTimePicker({
                   style={styles.wheelItem}
                   activeOpacity={0.7}
                   onPress={() => {
-                    triggerHaptic("selection");
                     onHourChange(h);
                     hourScrollRef.current?.scrollTo({ y: h * ITEM_HEIGHT, animated: true });
                   }}
@@ -114,7 +113,6 @@ export const WheelTimePicker = React.memo(function WheelTimePicker({
                   style={styles.wheelItem}
                   activeOpacity={0.7}
                   onPress={() => {
-                    triggerHaptic("selection");
                     onMinuteChange(m);
                     minuteScrollRef.current?.scrollTo({ y: m * ITEM_HEIGHT, animated: true });
                   }}

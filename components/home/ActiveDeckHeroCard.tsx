@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors, Radii, Spacing, triggerHaptic } from "../../constants/theme";
+import { Colors, Radii, Spacing } from "../../constants/theme";
 import { Deck } from "../../store/slices/types";
 import { DeckIcon } from "../ui/DeckIcon";
 import { DuolingoButton } from "../ui/DuolingoButton";
@@ -31,10 +31,7 @@ export function ActiveDeckHeroCard({
       <View style={styles.topRow}>
         <TouchableOpacity
           style={styles.deckTitleBtn}
-          onPress={() => {
-            triggerHaptic("light");
-            onChangeDeck();
-          }}
+          onPress={onChangeDeck}
           activeOpacity={0.8}
         >
           <View style={styles.iconTile}>
@@ -53,10 +50,7 @@ export function ActiveDeckHeroCard({
 
         <TouchableOpacity
           style={styles.switchBadge}
-          onPress={() => {
-            triggerHaptic("light");
-            onChangeDeck();
-          }}
+          onPress={onChangeDeck}
           activeOpacity={0.8}
         >
           <Text style={styles.switchBadgeText}>Đổi bộ ▾</Text>

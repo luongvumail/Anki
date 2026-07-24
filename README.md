@@ -1,99 +1,121 @@
-# Anki - Hệ thống thẻ học từ vựng Tiếng Trung tích hợp AI
+# Anki - Hệ Thống Học Từ Vựng Tiếng Trung Tích Hợp AI & Chuẩn Thiết Kế Duolingo 3D
 
-Ứng dụng học từ vựng tiếng Trung thông minh dựa trên phương pháp lặp lại ngắt quãng (Spaced Repetition System - SRS), kết hợp với trí tuệ nhân tạo (Gemini AI) giúp người học ghi nhớ từ vựng hiệu quả hơn.
-
-Thiết kế giao diện được tối ưu hóa theo phong cách tối giản, hiện đại của Linear.app và Notion.
+Ứng dụng học từ vựng tiếng Trung thông minh dựa trên phương pháp lặp lại ngắt quãng khoa học (**Spaced Repetition System - SRS SuperMemo-2**), kết hợp với trí tuệ nhân tạo (**Google Gemini AI**) và hệ thống Gamification chuẩn thiết kế **Duolingo 3D Tactile Design System**.
 
 ---
 
-## 🚀 Các tính năng chính
+## 🌟 Điểm Nổi Bật Về Giao Diện & Trải Nghiệm (Duolingo 3D Design)
 
-* **Spaced Repetition System (SRS):** Áp dụng thuật toán chia lịch ôn tập thẻ từ vựng dựa trên mức độ thuộc bài (Lại/Khó/Thuộc/Dễ).
-* **Tích hợp Gemini AI:** Tự động giải nghĩa, lấy ví dụ, phiên âm và tạo thẻ học từ vựng tiếng Trung thông minh.
-* **Text-to-Speech (TTS):** Hỗ trợ phát âm chuẩn từ vựng Hanzi để người dùng luyện nghe.
-* **Nhắc nhở học tập hàng ngày:** Lên lịch thông báo đẩy (Daily Reminder) tự động nhắc nhở người học ôn tập đúng giờ.
-* **Haptic Feedback:** Tích hợp phản hồi rung cảm ứng lực cao cấp trong từng thao tác chạm, chọn, đúng/sai.
-* **Giao diện Obsidian Slate:** Thiết kế Dark Mode chất lượng cao, có hiệu ứng chuyển cảnh mượt mà và màn hình loading thông minh chống nháy layout.
+* **Hệ thống Nút Bấm 3D Tactile (`DuolingoButton.tsx`):** Nút bấm lún 3D đặc trưng Duolingo với phản hồi cảm ứng lực (Haptics), hỗ trợ 3 kích thước chuẩn mực (`size="lg"` [52px], `size="md"` [44px], `size="sm"` [36px]) cùng màu sắc nhận diện thương hiệu rực rỡ.
+* **Linh vật Gấu Trúc Panda (`DuolingoMascot.tsx`):** Tích hợp gấu trúc hoạt họa với hiệu ứng nảy (bounce animation), lời thoại động hỗ trợ 5 biểu cảm (`waving`, `happy`, `celebrate`, `thinking`, `sad`) đồng hành cùng người học trên con đường kỹ năng.
+* **Nút Tròn Nổi AI Kéo Di Chuyển (`FloatingAddButton.tsx`):** Nút tròn AI 3D màu xanh lá Duolingo (`52x52px`) cho phép người dùng **chạm giữ và kéo di chuyển tự do đến mọi vị trí trên màn hình** mà không lo che nội dung.
+* **Modal Lớp Phủ Nạp Từ AI (`AIAddCardModal.tsx`):** Màn hình lớp phủ full-screen cho phép nạp từ vựng AI tức thì mà không ngắt luồng điều hướng, tích hợp bộ chọn bộ thẻ mục tiêu (`DeckPicker.tsx`) và danh sách lịch sử tra gần đây.
+* **Chuẩn Hoá Tương Phản Dark Mode 100%:** 100% tiêu đề & văn bản đọc sử dụng màu **Trắng Thuần (`#FFFFFF`) / Off-white Duolingo (`#F0F3F6`)**, loại bỏ hoàn toàn chữ màu xanh dương nền tối để chống mỏi mắt và tăng độ sắc nét.
 
 ---
 
-## 🛠️ Công nghệ sử dụng (Tech Stack)
+## 🧠 Cơ Sở Khoa Học & Thuật Toán Học Tập
 
-* **Core:** React Native (v0.86) & Expo (SDK 57) với **New Architecture** được bật.
+### 1. Thuật Toán Lặp Lại Ngắt Quãng (SuperMemo-2 SRS)
+* Áp dụng đường cong quên của Ebbinghaus để tự động tính toán thời điểm lật lại từ vựng chuẩn xác từng ngày.
+* Người học đánh giá thẻ dựa trên 4 mức độ: **Quên (Again)**, **Khó (Hard)**, **Tốt (Good)**, **Dễ (Easy)**.
+
+### 2. Chế Độ Ôn Tập Phản Xạ Khách Quan (Forced-Choice Quiz Mode)
+* Giải quyết triệt để hiện tượng **"Ảo tưởng thuộc bài" (Illusion of Competence)** vốn thường xảy ra ở chế độ lật thẻ cảm tính.
+* Ứng dụng tự động sinh ra 3 dạng bài tập trắc nghiệm khách quan:
+  1. **Pinyin Choice:** Trắc nghiệm chọn Pinyin & thanh điệu đúng trong 4 đáp án (dành cho từ < 3 lượt lặp).
+  2. **Listening Test:** Nghe phát âm TTS tiếng Trung và chọn chữ Hán khớp (dành cho từ >= 3 lượt lặp).
+  3. **Cloze Test:** Điền chữ Hán còn thiếu vào câu ví dụ ngữ cảnh (dành cho từ >= 5 lượt lặp).
+
+---
+
+## 🚀 Các Tính Năng Chính
+
+* **⚡ Nạp Thẻ AI Tự Động (Gemini API):** Tự động phân tích chữ Hán, Pinyin kèm dấu thanh, cấp độ HSK, bộ thủ, nghĩa tiếng Việt và câu ví dụ ngữ cảnh kèm dịch nghĩa.
+* **🔊 Phát Âm Text-to-Speech (TTS):** Hỗ trợ giọng đọc Hán ngữ chuẩn (`expo-speech`) với cơ chế giải phóng bộ nhớ âm thanh tự động chống chồng tiếng.
+* **🔥 Chuỗi Streak & Bảng Xếp Hạng:** Đếm chuỗi ngày học liên tục, điểm kinh nghiệm XP và bảng xếp hạng tuần sinh động.
+* **🔔 Nhắc Nhở Học Hàng Ngày:** Lên lịch thông báo đẩy (Daily Push Notification) tự động nhắc ôn bài đúng khung giờ đã cài đặt.
+* **📳 Haptic Feedback:** Tích hợp phản hồi rung cảm ứng lực cao cấp chuẩn Expo Haptics trên từng thao tác lật thẻ và chọn đáp án.
+
+---
+
+## 🛠️ Công Nghệ Sử Dụng (Tech Stack)
+
+* **Core Framework:** React Native (v0.86) & Expo (SDK 57) bật **New Architecture**.
 * **Routing:** Expo Router v3 (File-based Routing).
-* **State Management:** Zustand (v5) chia nhỏ slice lưu trữ.
-* **Database & Auth:** Firebase Web SDK 12 (Authentication & Firestore).
-* **AI Engine:** Google Generative AI SDK (Gemini API).
-* **Styling & UI:** React Native Animated, Expo Linear Gradient, Ionicons.
-* **Haptics:** Expo Haptics.
-* **Phát âm:** Expo Speech.
-* **Thông báo:** Expo Notifications.
+* **State Management:** Zustand (v5) chia nhỏ Slices (`deckSlice`, `cardSlice`, `userSlice`).
+* **Database & Auth:** Firebase Web SDK v12 (Authentication & Cloud Firestore).
+* **AI Engine:** Google Generative AI SDK (Gemini 2.5 / 1.5 Flash).
+* **Styling & Theme:** Vanilla CSS StyleSheet + Duolingo Design System Tokens (`theme.ts`).
+* **Icons & Animation:** Ionicons (@expo/vector-icons), React Native Animated.
+* **Audio & Speech:** Expo Speech.
+* **Notification & Haptics:** Expo Notifications, Expo Haptics.
 
 ---
 
-## 📁 Cấu trúc thư mục chính
+## 📁 Cấu Trúc Thư Mục Dự Án
 
 ```text
-├── app/                  # Thư mục chứa các màn hình (Expo Router)
-│   ├── (tabs)/           # Các tab chính: Hôm nay (index), Bộ thẻ, Thêm từ, Thống kê
-│   ├── auth.tsx          # Màn hình Đăng nhập / Đăng ký tài khoản
-│   ├── deck/             # Quản lý và chi tiết Bộ thẻ
-│   ├── study/            # Giao diện ôn tập thẻ từ vựng (SRS)
-│   └── _layout.tsx       # Cấu hình Root Layout, khởi chạy và quản lý splash loading
-├── assets/               # Hình ảnh, icon và logo của ứng dụng
-├── components/           # Các component tái sử dụng (UI, Form, Hộp thoại...)
-├── constants/            # Định nghĩa theme màu sắc (Linear style), typo, spacing, radii
-├── lib/                  # Các dịch vụ dùng chung (Firebase, AI, Notifications, Utils)
-├── store/                # Trạng thái toàn cục (Zustand Slices)
-├── package.json          # Quản lý thư viện phụ thuộc và script chạy
-└── app.json              # File cấu hình Expo Application
+Anki/
+├── app/                      # Expo Router File-based Routes
+│   ├── (tabs)/               # Bottom Tabs: Học (index), Từ vựng (decks), Thống kê (stats)
+│   ├── auth.tsx              # Màn hình Đăng nhập / Đăng ký tài khoản
+│   ├── deck/[id].tsx         # Màn hình Chi tiết Bộ thẻ & Danh sách từ vựng
+│   ├── study/[deckId].tsx    # Màn hình Ôn tập Flashcard & Quiz SRS
+│   └── _layout.tsx           # Root Layout & Bottom Tab configuration
+├── assets/                   # Hình ảnh, icon và logo của ứng dụng
+├── components/               # Các Reusable Component chuẩn Duolingo
+│   ├── add/                  # AIAddCardModal, CardPreview, DeckPicker
+│   ├── home/                 # ActiveDeckHeroCard, AccountModal, ZigZagSkillPath
+│   ├── study/                # FlashcardView, QuizCardView, SessionDoneScreen
+│   └── ui/                   # DuolingoButton, DuolingoCard, DuolingoHeader, DuolingoMascot, FloatingAddButton, SectionTitle
+├── constants/                # Design Tokens: Colors, Typography, Spacing, Radii (theme.ts)
+├── lib/                      # Services (Firebase, Gemini AI, SRS Algorithm, Quiz Generator, Notifications)
+├── store/                    # Zustand Global Store & Slices
+├── package.json              # Dependencies & Terminal Scripts
+└── tsconfig.json             # TypeScript Configuration
 ```
 
 ---
 
-## 💻 Hướng dẫn thiết lập & Chạy dự án
+## 💻 Hướng Dẫn Thiết Lập & Khởi Chạy
 
-### 1. Chuẩn bị môi trường
-Yêu cầu máy tính đã cài đặt sẵn **Node.js (LTS)** và **Cocoapods** (nếu chạy iOS giả lập).
-
-### 2. Cài đặt các thư viện liên quan
-Từ thư mục root của dự án, chạy lệnh:
+### 1. Cài đặt thư viện phụ thuộc
+Từ thư mục gốc của dự án, chạy lệnh:
 ```bash
 npm install
 ```
 
-### 3. Cấu hình biến môi trường
-Tạo file `.env` từ file `.env.example` và điền đầy đủ các thông tin cấu hình Firebase cùng API Key Gemini:
+### 2. Cấu hình biến môi trường
+Tạo file `.env` ở thư mục gốc dự án và khai báo thông số Firebase cùng Gemini API Key:
 ```env
-EXPO_PUBLIC_FIREBASE_API_KEY=your_api_key
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
+EXPO_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
 EXPO_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 EXPO_PUBLIC_FIREBASE_APP_ID=your_app_id
 EXPO_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
 ```
 
-### 4. Khởi chạy ứng dụng
-
-* **Chạy Expo Go / Development Build:**
+### 3. Khởi chạy ứng dụng
+* **Chạy Server Development:**
   ```bash
   npm run start
   ```
-* **Chạy trên máy ảo/thiết bị thật iOS:**
+* **Chạy trên iOS Simulator:**
   ```bash
   npm run ios
   ```
-* **Chạy trên máy ảo/thiết bị thật Android:**
+* **Chạy trên Android Emulator:**
   ```bash
   npm run android
   ```
-
----
-
-## 🎨 Quy chuẩn thiết kế (Design Tokens)
-
-Dự án áp dụng hệ màu lấy cảm hứng từ Linear.app, được định nghĩa trong `constants/theme.ts`:
-* **Màu chủ đạo (Accent):** Indigo (`#5E6AD2`) & Indigo Light (`#707CE6`)
-* **Màu nền (Background):** Primary Obsidian Canvas (`#0D0E12`), Panel Surface (`#16181D`)
-* **Trạng thái SRS:** Again (`#F85149`), Hard (`#A371F7`), Good (`#3FB950`), Easy (`#707CE6`)
+* **Kiểm tra TypeScript Typecheck:**
+  ```bash
+  npm run typecheck
+  ```
+* **Kiểm tra Lỗi ESLint Code Style:**
+  ```bash
+  npm run lint
+  ```

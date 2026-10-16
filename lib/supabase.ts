@@ -32,6 +32,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
  * Initiates Google OAuth login via WebBrowser session.
  */
 export async function signInWithGoogle() {
+  // Use explicit custom scheme 'anki://auth/callback' for native Android APK
   const redirectUrl = Linking.createURL("auth/callback", { scheme: "anki" });
 
   const { data, error } = await supabase.auth.signInWithOAuth({

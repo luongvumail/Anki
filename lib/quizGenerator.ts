@@ -9,21 +9,61 @@ export type QuestionType =
   | "hanzi_from_pinyin"
   | "listening"
   | "listening_meaning"
-  | "cloze";
+  | "cloze"
+  | "type_pinyin"
+  | "type_hanzi"
+  | "listening_dictation"
+  | "cloze_typing"
+  | "speaking_check";
+
+export type QuizInteractionMode = "choice" | "typing" | "speaking";
 
 export interface QuizQuestion {
   card: Card;
   type: QuestionType;
+  interactionMode?: QuizInteractionMode;
   prompt: string;
   targetText?: string;
   subText?: string;
   audioText?: string;
   clozeSentence?: string;
   clozeTranslation?: string;
-  options: string[]; // 4 choices
+  inputPlaceholder?: string;
+  acceptedAnswers?: string[];
+  options: string[]; // 4 choices (also used as fallback when skipping speaking/typing)
   correctAnswer: string;
   weakTag?: "pinyin" | "character" | "meaning";
 }
+
+/**
+ * Quick tone-marked vowels for on-screen Android typing assistant bar
+ */
+export const PINYIN_TONE_VOWELS = [
+  "ā",
+  "á",
+  "ǎ",
+  "à",
+  "ē",
+  "é",
+  "ě",
+  "è",
+  "ī",
+  "í",
+  "ǐ",
+  "ì",
+  "ō",
+  "ó",
+  "ǒ",
+  "ò",
+  "ū",
+  "ú",
+  "ǔ",
+  "ù",
+  "ǖ",
+  "ǘ",
+  "ǚ",
+  "ǜ",
+];
 
 /**
  * Fallback distractor arrays if deck has < 4 cards
@@ -42,6 +82,140 @@ export function shuffleArray<T>(array: T[]): T[] {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+const TONE_MARK_TO_NUMBER: Record<string, [string, number]> = {
+  ā: ["a", 1],
+  á: ["a", 2],
+  ǎ: ["a", 3],
+  à: ["a", 4],
+  ē: ["e", 1],
+  é: ["e", 2],
+  ě: ["e", 3],
+  è: ["e", 4],
+  ī: ["i", 1],
+  í: ["i", 2],
+  ǐ: ["i", 3],
+  ì: ["i", 4],
+  ō: ["o", 1],
+  ó: ["o", 2],
+  ǒ: ["o", 3],
+  ò: ["o", 4],
+  ū: ["u", 1],
+  ú: ["u", 2],
+  ǔ: ["u", 3],
+  ù: ["u", 4],
+  ǖ: ["v", 1],
+  ǘ: ["v", 2],
+  ǚ: ["v", 3],
+  ǜ: ["v", 4],
+  ü: ["v", 0],
+};
+
+/**
+ * Strips tone marks and spaces/punctuation for base syllable comparison (e.g. "hē shuǐ" -> "heshui")
+ */
+export function stripPinyinTones(str: string): string {
+  if (!str) return "";
+  let out = "";
+  for (const ch of str.toLowerCase()) {
+    if (TONE_MARK_TO_NUMBER[ch]) {
+      out += TONE_MARK_TO_NUMBER[ch][0];
+    } else if (/[a-z]/.test(ch)) {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+/**
+ * Normalizes Pinyin with either tone marks ("māo", "hē shuǐ") or tone numbers ("mao1", "he1 shui3")
+ * into a canonical tone-numbered form ("mao1", "he1shui3") for exact tone matching.
+ */
+export function normalizePinyinWithTones(str: string): string {
+  if (!str) return "";
+  const tokens = str
+    .toLowerCase()
+    .trim()
+    .replace(/ü/g, "v")
+    .split(/[\s,.'"-]+/)
+    .filter(Boolean);
+
+  const normalizedTokens = tokens.map((token) => {
+    let detectedTone = 0;
+    let base = "";
+    for (const ch of token) {
+      if (TONE_MARK_TO_NUMBER[ch]) {
+        base += TONE_MARK_TO_NUMBER[ch][0];
+        if (TONE_MARK_TO_NUMBER[ch][1] > 0) {
+          detectedTone = TONE_MARK_TO_NUMBER[ch][1];
+        }
+      } else if (/[1-5]/.test(ch)) {
+        const t = Number(ch);
+        detectedTone = t === 5 ? 0 : t;
+      } else if (/[a-z]/.test(ch)) {
+        base += ch;
+      }
+    }
+    return detectedTone > 0 ? `${base}${detectedTone}` : base;
+  });
+
+  return normalizedTokens.join("");
+}
+
+/**
+ * Evaluates a user's typed answer for typing/dictation/cloze_typing questions.
+ * Accepts exact Hanzi, exact Pinyin (with tone marks or tone numbers 1-4),
+ * or base Pinyin without tones (returning a helpful tone reminder).
+ */
+export function evaluateTypedAnswer(
+  userInput: string,
+  question: QuizQuestion,
+): { isCorrect: boolean; toneHint?: string } {
+  const raw = userInput.trim();
+  if (!raw) return { isCorrect: false };
+
+  const cleanInput = raw.replace(/[.,/#!$%^&*;:{}=\-_`~()!?！。，？"'\s]/g, "").toLowerCase();
+  const targetChar = (question.card.character || "")
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()!?！。，？"'\s]/g, "")
+    .toLowerCase();
+  const targetPinyin = question.card.pinyin || "";
+
+  // 1. Direct match with Hanzi character
+  if (targetChar && cleanInput === targetChar) {
+    return { isCorrect: true };
+  }
+
+  // 2. Direct match with any explicitly accepted answers
+  if (question.acceptedAnswers) {
+    for (const ans of question.acceptedAnswers) {
+      const cleanAns = ans.replace(/[.,/#!$%^&*;:{}=\-_`~()!?！。，？"'\s]/g, "").toLowerCase();
+      if (cleanAns && cleanInput === cleanAns) {
+        return { isCorrect: true };
+      }
+    }
+  }
+
+  // 3. Match with Pinyin (with tone marks or tone numbers like "mao1" / "māo")
+  if (targetPinyin) {
+    const userToneNorm = normalizePinyinWithTones(raw);
+    const targetToneNorm = normalizePinyinWithTones(targetPinyin);
+    if (userToneNorm && userToneNorm === targetToneNorm) {
+      return { isCorrect: true };
+    }
+
+    // 4. Base syllable match (user typed "he shui" without tone marks)
+    const userBase = stripPinyinTones(raw);
+    const targetBase = stripPinyinTones(targetPinyin);
+    if (userBase.length > 0 && userBase === targetBase) {
+      return {
+        isCorrect: true,
+        toneHint: `Đúng âm tiết! Chú ý dấu thanh chuẩn: ${targetPinyin}`,
+      };
+    }
+  }
+
+  return { isCorrect: false };
 }
 
 /**
@@ -175,32 +349,97 @@ function getPinyinDistractors(card: Card, allCards: Card[]): string[] {
 }
 
 /**
- * Select question type adaptively based on FSRS state & weak tag with healthy variety:
+ * Select question type adaptively based on FSRS state, weak tag, and optional variety index:
+ * - When `varietyIndex` is omitted, returns the canonical primary type for deterministic tests.
+ * - When `varietyIndex` is provided, rotates across all 12 diverse exercise formats!
  */
 export function determineQuestionType(
   card: Card,
   weakTag?: "pinyin" | "character" | "meaning",
+  varietyIndex?: number,
 ): QuestionType {
-  if (weakTag === "pinyin") return "pinyin_choice";
-  if (weakTag === "meaning") return "meaning_choice";
-  if (weakTag === "character") return "listening";
-
-  const state = card.srs?.state ?? FSRSState.New;
-  const reps = card.srs?.repetitions ?? 0;
-  const hasExamples = Boolean(card.examples && card.examples.length > 0 && card.examples[0].chinese);
-
-  if (state === FSRSState.New) {
-    return "meaning_choice";
-  } else if (state === FSRSState.Learning || state === FSRSState.Relearning) {
+  if (weakTag === "pinyin") {
+    if (varietyIndex !== undefined && varietyIndex % 2 === 1) return "type_pinyin";
     return "pinyin_choice";
-  } else if (state === FSRSState.Review) {
-    if (hasExamples && reps >= 3) {
-      return "cloze";
-    }
+  }
+  if (weakTag === "meaning") {
+    if (varietyIndex !== undefined && varietyIndex % 2 === 1) return "listening_meaning";
+    return "meaning_choice";
+  }
+  if (weakTag === "character") {
+    if (varietyIndex !== undefined && varietyIndex % 2 === 1) return "hanzi_from_meaning";
     return "listening";
   }
 
-  return "meaning_choice";
+  const state = card.srs?.state ?? FSRSState.New;
+  const reps = card.srs?.repetitions ?? 0;
+  const hasExamples = Boolean(
+    card.examples && card.examples.length > 0 && card.examples[0].chinese,
+  );
+
+  // Preserve exact canonical defaults when varietyIndex is not passed
+  if (varietyIndex === undefined) {
+    if (state === FSRSState.New) {
+      return "meaning_choice";
+    } else if (state === FSRSState.Learning || state === FSRSState.Relearning) {
+      return "pinyin_choice";
+    } else if (state === FSRSState.Review) {
+      if (hasExamples && reps >= 3) {
+        return "cloze";
+      }
+      return "listening";
+    }
+    return "meaning_choice";
+  }
+
+  // Diverse multi-skill rotation when varietyIndex is provided
+  if (state === FSRSState.New) {
+    const newPool: QuestionType[] = [
+      "meaning_choice",
+      "hanzi_from_meaning",
+      "listening_meaning",
+      "pinyin_choice",
+      "listening",
+    ];
+    return newPool[Math.abs(varietyIndex) % newPool.length];
+  }
+
+  if (state === FSRSState.Learning || state === FSRSState.Relearning) {
+    const learningPool: QuestionType[] = [
+      "pinyin_choice",
+      "hanzi_from_pinyin",
+      "type_pinyin",
+      "listening",
+      "hanzi_from_meaning",
+      "listening_dictation",
+      "speaking_check",
+    ];
+    return learningPool[Math.abs(varietyIndex) % learningPool.length];
+  }
+
+  // Review state: prioritize active recall (typing, dictation, speaking, cloze)
+  const reviewPool: QuestionType[] = hasExamples
+    ? [
+        "cloze",
+        "cloze_typing",
+        "listening_dictation",
+        "type_pinyin",
+        "type_hanzi",
+        "speaking_check",
+        "listening",
+        "hanzi_from_meaning",
+      ]
+    : [
+        "listening_dictation",
+        "type_pinyin",
+        "type_hanzi",
+        "speaking_check",
+        "listening",
+        "hanzi_from_meaning",
+        "hanzi_from_pinyin",
+      ];
+
+  return reviewPool[Math.abs(varietyIndex) % reviewPool.length];
 }
 
 /**
@@ -211,8 +450,9 @@ export function generateQuizQuestion(
   allCards: Card[],
   forcedType?: QuestionType,
   weakTag?: "pinyin" | "character" | "meaning",
+  varietyIndex?: number,
 ): QuizQuestion {
-  const type = forcedType || determineQuestionType(card, weakTag);
+  const type = forcedType || determineQuestionType(card, weakTag, varietyIndex);
 
   // 1. Chữ Hán -> Chọn nghĩa Tiếng Việt
   if (type === "meaning_choice") {
@@ -222,6 +462,7 @@ export function generateQuizQuestion(
     return {
       card,
       type: "meaning_choice",
+      interactionMode: "choice",
       prompt: "Chọn nghĩa Tiếng Việt của từ Hán tự này:",
       targetText: card.character,
       subText: card.pinyin || undefined,
@@ -238,6 +479,7 @@ export function generateQuizQuestion(
     return {
       card,
       type: "hanzi_from_meaning",
+      interactionMode: "choice",
       prompt: "Chọn Chữ Hán tương ứng với nghĩa Tiếng Việt:",
       targetText: card.translation,
       subText: card.pinyin ? `Pinyin: ${card.pinyin}` : undefined,
@@ -254,6 +496,7 @@ export function generateQuizQuestion(
     return {
       card,
       type: "hanzi_from_pinyin",
+      interactionMode: "choice",
       prompt: "Chọn Chữ Hán tương ứng với phiên âm Pinyin:",
       targetText: card.pinyin,
       subText: card.translation ? `Nghĩa: ${card.translation}` : undefined,
@@ -270,6 +513,7 @@ export function generateQuizQuestion(
     return {
       card,
       type: "listening_meaning",
+      interactionMode: "choice",
       prompt: "Nghe phát âm và chọn Nghĩa Tiếng Việt đúng:",
       audioText: card.character,
       options,
@@ -277,15 +521,18 @@ export function generateQuizQuestion(
     };
   }
 
-  // 5. Điền khuyết câu ví dụ (Cloze)
-  if (type === "cloze" && card.examples && card.examples.length > 0) {
+  // 5. Điền khuyết câu ví dụ - Trắc nghiệm hoặc Tự gõ (Cloze / Cloze Typing)
+  if (
+    (type === "cloze" || type === "cloze_typing") &&
+    card.examples &&
+    card.examples.length > 0
+  ) {
     const ex = card.examples[0];
     if (ex.chinese) {
       let targetToReplace = "";
       if (ex.chinese.includes(card.character)) {
         targetToReplace = card.character;
       } else {
-        // Fallback: check if individual characters match
         for (const char of card.character) {
           if (char.trim() && ex.chinese.includes(char)) {
             targetToReplace = char;
@@ -299,9 +546,25 @@ export function generateQuizQuestion(
         const distractors = getCharacterDistractors(card, allCards);
         const options = shuffleArray(Array.from(new Set([card.character, ...distractors])));
 
+        if (type === "cloze_typing") {
+          return {
+            card,
+            type: "cloze_typing",
+            interactionMode: "typing",
+            prompt: "Gõ từ tiếng Trung (Chữ Hán hoặc Pinyin) còn thiếu vào chỗ trống:",
+            clozeSentence: blankedChinese,
+            clozeTranslation: ex.vietnamese,
+            inputPlaceholder: "Nhập Chữ Hán hoặc Pinyin...",
+            acceptedAnswers: [card.character, card.pinyin, targetToReplace].filter(Boolean),
+            options,
+            correctAnswer: card.character,
+          };
+        }
+
         return {
           card,
           type: "cloze",
+          interactionMode: "choice",
           prompt: "Điền từ thích hợp vào ô trống trong câu:",
           clozeSentence: blankedChinese,
           clozeTranslation: ex.vietnamese,
@@ -312,7 +575,7 @@ export function generateQuizQuestion(
     }
   }
 
-  // 6. Nghe phát âm -> Chọn Chữ Hán
+  // 6. Nghe phát âm -> Chọn Chữ Hán (Ẩn nghĩa Tiếng Việt để kiểm tra nghe thực chất)
   if (type === "listening") {
     const distractors = getCharacterDistractors(card, allCards);
     const options = shuffleArray(Array.from(new Set([card.character, ...distractors])));
@@ -320,21 +583,95 @@ export function generateQuizQuestion(
     return {
       card,
       type: "listening",
+      interactionMode: "choice",
       prompt: "Nghe phát âm và chọn Chữ Hán đúng:",
       audioText: card.character,
-      subText: card.translation || undefined,
       options,
       correctAnswer: card.character,
     };
   }
 
-  // 7. Default: Chọn Pinyin & thanh điệu
+  // 7. Tự nhập Pinyin (Active Recall Typing Pinyin)
+  if (type === "type_pinyin") {
+    const distractors = getPinyinDistractors(card, allCards);
+    const options = shuffleArray(Array.from(new Set([card.pinyin, ...distractors])));
+
+    return {
+      card,
+      type: "type_pinyin",
+      interactionMode: "typing",
+      prompt: "Tự gõ phiên âm Pinyin cho từ Hán tự này:",
+      targetText: card.character,
+      subText: `Nghĩa: ${card.translation}`,
+      inputPlaceholder: "Gõ Pinyin (VD: nihao, ni3 hao3 hoặc nǐ hǎo)...",
+      acceptedAnswers: [card.pinyin, card.character].filter(Boolean),
+      options,
+      correctAnswer: card.pinyin,
+    };
+  }
+
+  // 8. Tự nhập Chữ Hán / Từ vựng từ Nghĩa Tiếng Việt (Active Recall Typing Hanzi)
+  if (type === "type_hanzi") {
+    const distractors = getCharacterDistractors(card, allCards);
+    const options = shuffleArray(Array.from(new Set([card.character, ...distractors])));
+
+    return {
+      card,
+      type: "type_hanzi",
+      interactionMode: "typing",
+      prompt: "Nhìn nghĩa Tiếng Việt và gõ lại Chữ Hán (hoặc Pinyin):",
+      targetText: card.translation,
+      subText: card.radical ? `Gợi ý bộ thủ: ${card.radical}` : undefined,
+      inputPlaceholder: "Nhập Chữ Hán hoặc Pinyin...",
+      acceptedAnswers: [card.character, card.pinyin].filter(Boolean),
+      options,
+      correctAnswer: card.character,
+    };
+  }
+
+  // 9. Nghe chép chính tả (Listening Dictation)
+  if (type === "listening_dictation") {
+    const distractors = getCharacterDistractors(card, allCards);
+    const options = shuffleArray(Array.from(new Set([card.character, ...distractors])));
+
+    return {
+      card,
+      type: "listening_dictation",
+      interactionMode: "typing",
+      prompt: "Nghe phát âm và gõ lại Chữ Hán hoặc Pinyin bạn nghe được:",
+      audioText: card.character,
+      inputPlaceholder: "Gõ Chữ Hán hoặc Pinyin nghe được...",
+      acceptedAnswers: [card.character, card.pinyin].filter(Boolean),
+      options,
+      correctAnswer: `${card.character} (${card.pinyin})`,
+    };
+  }
+
+  // 10. Kiểm tra phát âm nhanh trong phiên ôn tập (Speaking Check)
+  if (type === "speaking_check") {
+    const distractors = getPinyinDistractors(card, allCards);
+    const options = shuffleArray(Array.from(new Set([card.pinyin, ...distractors])));
+
+    return {
+      card,
+      type: "speaking_check",
+      interactionMode: "speaking",
+      prompt: "Bấm Micro và đọc to từ Tiếng Trung dưới đây:",
+      targetText: card.character,
+      subText: `Nghĩa: ${card.translation}`,
+      options,
+      correctAnswer: card.pinyin,
+    };
+  }
+
+  // 11. Default: Chọn Pinyin & thanh điệu
   const distractors = getPinyinDistractors(card, allCards);
   const options = shuffleArray(Array.from(new Set([card.pinyin, ...distractors])));
 
   return {
     card,
     type: "pinyin_choice",
+    interactionMode: "choice",
     prompt: "Chọn Phiên âm Pinyin & Thanh điệu đúng:",
     targetText: card.character,
     subText: card.translation,
@@ -342,3 +679,4 @@ export function generateQuizQuestion(
     correctAnswer: card.pinyin,
   };
 }
+

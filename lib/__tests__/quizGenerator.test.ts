@@ -1,6 +1,9 @@
 import {
   determineQuestionType,
   generateQuizQuestion,
+  evaluateTypedAnswer,
+  normalizePinyinWithTones,
+  stripPinyinTones,
 } from "../quizGenerator";
 import { Card } from "../../store/slices/types";
 import { FSRSState, createDefaultSRSState } from "../srs";
@@ -93,7 +96,6 @@ export function runQuizGeneratorTests() {
   assertStrictEqual(qMeaning.correctAnswer, "Con mèo", "Correct answer must match translation");
   assertStrictEqual(qMeaning.options.length, 4, "Should have exactly 4 choices");
   assertOk(qMeaning.options.includes("Con mèo"), "Choices must include correct answer");
-  // Check uniqueness of options
   const uniqueMeaningOptions = new Set(qMeaning.options);
   assertStrictEqual(uniqueMeaningOptions.size, 4, "All 4 choices must be unique");
 
@@ -112,4 +114,25 @@ export function runQuizGeneratorTests() {
   assertOk(qCloze.clozeSentence?.includes("（___）"), "Sentence must have blank placeholder");
   assertOk(!qCloze.clozeSentence?.includes("喝水"), "Target keyword must be masked out");
   assertStrictEqual(new Set(qCloze.options).size, 4, "All cloze options must be unique");
+
+  // Test 6: Active Recall Typing & Dictation Question Generation
+  const qTypePinyin = generateQuizQuestion(mockCard3, allCards, "type_pinyin");
+  assertStrictEqual(qTypePinyin.interactionMode, "typing");
+  assertStrictEqual(normalizePinyinWithTones("hē shuǐ"), "he1shui3");
+  assertStrictEqual(normalizePinyinWithTones("he1 shui3"), "he1shui3");
+  assertStrictEqual(stripPinyinTones("hē shuǐ"), "heshui");
+
+  assertOk(evaluateTypedAnswer("hē shuǐ", qTypePinyin).isCorrect, "Exact toned pinyin should pass");
+  assertOk(evaluateTypedAnswer("he1 shui3", qTypePinyin).isCorrect, "Numbered pinyin should pass");
+  const baseEval = evaluateTypedAnswer("he shui", qTypePinyin);
+  assertOk(baseEval.isCorrect, "Base syllable pinyin should pass with toneHint");
+  assertOk(Boolean(baseEval.toneHint), "Base syllable pinyin should provide toneHint");
+  assertOk(!evaluateTypedAnswer("mao", qTypePinyin).isCorrect, "Wrong pinyin must fail");
+
+  // Test 7: Listening question hides Vietnamese meaning & Speaking check mode
+  const qListening = generateQuizQuestion(mockCard1, allCards, "listening");
+  assertStrictEqual(qListening.subText, undefined, "Listening question must not leak translation");
+  const qSpeaking = generateQuizQuestion(mockCard2, allCards, "speaking_check");
+  assertStrictEqual(qSpeaking.interactionMode, "speaking");
 }
+

@@ -51,6 +51,19 @@ export interface CardSlice {
   clearDeckCards: (deckId: string) => Promise<void>;
   resetDeckProgress: (deckId: string) => Promise<void>;
   findExistingCard: (character: string, deckId?: string) => Card | undefined;
+  fetchAllUserCharacters: () => Promise<Set<string>>;
+  isDuplicateCard: (
+    character: string,
+    traditional?: string,
+    deckId?: string,
+  ) => Promise<{ isDuplicate: boolean; existingCard?: Card }>;
+  deduplicateBatch: <T extends { character: string; traditional?: string }>(
+    items: T[],
+  ) => Promise<{
+    unique: T[];
+    removedDuplicatesCount: number;
+    removedDatabaseWords: string[];
+  }>;
 }
 
 export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], [], CardSlice> = (
@@ -126,12 +139,15 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     } = await supabase.auth.getUser();
     if (!user) throw new Error("User not authenticated");
 
-    const existingCards = get().cards[cardData.deckId] || [];
-    const cleanChar = cardData.character.trim().toLowerCase();
+    // Centralized duplicate check (checks loaded state and remote database)
+    const { isDuplicate, existingCard } = await get().isDuplicateCard(
+      cardData.character,
+      cardData.traditional,
+      cardData.deckId,
+    );
 
-    const duplicate = existingCards.find((c) => c.character.trim().toLowerCase() === cleanChar);
-    if (duplicate) {
-      await get().updateCard(duplicate.id, cardData.deckId, {
+    if (isDuplicate && existingCard) {
+      await get().updateCard(existingCard.id, existingCard.deckId || cardData.deckId, {
         character: cardData.character,
         traditional: cardData.traditional,
         pinyin: cardData.pinyin,
@@ -176,10 +192,11 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
       if (error) throw error;
 
       const newCard = mapRowToCard(data);
-      const isCardsLoaded = Boolean(get().cards[cardData.deckId]);
+      const currentDeckCards = get().cards[cardData.deckId];
+      const isCardsLoaded = Boolean(currentDeckCards);
 
-      if (isCardsLoaded && existingCards) {
-        const updatedCards = [newCard, ...existingCards];
+      if (isCardsLoaded && currentDeckCards) {
+        const updatedCards = [newCard, ...currentDeckCards];
         const realDueCount = computeDueCount(updatedCards);
         const realNewCount = computeNewCount(updatedCards);
 
@@ -525,5 +542,149 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
       if (match) return match;
     }
     return undefined;
+  },
+
+  fetchAllUserCharacters: async () => {
+    const charSet = new Set<string>();
+    const cardsState = get().cards;
+
+    // 1. Collect all characters from currently loaded decks in memory
+    for (const dId of Object.keys(cardsState)) {
+      const deckCards = cardsState[dId] || [];
+      for (const c of deckCards) {
+        if (c.character) charSet.add(c.character.trim().toLowerCase());
+        if (c.traditional) charSet.add(c.traditional.trim().toLowerCase());
+      }
+    }
+
+    // 2. Also query Supabase database for all cards of the current user (covers unloaded decks)
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from("cards")
+          .select("character, traditional")
+          .eq("user_id", user.id);
+
+        if (!error && Array.isArray(data)) {
+          for (const row of data) {
+            if (typeof row.character === "string" && row.character.trim()) {
+              charSet.add(row.character.trim().toLowerCase());
+            }
+            if (typeof row.traditional === "string" && row.traditional.trim()) {
+              charSet.add(row.traditional.trim().toLowerCase());
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[fetchAllUserCharacters] Fallback to local store characters:", err);
+    }
+
+    return charSet;
+  },
+
+  isDuplicateCard: async (character, traditional, deckId) => {
+    const cleanChar = (character || "").trim().toLowerCase();
+    const cleanTrad = (traditional || "").trim().toLowerCase();
+    if (!cleanChar && !cleanTrad) return { isDuplicate: false };
+
+    // 1. Check local loaded state (instant, no network overhead)
+    const cardsState = get().cards;
+    const targetDeckIds = deckId ? [deckId] : Object.keys(cardsState);
+
+    for (const dId of targetDeckIds) {
+      const deckCards = cardsState[dId] || [];
+      const match = deckCards.find((c) => {
+        const cChar = (c.character || "").trim().toLowerCase();
+        const cTrad = (c.traditional || "").trim().toLowerCase();
+        return (
+          (cleanChar && (cChar === cleanChar || cTrad === cleanChar)) ||
+          (cleanTrad && (cChar === cleanTrad || cTrad === cleanTrad))
+        );
+      });
+      if (match) return { isDuplicate: true, existingCard: match };
+    }
+
+    // 2. Check remote database for cards not yet loaded in memory
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        let query = supabase
+          .from("cards")
+          .select("*")
+          .eq("user_id", user.id);
+
+        if (deckId) {
+          query = query.eq("deck_id", deckId);
+        }
+
+        const orFilters: string[] = [];
+        if (cleanChar) {
+          orFilters.push(`character.eq.${character.trim()}`);
+          orFilters.push(`traditional.eq.${character.trim()}`);
+        }
+        if (cleanTrad && cleanTrad !== cleanChar) {
+          orFilters.push(`character.eq.${traditional!.trim()}`);
+          orFilters.push(`traditional.eq.${traditional!.trim()}`);
+        }
+
+        if (orFilters.length > 0) {
+          const { data, error } = await query.or(orFilters.join(",")).limit(1);
+          if (!error && data && data.length > 0) {
+            return { isDuplicate: true, existingCard: mapRowToCard(data[0]) };
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[isDuplicateCard] Remote check fallback:", err);
+    }
+
+    return { isDuplicate: false };
+  },
+
+  deduplicateBatch: async <T extends { character: string; traditional?: string }>(items: T[]) => {
+    const existingCharSet = await get().fetchAllUserCharacters();
+    const unique: T[] = [];
+    const seenInBatch = new Set<string>();
+    const removedDatabaseWords: string[] = [];
+    let removedDuplicatesCount = 0;
+
+    for (const item of items) {
+      const cleanChar = (item.character || "").trim().toLowerCase();
+      const cleanTrad = (item.traditional || "").trim().toLowerCase();
+      if (!cleanChar) continue;
+
+      const isInDatabase =
+        existingCharSet.has(cleanChar) ||
+        (cleanTrad.length > 0 && existingCharSet.has(cleanTrad));
+
+      if (isInDatabase) {
+        removedDuplicatesCount++;
+        const word = item.character.trim();
+        if (!removedDatabaseWords.includes(word)) {
+          removedDatabaseWords.push(word);
+        }
+        continue;
+      }
+
+      if (seenInBatch.has(cleanChar) || (cleanTrad.length > 0 && seenInBatch.has(cleanTrad))) {
+        continue;
+      }
+
+      seenInBatch.add(cleanChar);
+      if (cleanTrad.length > 0) seenInBatch.add(cleanTrad);
+      unique.push(item);
+    }
+
+    return {
+      unique,
+      removedDuplicatesCount,
+      removedDatabaseWords,
+    };
   },
 });

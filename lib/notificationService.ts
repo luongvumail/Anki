@@ -57,7 +57,7 @@ function getNotificationsModule() {
 }
 
 /**
- * Requests notification permissions from iOS/Android safely
+ * Requests notification permissions on Android safely
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
   const Notifications = getNotificationsModule();
@@ -69,7 +69,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
         name: "Nhắc nhở học tập",
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#6366F1",
+        lightColor: "#0EA5E9",
       });
     }
 
@@ -79,13 +79,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
       return true;
     }
 
-    const { status, granted } = await Notifications.requestPermissionsAsync({
-      ios: {
-        allowAlert: true,
-        allowBadge: true,
-        allowSound: true,
-      },
-    });
+    const { status, granted } = await Notifications.requestPermissionsAsync();
 
     return Boolean(granted || status === "granted");
   } catch (e) {
@@ -96,7 +90,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 
 /**
  * Schedules a daily repeating study reminder notification at specified hour and minute.
- * Uses atomic mutex lock and explicit cancellation to guarantee 0 duplicate notifications on iOS.
+ * Uses atomic mutex lock and explicit cancellation to guarantee 0 duplicate notifications.
  */
 export async function scheduleDailyStudyReminder(hour: number, minute: number): Promise<boolean> {
   if (isSchedulingMutex) {
@@ -114,12 +108,11 @@ export async function scheduleDailyStudyReminder(hour: number, minute: number): 
 
     // 1. Cancel ALL existing scheduled notifications first
     await Notifications.cancelAllScheduledNotificationsAsync();
-    // Tiny pause to ensure iOS native daemon completes cancellation before adding new item
     await new Promise((r) => setTimeout(r, 120));
 
     const dailyType = Notifications.SchedulableTriggerInputTypes?.DAILY || "daily";
 
-    // 2. Schedule single new daily notification
+    // 2. Schedule single new daily notification on Android default channel
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "Anki - Đến giờ ôn tập từ vựng",
@@ -130,7 +123,7 @@ export async function scheduleDailyStudyReminder(hour: number, minute: number): 
         type: dailyType,
         hour,
         minute,
-        repeats: true,
+        channelId: "default",
       },
     });
 
@@ -166,13 +159,14 @@ export async function sendTestNotification(): Promise<boolean> {
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "🔔 Thông báo thử nghiệm Anki",
-        body: "Tính năng nhắc nhở thông báo đang hoạt động hoàn hảo trên iPhone của bạn!",
+        body: "Tính năng nhắc nhở học tập đang hoạt động hoàn hảo trên thiết bị Android của bạn!",
         sound: true,
       },
       trigger: {
         type: timeIntervalType,
         seconds: 3,
         repeats: false,
+        channelId: "default",
       },
     });
     return true;

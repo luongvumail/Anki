@@ -204,6 +204,7 @@ export default function DecksScreen() {
         visible={showCreate}
         animationType="slide"
         presentationStyle="fullScreen"
+        statusBarTranslucent
         onRequestClose={() => setShowCreate(false)}
       >
         <View
@@ -236,6 +237,7 @@ export default function DecksScreen() {
           <ScrollView
             contentContainerStyle={styles.modalScroll}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             <AppCard style={{ padding: Spacing.md }}>
               <FormField

@@ -1,5 +1,13 @@
-import React, { useMemo, useCallback } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import React, { useMemo, useCallback, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  BackHandler,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -56,6 +64,17 @@ export default function StudyScreen() {
       router.back();
     }
   }, [session]);
+
+  useEffect(() => {
+    const backSub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (stage !== "done" && session && session.reviewedCount > 0) {
+        handleExitSession();
+        return true;
+      }
+      return false;
+    });
+    return () => backSub.remove();
+  }, [stage, session, handleExitSession]);
 
   if (!isLoading && deckCards.length === 0) {
     return (

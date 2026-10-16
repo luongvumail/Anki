@@ -2,6 +2,7 @@ import React from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -9,7 +10,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { QuizQuestion } from "../../lib/quizGenerator";
+import { QuizQuestion, PINYIN_TONE_VOWELS } from "../../lib/quizGenerator";
 import { Spacing, Radii, Typography, Layout } from "../../constants/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { AppButton } from "../ui/AppButton";
@@ -34,25 +35,45 @@ export function QuizCardView({ question, onAnswer, isFastRepairMode }: QuizCardV
   const cardWidth = width - Spacing.pageMargin * 2;
 
   const {
+    activeMode,
     selectedIndex,
+    typedText,
+    setTypedText,
+    toneHint,
+    isCorrect,
     isChecked,
     speaking,
+    speakingSlow,
     speakingSentence,
+    isRecording,
+    analyzingSpeech,
+    spokenTranscript,
     timeLeft,
     responseTimeMs,
     drawerAnim,
     shakeAnim,
     bounceAnim,
+    micPulseAnim,
     playTTS,
+    playSlowTTS,
     playSentenceTTS,
     handleSelectOption,
+    handleAppendToneVowel,
+    handleSubmitTyped,
+    handleSwitchToChoice,
+    handleStartSpeaking,
+    handleStopSpeaking,
     handleContinue,
   } = useQuizCard(question, onAnswer, isFastRepairMode);
 
-  const chosenOption = selectedIndex !== null ? question.options[selectedIndex] : null;
-  const isCorrect = chosenOption === question.correctAnswer;
   const fsrsEval = isChecked
-    ? calculateQuizFSRS(isCorrect, Boolean(isFastRepairMode), responseTimeMs, question.card.srs)
+    ? calculateQuizFSRS(
+        isCorrect,
+        Boolean(isFastRepairMode),
+        responseTimeMs,
+        question.card.srs,
+        activeMode,
+      )
     : null;
 
   const primaryExample =
@@ -60,13 +81,19 @@ export function QuizCardView({ question, onAnswer, isFastRepairMode }: QuizCardV
       ? question.card.examples[0]
       : null;
 
-  const isListeningType = question.type === "listening" || question.type === "listening_meaning";
+  const isListeningType =
+    question.type === "listening" ||
+    question.type === "listening_meaning" ||
+    question.type === "listening_dictation";
+
+  const isClozeType = question.type === "cloze" || question.type === "cloze_typing";
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: isChecked ? 280 : 110 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: isChecked ? 280 : 120 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Fast Repair Mode Countdown Header */}
         {isFastRepairMode && (
@@ -97,7 +124,7 @@ export function QuizCardView({ question, onAnswer, isFastRepairMode }: QuizCardV
           </Text>
 
           {/* Dynamic Question Target Display */}
-          {question.type === "cloze" ? (
+          {isClozeType ? (
             <View style={styles.clozeContainer}>
               <Text style={[styles.clozeSentenceText, { color: theme.textPrimary }]}>
                 {question.clozeSentence}
@@ -110,33 +137,49 @@ export function QuizCardView({ question, onAnswer, isFastRepairMode }: QuizCardV
             </View>
           ) : isListeningType ? (
             <View style={styles.listeningContainer}>
-              <AudioButton
-                onPress={() => playTTS(question.audioText || question.card.character)}
-                isPlaying={speaking}
-                size="lg"
-              />
+              <View style={styles.dualAudioRow}>
+                <AudioButton
+                  onPress={() => playTTS(question.audioText || question.card.character)}
+                  isPlaying={speaking}
+                  size="lg"
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.slowAudioBtn,
+                    {
+                      backgroundColor: speakingSlow ? theme.blue : theme.blueDim,
+                    },
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => playSlowTTS(question.audioText || question.card.character)}
+                >
+                  <Ionicons
+                    name="speedometer-outline"
+                    size={Layout.iconMd}
+                    color={speakingSlow ? "#FFFFFF" : theme.blue}
+                  />
+                  <Text
+                    style={[
+                      styles.slowAudioBtnText,
+                      { color: speakingSlow ? "#FFFFFF" : theme.blue },
+                    ]}
+                  >
+                    0.5x Chậm
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <Text style={[styles.listeningHintText, { color: theme.textMuted }]}>
-                Bấm nút loa để nghe lại âm thanh
+                Bấm loa lớn nghe chuẩn (1.0x) hoặc nút nghe chậm (0.5x)
               </Text>
-              {question.subText ? (
-                <Text style={[styles.targetSubText, { color: theme.textMuted }]}>
-                  {question.subText}
-                </Text>
-              ) : null}
             </View>
-          ) : question.type === "hanzi_from_meaning" ? (
+          ) : question.type === "hanzi_from_meaning" || question.type === "type_hanzi" ? (
             <View style={styles.targetCharContainer}>
               <Text style={[styles.targetMeaningText, { color: theme.textPrimary }]}>
                 "{question.card.translation}"
               </Text>
-              {question.card.pinyin ? (
-                <Text
-                  style={[
-                    styles.targetSubText,
-                    { color: getPinyinToneColor(question.card.pinyin) },
-                  ]}
-                >
-                  Pinyin: {question.card.pinyin}
+              {question.subText ? (
+                <Text style={[styles.targetSubText, { color: theme.textMuted }]}>
+                  {question.subText}
                 </Text>
               ) : null}
             </View>
@@ -161,7 +204,9 @@ export function QuizCardView({ question, onAnswer, isFastRepairMode }: QuizCardV
               <Text style={[styles.targetCharText, { color: theme.textPrimary }]}>
                 {question.card.character}
               </Text>
-              {question.type === "pinyin_choice" ? (
+              {question.type === "pinyin_choice" ||
+              question.type === "type_pinyin" ||
+              question.type === "speaking_check" ? (
                 <Text style={[styles.targetSubText, { color: theme.textMuted }]}>
                   {question.card.translation}
                 </Text>
@@ -179,76 +224,212 @@ export function QuizCardView({ question, onAnswer, isFastRepairMode }: QuizCardV
           )}
         </Animated.View>
 
-        {/* Multiple Choice Options Grid */}
-        <View style={[styles.optionsGrid, { width: cardWidth }]}>
-          {question.options.map((opt, idx) => {
-            const isSelected = selectedIndex === idx;
-            let cardBg = theme.cardBg;
-            let letterBg = theme.bgSoft;
-            let letterColor = theme.textMuted;
+        {/* MODE 1: ACTIVE RECALL TYPING */}
+        {activeMode === "typing" ? (
+          <View style={[styles.typingSection, { width: cardWidth }]}>
+            <TextInput
+              style={[
+                styles.typingInput,
+                {
+                  backgroundColor: theme.cardBg,
+                  color: theme.textPrimary,
+                  borderColor: isChecked
+                    ? isCorrect
+                      ? theme.green
+                      : theme.red
+                    : theme.blue,
+                },
+              ]}
+              placeholder={question.inputPlaceholder || "Nhập Chữ Hán hoặc Pinyin..."}
+              placeholderTextColor={theme.textMuted}
+              value={typedText}
+              onChangeText={setTypedText}
+              editable={!isChecked}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={handleSubmitTyped}
+            />
 
-            if (isSelected) {
-              cardBg = theme.blueDim;
-              letterBg = theme.blue;
-              letterColor = "#FFFFFF";
-            }
+            {/* Quick Tone Marks Helper Bar for Android Keyboards */}
+            <View style={styles.toneBarWrapper}>
+              <Text style={[styles.toneBarLabel, { color: theme.textMuted }]}>
+                Chèn nhanh nguyên âm có dấu thanh (hoặc gõ số 1-4):
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="always"
+                contentContainerStyle={styles.toneBarScroll}
+              >
+                {PINYIN_TONE_VOWELS.map((v) => (
+                  <TouchableOpacity
+                    key={v}
+                    style={[styles.toneKeyBtn, { backgroundColor: theme.cardBg }]}
+                    onPress={() => handleAppendToneVowel(v)}
+                    disabled={isChecked}
+                  >
+                    <Text style={[styles.toneKeyText, { color: theme.blue }]}>{v}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
-            if (isChecked) {
-              if (opt === question.correctAnswer) {
-                cardBg = theme.greenDim;
-                letterBg = theme.green;
-                letterColor = "#FFFFFF";
-              } else if (isSelected && !isCorrect) {
-                cardBg = theme.redDim;
-                letterBg = theme.red;
+            <AppButton
+              title="KIỂM TRA ĐÁP ÁN"
+              variant="primary"
+              size="lg"
+              disabled={isChecked || !typedText.trim()}
+              onPress={handleSubmitTyped}
+              style={{ width: "100%", marginTop: Spacing.xs }}
+            />
+
+            {!isChecked && (
+              <TouchableOpacity
+                style={styles.switchModeBtn}
+                onPress={handleSwitchToChoice}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="help-buoy-outline" size={16} color={theme.textMuted} />
+                <Text style={[styles.switchModeText, { color: theme.textMuted }]}>
+                  Gợi ý: Chuyển sang chọn 4 đáp án A/B/C/D
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : activeMode === "speaking" ? (
+          /* MODE 2: SPEAKING CHECK */
+          <View style={[styles.speakingSection, { width: cardWidth }]}>
+            <View style={[styles.speakingCard, { backgroundColor: theme.cardBg }]}>
+              <View style={styles.speakerHintRow}>
+                <AudioButton
+                  onPress={() => playTTS(question.card.character)}
+                  isPlaying={speaking}
+                  size="sm"
+                />
+                <Text style={[styles.speakerHintLabel, { color: theme.textMuted }]}>
+                  Nghe mẫu ({question.card.pinyin})
+                </Text>
+              </View>
+
+              <Animated.View style={{ transform: [{ scale: micPulseAnim }], marginVertical: Spacing.md }}>
+                <TouchableOpacity
+                  style={[
+                    styles.micCircleBtn,
+                    { backgroundColor: isRecording ? theme.red : analyzingSpeech ? theme.yellow : theme.green },
+                  ]}
+                  onPress={isRecording ? handleStopSpeaking : handleStartSpeaking}
+                  disabled={isChecked || analyzingSpeech}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons
+                    name={isRecording ? "stop" : analyzingSpeech ? "sparkles" : "mic"}
+                    size={Layout.iconXl}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
+              </Animated.View>
+
+              <Text style={[styles.micStatusText, { color: theme.textPrimary }]}>
+                {isRecording
+                  ? "Đang thu âm... Bấm lần nữa khi đọc xong"
+                  : analyzingSpeech
+                    ? "AI đang chấm phát âm..."
+                    : "Chạm vào Micro và đọc to từ trên"}
+              </Text>
+
+              {spokenTranscript ? (
+                <Text style={[styles.transcriptPreview, { color: theme.blue }]}>
+                  AI nghe được: "{spokenTranscript}"
+                </Text>
+              ) : null}
+            </View>
+
+            {!isChecked && (
+              <TouchableOpacity
+                style={styles.switchModeBtn}
+                onPress={handleSwitchToChoice}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="volume-mute-outline" size={16} color={theme.textMuted} />
+                <Text style={[styles.switchModeText, { color: theme.textMuted }]}>
+                  Không tiện nói lúc này (Chuyển sang Trắc nghiệm)
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          /* MODE 3: MULTIPLE CHOICE 4 OPTIONS */
+          <View style={[styles.optionsGrid, { width: cardWidth }]}>
+            {question.options.map((opt, idx) => {
+              const isSelected = selectedIndex === idx;
+              let cardBg = theme.cardBg;
+              let letterBg = theme.bgSoft;
+              let letterColor = theme.textMuted;
+
+              if (isSelected) {
+                cardBg = theme.blueDim;
+                letterBg = theme.blue;
                 letterColor = "#FFFFFF";
               }
-            }
 
-            return (
-              <TouchableOpacity
-                key={idx}
-                activeOpacity={0.8}
-                disabled={isChecked}
-                onPress={() => handleSelectOption(idx)}
-                style={[
-                  styles.optionCard,
-                  {
-                    backgroundColor: cardBg,
-                  },
-                ]}
-              >
-                <View style={[styles.letterBox, { backgroundColor: letterBg }]}>
-                  <Text style={[styles.letterText, { color: letterColor }]}>
-                    {OPTION_LETTERS[idx]}
-                  </Text>
-                </View>
+              if (isChecked) {
+                if (opt === question.correctAnswer) {
+                  cardBg = theme.greenDim;
+                  letterBg = theme.green;
+                  letterColor = "#FFFFFF";
+                } else if (isSelected && !isCorrect) {
+                  cardBg = theme.redDim;
+                  letterBg = theme.red;
+                  letterColor = "#FFFFFF";
+                }
+              }
 
-                <Text
+              return (
+                <TouchableOpacity
+                  key={idx}
+                  activeOpacity={0.8}
+                  disabled={isChecked}
+                  onPress={() => handleSelectOption(idx)}
                   style={[
-                    styles.optionText,
+                    styles.optionCard,
                     {
-                      color:
-                        isChecked && opt === question.correctAnswer
-                          ? theme.green
-                          : theme.textPrimary,
+                      backgroundColor: cardBg,
                     },
                   ]}
-                  numberOfLines={2}
                 >
-                  {opt}
-                </Text>
+                  <View style={[styles.letterBox, { backgroundColor: letterBg }]}>
+                    <Text style={[styles.letterText, { color: letterColor }]}>
+                      {OPTION_LETTERS[idx]}
+                    </Text>
+                  </View>
 
-                {isChecked && opt === question.correctAnswer && (
-                  <Ionicons name="checkmark-circle" size={Layout.iconLg} color={theme.green} />
-                )}
-                {isChecked && isSelected && !isCorrect && (
-                  <Ionicons name="close-circle" size={Layout.iconLg} color={theme.red} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                  <Text
+                    style={[
+                      styles.optionText,
+                      {
+                        color:
+                          isChecked && opt === question.correctAnswer
+                            ? theme.green
+                            : theme.textPrimary,
+                      },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {opt}
+                  </Text>
+
+                  {isChecked && opt === question.correctAnswer && (
+                    <Ionicons name="checkmark-circle" size={Layout.iconLg} color={theme.green} />
+                  )}
+                  {isChecked && isSelected && !isCorrect && (
+                    <Ionicons name="close-circle" size={Layout.iconLg} color={theme.red} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
 
       {/* Bottom Drawer Result: Comprehensive Deep Learning Flashcard */}
@@ -296,6 +477,11 @@ export function QuizCardView({ question, onAnswer, isFastRepairMode }: QuizCardV
                     </Text>
                   </Text>
                 )}
+                {toneHint ? (
+                  <Text style={[styles.correctAnswerLabelText, { color: theme.blue, fontWeight: "700" }]}>
+                    💡 {toneHint}
+                  </Text>
+                ) : null}
                 {fsrsEval && (
                   <View style={[styles.speedBadgeRow, { backgroundColor: theme.bgSoft }]}>
                     <Ionicons
@@ -480,9 +666,27 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     gap: Spacing.cellPadding,
   },
+  dualAudioRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  slowAudioBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radii.full,
+  },
+  slowAudioBtnText: {
+    fontSize: Typography.caption1.fontSize,
+    fontWeight: Typography.weight.extraBold,
+  },
   listeningHintText: {
     fontSize: Typography.caption.fontSize,
     fontWeight: Typography.weight.semibold,
+    textAlign: "center",
   },
   clozeContainer: {
     alignItems: "center",
@@ -499,6 +703,89 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     fontWeight: Typography.weight.semibold,
     textAlign: "center",
+  },
+  typingSection: {
+    gap: Spacing.sm,
+  },
+  typingInput: {
+    borderWidth: 2,
+    borderRadius: Radii.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    fontSize: Typography.titleMD.fontSize,
+    fontWeight: Typography.weight.bold,
+    textAlign: "center",
+  },
+  toneBarWrapper: {
+    marginTop: Spacing.xs,
+  },
+  toneBarLabel: {
+    fontSize: Typography.caption2.fontSize,
+    fontWeight: Typography.weight.semibold,
+    marginBottom: Spacing.xs,
+  },
+  toneBarScroll: {
+    gap: Spacing.xs,
+    paddingVertical: 2,
+  },
+  toneKeyBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radii.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toneKeyText: {
+    fontSize: Typography.callout.fontSize,
+    fontWeight: Typography.weight.extraBold,
+  },
+  switchModeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  switchModeText: {
+    fontSize: Typography.caption1.fontSize,
+    fontWeight: Typography.weight.bold,
+    textDecorationLine: "underline",
+  },
+  speakingSection: {
+    gap: Spacing.sm,
+  },
+  speakingCard: {
+    borderRadius: Radii.xl,
+    padding: Spacing.lg,
+    alignItems: "center",
+  },
+  speakerHintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  speakerHintLabel: {
+    fontSize: Typography.caption1.fontSize,
+    fontWeight: Typography.weight.bold,
+  },
+  micCircleBtn: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 4,
+  },
+  micStatusText: {
+    fontSize: Typography.subhead.fontSize,
+    fontWeight: Typography.weight.bold,
+    textAlign: "center",
+  },
+  transcriptPreview: {
+    fontSize: Typography.caption.fontSize,
+    fontWeight: Typography.weight.bold,
+    marginTop: Spacing.xs,
   },
   optionsGrid: {
     gap: Spacing.cellPadding,

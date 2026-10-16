@@ -69,6 +69,7 @@ export const DeckPicker = React.memo(function DeckPicker({
       <Modal
         visible={isOpen}
         transparent
+        statusBarTranslucent
         animationType="slide"
         onRequestClose={onToggleOpen}
       >

@@ -1,6 +1,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { StyleSheet, Platform, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Spacing, Typography, Layout } from "../../constants/theme";
 import { useTheme } from "../../hooks/useTheme";
@@ -8,6 +9,8 @@ import { AccountModal } from "../../components/home/AccountModal";
 
 export default function TabLayout() {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, Spacing.sm);
 
   return (
     <View style={{ flex: 1 }}>
@@ -19,6 +22,8 @@ export default function TabLayout() {
             styles.tabBar,
             {
               backgroundColor: theme.bg,
+              height: 58 + bottomPadding,
+              paddingBottom: bottomPadding,
             },
           ],
 
@@ -78,8 +83,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 8,
-    height: Platform.OS === "ios" ? 86 : 66,
-    paddingBottom: Platform.OS === "ios" ? 26 : Spacing.sm,
     paddingTop: Spacing.xs,
   },
 

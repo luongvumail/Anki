@@ -15,7 +15,11 @@ import { Spacing, Typography, Layout, triggerHaptic } from "../../constants/them
 import { useTheme } from "../../hooks/useTheme";
 import { useStore } from "../../store/useStore";
 import { supabase } from "../../lib/supabase";
-import { cancelDailyStudyReminder } from "../../lib/notificationService";
+import {
+  cancelDailyStudyReminder,
+  getReminderSettings,
+  scheduleDailyStudyReminder,
+} from "../../lib/notificationService";
 import { WheelTimePicker } from "./WheelTimePicker";
 import { SectionTitle } from "../ui/SectionTitle";
 import { AppCard } from "../ui/AppCard";
@@ -48,6 +52,11 @@ export function AccountModal() {
         );
       }
     });
+    getReminderSettings().then((settings) => {
+      setReminderEnabled(settings.enabled);
+      setReminderHour(settings.hour);
+      setReminderMinute(settings.minute);
+    });
   }, [isAccountModalOpen]);
 
   const displayName = userName || (userEmail ? userEmail.split("@")[0] : "Bạn");
@@ -55,8 +64,31 @@ export function AccountModal() {
 
   const handleToggleReminder = async (val: boolean) => {
     setReminderEnabled(val);
-    if (!val) {
+    if (val) {
+      const ok = await scheduleDailyStudyReminder(reminderHour, reminderMinute);
+      if (!ok) {
+        setReminderEnabled(false);
+        Alert.alert(
+          "Cần quyền thông báo",
+          "Vui lòng cấp quyền thông báo cho Anki trong Cài đặt điện thoại Android để nhận lời nhắc học tập hàng ngày.",
+        );
+      }
+    } else {
       await cancelDailyStudyReminder();
+    }
+  };
+
+  const handleHourChange = (hour: number) => {
+    setReminderHour(hour);
+    if (reminderEnabled) {
+      scheduleDailyStudyReminder(hour, reminderMinute);
+    }
+  };
+
+  const handleMinuteChange = (minute: number) => {
+    setReminderMinute(minute);
+    if (reminderEnabled) {
+      scheduleDailyStudyReminder(reminderHour, minute);
     }
   };
 
@@ -82,6 +114,7 @@ export function AccountModal() {
       visible={isAccountModalOpen}
       animationType="slide"
       presentationStyle="fullScreen"
+      statusBarTranslucent
       onRequestClose={closeAccountModal}
     >
       <View style={[styles.modalContainer, { backgroundColor: theme.bg }]}>
@@ -172,8 +205,8 @@ export function AccountModal() {
                 <WheelTimePicker
                   hour={reminderHour}
                   minute={reminderMinute}
-                  onHourChange={setReminderHour}
-                  onMinuteChange={setReminderMinute}
+                  onHourChange={handleHourChange}
+                  onMinuteChange={handleMinuteChange}
                 />
               </View>
             )}

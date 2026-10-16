@@ -4,7 +4,13 @@ import { APP_CONFIG } from "../constants/config";
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(apiKey);
 
-const CANDIDATE_MODELS = ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash"];
+const CANDIDATE_MODELS = [
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-2.5-flash",
+  "gemini-1.5-flash",
+];
 
 /**
  * Sleep helper for retry backoff
@@ -15,6 +21,7 @@ async function generateWithModels(
   prompt: string,
   responseMimeType?: string,
   temperature = 0.1,
+  inlineImage?: { data: string; mimeType: string },
 ): Promise<string> {
   let lastError: unknown = null;
 
@@ -33,7 +40,17 @@ async function generateWithModels(
             temperature,
           },
         });
-        const result = await model.generateContent(prompt);
+        const result = inlineImage
+          ? await model.generateContent([
+              prompt,
+              {
+                inlineData: {
+                  data: inlineImage.data,
+                  mimeType: inlineImage.mimeType,
+                },
+              },
+            ])
+          : await model.generateContent(prompt);
         const text = result.response.text();
         if (__DEV__) console.log(`[Gemini] Success using model: ${modelName}`);
         return text;
@@ -60,6 +77,17 @@ async function generateWithModels(
 
 function generateWithFallback(prompt: string): Promise<string> {
   return generateWithModels(prompt, "application/json", 0.1);
+}
+
+function generateVisionWithFallback(
+  prompt: string,
+  base64Data: string,
+  mimeType: string,
+): Promise<string> {
+  return generateWithModels(prompt, "application/json", 0.1, {
+    data: base64Data,
+    mimeType,
+  });
 }
 
 function generateWithFallbackText(prompt: string): Promise<string> {
@@ -290,6 +318,124 @@ export async function generateCardDataBatch(inputs: string[]): Promise<CardData[
 }
 
 /**
+ * Pure helper to filter out duplicate vocabulary cards:
+ * 1. Deduplicates within the generated batch itself (e.g., if a word appears twice in an image/list).
+ * 2. Deduplicates against all existing characters/traditional forms in the user's database.
+ */
+export function deduplicateCardsAgainstDatabase(
+  generatedCards: CardData[],
+  existingCharactersSet: Set<string>,
+): {
+  uniqueCards: CardData[];
+  removedDuplicatesCount: number;
+  removedDatabaseWords: string[];
+} {
+  const uniqueCards: CardData[] = [];
+  const seenInBatch = new Set<string>();
+  const removedDatabaseWords: string[] = [];
+  let removedDuplicatesCount = 0;
+
+  for (const card of generatedCards) {
+    const cleanChar = (card.character || "").trim().toLowerCase();
+    const cleanTrad = (card.traditional || "").trim().toLowerCase();
+    if (!cleanChar) continue;
+
+    // 1. Check if already in database (by simplified or traditional character)
+    const isInDatabase =
+      existingCharactersSet.has(cleanChar) ||
+      (cleanTrad.length > 0 && existingCharactersSet.has(cleanTrad));
+
+    if (isInDatabase) {
+      removedDuplicatesCount++;
+      if (!removedDatabaseWords.includes(card.character.trim())) {
+        removedDatabaseWords.push(card.character.trim());
+      }
+      continue;
+    }
+
+    // 2. Check if already seen in the current batch
+    if (seenInBatch.has(cleanChar) || (cleanTrad.length > 0 && seenInBatch.has(cleanTrad))) {
+      continue;
+    }
+
+    seenInBatch.add(cleanChar);
+    if (cleanTrad.length > 0) seenInBatch.add(cleanTrad);
+    uniqueCards.push(card);
+  }
+
+  return {
+    uniqueCards,
+    removedDuplicatesCount,
+    removedDatabaseWords,
+  };
+}
+
+/**
+ * Uses Gemini Multimodal Vision to analyze an image (textbook page, vocabulary list, handwritten notes,
+ * menu, sign, screenshot, or real-world objects) and extract Chinese vocabulary cards.
+ */
+export async function generateCardsFromImage(
+  base64Image: string,
+  mimeType = "image/jpeg",
+  userHint?: string,
+): Promise<CardData[]> {
+  await enforceRateLimit();
+
+  const cleanBase64 = base64Image.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, "").trim();
+  if (!cleanBase64) {
+    throw new Error("Dữ liệu hình ảnh không hợp lệ.");
+  }
+
+  const hintInstruction =
+    userHint && userHint.trim().length > 0
+      ? `\nGHI CHÚ / YÊU CẦU TỪ NGƯỜI DÙNG: "${sanitizeInput(userHint)}"\nHãy ưu tiên thực hiện theo yêu cầu này khi trích xuất từ vựng.`
+      : "";
+
+  const prompt = `Bạn là chuyên gia sư phạm Hán-Việt và nhận diện hình ảnh (OCR & Vision).
+Hãy phân tích hình ảnh được đính kèm và trích xuất danh sách từ vựng tiếng Trung quan trọng nhất (tối đa 15 từ vựng):
+1. Nếu ảnh là trang sách giáo khoa, bảng từ vựng, ghi chú viết tay, biển báo, thực đơn, phụ đề phim hoặc văn bản tiếng Trung: hãy trích xuất các từ vựng tiếng Trung xuất hiện trong ảnh (loại bỏ các từ trùng lặp trong cùng bức ảnh).
+2. Nếu ảnh là danh sách từ tiếng Việt/tiếng Anh hoặc chụp đồ vật/khung cảnh đời thực: hãy nhận diện và chuyển sang các từ vựng tiếng Trung tương ứng phù hợp nhất.${hintInstruction}
+
+BẮT BUỘC VỀ TRƯỜNG "radical":
+Trường "radical" ngắn gọn tối đa 2 câu: Câu 1 liệt kê bộ thủ cấu thành (tên Hán-Việt + ký tự + nghĩa). Câu 2 nêu mẹo nhớ hình ảnh.
+Ví dụ: "好: bộ Nữ (女) + bộ Tử (子). Mẹ ôm con → tốt đẹp."
+
+Trả về JSON array (CHỈ JSON array hợp lệ, không dùng markdown):
+[
+  {
+    "character": "chữ giản thể",
+    "traditional": "chữ phồn thể",
+    "pinyin": "phiên âm có dấu",
+    "hanviet": "âm Hán-Việt",
+    "translation": "nghĩa tiếng Việt ngắn gọn (tối đa 3 nghĩa)",
+    "examples": [
+      {
+        "chinese": "câu ví dụ ngắn",
+        "pinyin": "phiên âm câu ví dụ",
+        "vietnamese": "dịch nghĩa"
+      }
+    ],
+    "radical": "tối đa 2 câu: bộ thủ + mẹo nhớ",
+    "strokeCount": 0,
+    "hskLevel": 1,
+    "tags": ["Quét từ ảnh"]
+  }
+]`;
+
+  const text = await generateVisionWithFallback(prompt, cleanBase64, mimeType || "image/jpeg");
+  const jsonText = extractCleanJson(text);
+  if (!jsonText) {
+    throw new Error("AI không tìm thấy từ vựng hợp lệ trong bức ảnh này.");
+  }
+
+  const rawResults = JSON.parse(jsonText);
+  const itemsArray = Array.isArray(rawResults) ? rawResults : [rawResults];
+  return itemsArray
+    .map(validateSingleCardData)
+    .filter((card) => card.character && card.character.trim().length > 0);
+}
+
+/**
  * Generates a fill-in-the-blank quiz sentence for a given word.
  */
 export async function generateQuizSentence(
@@ -410,4 +556,63 @@ Trả về JSON array (CHỈ JSON array, không markdown):
     console.warn("[Gemini] Failed to generate dynamic AI quiz batch:", err);
     return [];
   }
+}
+
+export interface SpeechEvaluationResult {
+  transcript: string;
+  errorDetail?: string;
+  pronunciationTip?: string;
+}
+
+/**
+ * Uses Gemini Multimodal Audio with automatic multi-model fallback to transcribe
+ * and evaluate Chinese pronunciation from a base64 audio recording.
+ */
+export async function evaluateChineseSpeechAudio(
+  base64Audio: string,
+  targetHanzi: string,
+  targetPinyin: string,
+  targetMeaning?: string,
+  mimeType = "audio/m4a",
+): Promise<SpeechEvaluationResult> {
+  await enforceRateLimit();
+
+  const cleanAudio = base64Audio.trim();
+  if (!cleanAudio) {
+    return { transcript: "" };
+  }
+
+  const prompt = `Bạn là trợ lý AI chuyên gia phân tích và chấm điểm phát âm Tiếng Trung (Mandarin).
+Nội dung chuẩn mục tiêu là:
+- Hán tự: "${sanitizeInput(targetHanzi)}"
+- Pinyin chuẩn: "${sanitizeInput(targetPinyin)}"${targetMeaning ? `\n- Nghĩa Tiếng Việt: "${sanitizeInput(targetMeaning)}"` : ""}
+
+NHIỆM VỤ:
+1. Nghe kỹ file âm thanh thu âm của người dùng.
+2. Trích xuất chính xác văn bản Tiếng Trung hoặc Pinyin mà người dùng đã đọc (transcript).
+3. Nếu người dùng đọc sai thanh điệu, sai âm đầu (initials) hoặc vận mẫu (finals), hãy chỉ rõ lỗi sai ngắn gọn trong "errorDetail".
+4. Đưa ra 1 mẹo phát âm cực kỳ dễ hiểu bằng Tiếng Việt trong "pronunciationTip" giúp họ phát âm chuẩn "${sanitizeInput(targetHanzi)}" (${sanitizeInput(targetPinyin)}).
+
+TRẢ VỀ DUY NHẤT FORMAT JSON SAU (Không thêm text thừa):
+{
+  "transcript": "<văn bản hoặc pinyin AI nghe được từ thu âm>",
+  "errorDetail": "<phân tích lỗi sai cụ thể nếu có>",
+  "pronunciationTip": "<mẹo phát âm ngắn gọn bằng Tiếng Việt>"
+}`;
+
+  const rawText = await generateWithModels(prompt, "application/json", 0.1, {
+    data: cleanAudio,
+    mimeType,
+  });
+  const jsonText = extractCleanJson(rawText);
+  if (!jsonText) {
+    return { transcript: "" };
+  }
+  const parsed = JSON.parse(jsonText) as Record<string, unknown>;
+  return {
+    transcript: typeof parsed.transcript === "string" ? parsed.transcript.trim() : "",
+    errorDetail: typeof parsed.errorDetail === "string" ? parsed.errorDetail.trim() : undefined,
+    pronunciationTip:
+      typeof parsed.pronunciationTip === "string" ? parsed.pronunciationTip.trim() : undefined,
+  };
 }

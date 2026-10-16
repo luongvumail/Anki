@@ -2,7 +2,13 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Card, StudySession } from "../store/slices/types";
 import { useStore } from "../store/useStore";
 import { APP_CONFIG } from "../constants/config";
-import { isDue, calculateQuizSRS, createDefaultSRSState } from "../lib/srs";
+import {
+  isDue,
+  calculateQuizSRS,
+  createDefaultSRSState,
+  getModeResponseThresholds,
+  selectCardsByFSRSPriority,
+} from "../lib/srs";
 import { generateQuizQuestion, QuizQuestion, shuffleArray } from "../lib/quizGenerator";
 import { recordReviewToday } from "../lib/reviewTracker";
 
@@ -64,11 +70,9 @@ export function useStudySession(deckId: string) {
         return;
       }
 
-      let due = deckCards.filter((c: Card) => isDue(c.srs));
-      if (due.length === 0) {
-        due = [...deckCards].sort(() => Math.random() - 0.5);
-      }
-      const sessionCards = due.slice(0, APP_CONFIG.MAX_SESSION_CARDS);
+      const due = deckCards.filter((c: Card) => isDue(c.srs));
+      const pool = due.length > 0 ? due : deckCards;
+      const sessionCards = selectCardsByFSRSPriority(pool, APP_CONFIG.MAX_SESSION_CARDS);
 
       if (sessionCards.length === 0) {
         setIsLoading(false);
@@ -77,8 +81,8 @@ export function useStudySession(deckId: string) {
       }
 
       const generated: QuizQuestion[] = [];
-      sessionCards.forEach((c: Card) => {
-        const q = generateQuizQuestion(c, deckCards);
+      sessionCards.forEach((c: Card, idx: number) => {
+        const q = generateQuizQuestion(c, deckCards, undefined, undefined, idx);
         if (q) generated.push(q);
       });
 
@@ -136,7 +140,9 @@ export function useStudySession(deckId: string) {
         // Tái xáo trộn câu hỏi một lần nữa khi chuyển từ Preview sang Validation để đảm bảo độ bất ngờ cao nhất
         setQuestions((currentQs) => {
           const reshuffled = shuffleArray(currentQs);
-          setSession((s) => (s ? { ...s, queue: reshuffled.map((q) => q.card), currentIndex: 0 } : null));
+          setSession((s) =>
+            s ? { ...s, queue: reshuffled.map((q) => q.card), currentIndex: 0 } : null,
+          );
           return reshuffled;
         });
         setStage("validation");
@@ -151,47 +157,65 @@ export function useStudySession(deckId: string) {
   }, []);
 
   const handleQuizAnswer = useCallback(
-    async (isCorrect: boolean, responseTimeMs: number) => {
+    async (
+      isCorrect: boolean,
+      responseTimeMs: number,
+      weakTag?: "pinyin" | "character" | "meaning",
+    ) => {
       if (!session) return;
       const currIdx = session.currentIndex;
       if (currIdx >= questions.length) return;
 
       const currentQuestion = questions[currIdx];
       const card = currentQuestion.card;
+      const interactionMode = currentQuestion.interactionMode || "choice";
+      const { slowMs } = getModeResponseThresholds(interactionMode);
 
-      const isRetry = ratedCardIdsInSession.current.has(card.id);
-      const currentSRS = card.srs || createDefaultSRSState();
+      const isFirstAttempt = !ratedCardIdsInSession.current.has(card.id);
 
-      // Calculate FSRS state (handles both first-time answers and retry answers)
-      ratedCardIdsInSession.current.add(card.id);
-      const { newSRS } = calculateQuizSRS(isCorrect, isRetry, responseTimeMs, currentSRS);
-      const nowIso = new Date().toISOString();
+      // FSRS Long-term Scheduling Rule:
+      // Only update long-term FSRS memory state on the FIRST recall attempt of the card in this session.
+      // Subsequent intra-session retries reinforce short-term recall without distorting FSRS stability or overwriting a first-try rating.
+      if (isFirstAttempt) {
+        ratedCardIdsInSession.current.add(card.id);
+        const latestCardInStore =
+          (useStore.getState().cards[deckId] || []).find((c) => c.id === card.id) || card;
+        const currentSRS = latestCardInStore.srs || createDefaultSRSState();
+        const { newSRS } = calculateQuizSRS(
+          isCorrect,
+          false,
+          responseTimeMs,
+          currentSRS,
+          interactionMode,
+        );
+        const nowIso = new Date().toISOString();
 
-      // Optimistically update card in Zustand store instantly
-      useStore.setState((s) => ({
-        cards: {
-          ...s.cards,
-          [deckId]: (s.cards[deckId] || []).map((c) =>
-            c.id === card.id ? { ...c, srs: newSRS, lastReviewedAt: nowIso } : c,
-          ),
-        },
-      }));
+        // Optimistically update card in Zustand store instantly
+        useStore.setState((s) => ({
+          cards: {
+            ...s.cards,
+            [deckId]: (s.cards[deckId] || []).map((c) =>
+              c.id === card.id ? { ...c, srs: newSRS, lastReviewedAt: nowIso } : c,
+            ),
+          },
+        }));
 
-      // Update or append to pendingUpdatesRef (avoid duplicate entries for same card)
-      const existingIdx = pendingUpdatesRef.current.findIndex((p) => p.cardId === card.id);
-      const updateItem = {
-        cardId: card.id,
-        deckId,
-        updates: { srs: newSRS, lastReviewedAt: nowIso },
-      };
-      if (existingIdx >= 0) {
-        pendingUpdatesRef.current[existingIdx] = updateItem;
-      } else {
-        pendingUpdatesRef.current.push(updateItem);
+        const existingIdx = pendingUpdatesRef.current.findIndex((p) => p.cardId === card.id);
+        const updateItem = {
+          cardId: card.id,
+          deckId,
+          updates: { srs: newSRS, lastReviewedAt: nowIso },
+        };
+        if (existingIdx >= 0) {
+          pendingUpdatesRef.current[existingIdx] = updateItem;
+        } else {
+          pendingUpdatesRef.current.push(updateItem);
+        }
       }
+
       await recordReviewToday();
 
-      const isSlowOrMissed = !isCorrect || responseTimeMs > APP_CONFIG.REPAIR_SLOW_THRESHOLD_MS;
+      const isSlowOrMissed = !isCorrect || responseTimeMs > slowMs;
       let nextMissed = missedOrSlowCardIds;
       if (isSlowOrMissed) {
         nextMissed = missedOrSlowCardIds.includes(card.id)
@@ -200,15 +224,19 @@ export function useStudySession(deckId: string) {
         setMissedOrSlowCardIds(nextMissed);
       }
 
-      let updatedQuestions = [...questions];
-      let updatedCards = [...targetCards];
+      const updatedQuestions = [...questions];
 
       if (!isCorrect) {
-        const nextQuestion = generateQuizQuestion(card, deckCards);
+        const nextQuestion = generateQuizQuestion(
+          card,
+          deckCards,
+          undefined,
+          weakTag,
+          currIdx + 1,
+        );
         if (nextQuestion) {
           const targetPos = Math.min(updatedQuestions.length, currIdx + 3);
           updatedQuestions.splice(targetPos, 0, nextQuestion);
-          updatedCards.splice(targetPos, 0, card);
         }
       }
 
@@ -217,13 +245,12 @@ export function useStudySession(deckId: string) {
       const newReviewed = session.reviewedCount + 1;
 
       setQuestions(updatedQuestions);
-      setTargetCards(updatedCards);
 
       setSession((prev) =>
         prev
           ? {
               ...prev,
-              queue: updatedCards,
+              queue: updatedQuestions.map((q) => q.card),
               currentIndex: nextIndex,
               correctCount: newCorrect,
               reviewedCount: newReviewed,
@@ -232,11 +259,25 @@ export function useStudySession(deckId: string) {
       );
 
       if (nextIndex >= updatedQuestions.length) {
-        const weakCards = targetCards.filter((c: Card) => nextMissed.includes(c.id));
+        const uniqueWeakMap = new Map<string, Card>();
+        for (const c of targetCards) {
+          if (nextMissed.includes(c.id)) {
+            uniqueWeakMap.set(c.id, c);
+          }
+        }
+        const weakCards = Array.from(uniqueWeakMap.values());
 
         if (weakCards.length > 0) {
+          const fastChoiceTypes = [
+            "meaning_choice",
+            "pinyin_choice",
+            "hanzi_from_meaning",
+            "hanzi_from_pinyin",
+          ] as const;
           const repairQs = weakCards
-            .map((c: Card) => generateQuizQuestion(c, deckCards))
+            .map((c: Card, idx: number) =>
+              generateQuizQuestion(c, deckCards, fastChoiceTypes[idx % fastChoiceTypes.length]),
+            )
             .filter((q): q is QuizQuestion => q !== null);
           if (repairQs.length > 0) {
             setRepairQuestions(shuffleArray(repairQs));
@@ -261,52 +302,19 @@ export function useStudySession(deckId: string) {
     [batchUpdateCards, deckCards, deckId, missedOrSlowCardIds, questions, session, targetCards],
   );
 
-  const handleRepairAnswer = useCallback(
-    async (isCorrect: boolean, responseTimeMs: number = 2000) => {
-      const currentQuestion = repairQuestions[repairIndex];
-      if (currentQuestion) {
-        const card = currentQuestion.card;
-        const currentSRS = card.srs || createDefaultSRSState();
-        // Fast repair is inherently a retry round for a previously missed or slow card
-        const isRetry = true;
-        const { newSRS } = calculateQuizSRS(isCorrect, isRetry, responseTimeMs, currentSRS);
-        const nowIso = new Date().toISOString();
+  const handleRepairAnswer = useCallback(async () => {
+    await recordReviewToday();
 
-        useStore.setState((s) => ({
-          cards: {
-            ...s.cards,
-            [deckId]: (s.cards[deckId] || []).map((c) =>
-              c.id === card.id ? { ...c, srs: newSRS, lastReviewedAt: nowIso } : c,
-            ),
-          },
-        }));
-
-        const existingIdx = pendingUpdatesRef.current.findIndex((p) => p.cardId === card.id);
-        const updateItem = {
-          cardId: card.id,
-          deckId,
-          updates: { srs: newSRS, lastReviewedAt: nowIso },
-        };
-        if (existingIdx >= 0) {
-          pendingUpdatesRef.current[existingIdx] = updateItem;
-        } else {
-          pendingUpdatesRef.current.push(updateItem);
-        }
-        await recordReviewToday();
+    const nextIdx = repairIndex + 1;
+    setRepairIndex(nextIdx);
+    if (nextIdx >= repairQuestions.length) {
+      setStage("done");
+      if (pendingUpdatesRef.current.length > 0) {
+        await batchUpdateCards(pendingUpdatesRef.current);
+        pendingUpdatesRef.current = [];
       }
-
-      const nextIdx = repairIndex + 1;
-      setRepairIndex(nextIdx);
-      if (nextIdx >= repairQuestions.length) {
-        setStage("done");
-        if (pendingUpdatesRef.current.length > 0) {
-          await batchUpdateCards(pendingUpdatesRef.current);
-          pendingUpdatesRef.current = [];
-        }
-      }
-    },
-    [batchUpdateCards, deckId, repairIndex, repairQuestions],
-  );
+    }
+  }, [batchUpdateCards, repairIndex, repairQuestions.length]);
 
   return {
     stage,

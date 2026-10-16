@@ -4,6 +4,8 @@ import { Card } from "../store/slices/types";
 import { triggerHaptic } from "../constants/theme";
 import { APP_CONFIG } from "../constants/config";
 import { awardArcadeXP, ARCADE_XP_REWARDS } from "../lib/arcadeScoring";
+import { selectCardsByFSRSPriority } from "../lib/srs";
+import { recordReviewToday } from "../lib/reviewTracker";
 
 export interface ExampleQuestion {
   card: Card;
@@ -75,19 +77,16 @@ export function useSentenceBuilder(visible: boolean, cards: Card[]) {
         (c) => c.examples && c.examples.length > 0 && c.examples[0].chinese
       );
 
-      const qs: ExampleQuestion[] = valid
-        .sort(() => 0.5 - Math.random())
-        .slice(0, 5)
-        .map((card) => {
-          const ex = card.examples![0];
-          return {
-            card,
-            chinese: ex.chinese,
-            pinyin: ex.pinyin,
-            vietnamese: ex.vietnamese,
-            words: [],
-          };
-        });
+      const qs: ExampleQuestion[] = selectCardsByFSRSPriority(valid, 5).map((card) => {
+        const ex = card.examples![0];
+        return {
+          card,
+          chinese: ex.chinese,
+          pinyin: ex.pinyin,
+          vietnamese: ex.vietnamese,
+          words: [],
+        };
+      });
 
       setQuestions(qs);
       setCurrentIndex(0);
@@ -135,6 +134,7 @@ export function useSentenceBuilder(visible: boolean, cards: Card[]) {
   const handleCheck = useCallback(() => {
     if (!currentQuestion || isSubmitted) return;
     setIsSubmitted(true);
+    recordReviewToday();
 
     const builtText = userSentence.map((w) => w.text).join("");
     const targetClean = currentQuestion.chinese

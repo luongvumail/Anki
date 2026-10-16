@@ -13,12 +13,9 @@ import { Card } from "../store/slices/types";
 import { triggerHaptic } from "../constants/theme";
 import { APP_CONFIG } from "../constants/config";
 import { awardArcadeXP, ARCADE_XP_REWARDS } from "../lib/arcadeScoring";
-
-interface GeminiSpeechResponse {
-  transcript: string;
-  errorDetail?: string;
-  pronunciationTip?: string;
-}
+import { selectCardsByFSRSPriority } from "../lib/srs";
+import { evaluateChineseSpeechAudio } from "../lib/gemini";
+import { recordReviewToday } from "../lib/reviewTracker";
 
 function stripDiacritics(str: string): string {
   return str
@@ -46,7 +43,11 @@ function getToneTip(pinyin?: string): string {
   return "Chú ý giữ chuẩn thanh điệu và bật hơi rõ ràng.";
 }
 
+export type PronunciationTrainerMode = "word_guided" | "word_blind" | "sentence_shadowing";
+
 export function usePronunciationTrainer(visible: boolean, cards: Card[]) {
+  const [trainerMode, setTrainerMode] = useState<PronunciationTrainerMode>("word_guided");
+  const [pinyinRevealed, setPinyinRevealed] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [shuffledCards, setShuffledCards] = useState<Card[]>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -75,21 +76,42 @@ export function usePronunciationTrainer(visible: boolean, cards: Card[]) {
     setIsRecording(false);
     setAnalyzing(false);
     setUserAudioUri(null);
+    setPinyinRevealed(false);
     drawerAnim.setValue(300);
   }, [drawerAnim]);
+
+  const buildDeckForMode = useCallback(
+    (mode: PronunciationTrainerMode) => {
+      const pool =
+        mode === "sentence_shadowing"
+          ? cards.filter((c) => c.examples && c.examples.length > 0 && c.examples[0].chinese)
+          : cards;
+      const source = pool.length > 0 ? pool : cards;
+      const list = selectCardsByFSRSPriority(source, 5);
+      setShuffledCards(list);
+      setCurrentIndex(0);
+      setIsDone(false);
+      resetState();
+    },
+    [cards, resetState],
+  );
+
+  const changeTrainerMode = useCallback(
+    (mode: PronunciationTrainerMode) => {
+      setTrainerMode(mode);
+      buildDeckForMode(mode);
+    },
+    [buildDeckForMode],
+  );
 
   const prevVisibleRef = useRef(false);
 
   useEffect(() => {
     if (visible && !prevVisibleRef.current && cards.length > 0) {
-      const list = [...cards].sort(() => 0.5 - Math.random()).slice(0, 5);
-      setShuffledCards(list);
-      setCurrentIndex(0);
-      setIsDone(false);
-      resetState();
+      buildDeckForMode(trainerMode);
     }
     prevVisibleRef.current = visible;
-  }, [visible, cards, resetState]);
+  }, [visible, cards, trainerMode, buildDeckForMode]);
 
   useEffect(() => {
     if (!visible) {
@@ -117,7 +139,7 @@ export function usePronunciationTrainer(visible: boolean, cards: Card[]) {
             duration: 500,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       );
       animation.start();
     } else {
@@ -161,16 +183,32 @@ export function usePronunciationTrainer(visible: boolean, cards: Card[]) {
     (spokenText: string, aiErrorDetail?: string, aiPronunciationTip?: string) => {
       setAnalyzing(false);
       setIsRecording(false);
+      setPinyinRevealed(true);
       const currentCard = shuffledCards[currentIndex];
       if (!currentCard) return;
 
-      const targetChar = currentCard.character.trim();
+      const isSentence =
+        trainerMode === "sentence_shadowing" &&
+        currentCard.examples &&
+        currentCard.examples.length > 0 &&
+        Boolean(currentCard.examples[0].chinese);
+
+      const rawTargetText = isSentence
+        ? currentCard.examples![0].chinese
+        : currentCard.character;
+      const rawTargetPinyin = isSentence
+        ? currentCard.examples![0].pinyin || currentCard.pinyin
+        : currentCard.pinyin;
+
+      const targetChar = rawTargetText
+        .trim()
+        .replace(/[.,/#!$%^&*;:{}=\-_`~()!?！。，？"']/g, "");
       const normalizedTarget = targetChar.replace(/\s+/g, "");
-      const targetPinyinClean = stripDiacritics(currentCard.pinyin || "");
+      const targetPinyinClean = stripDiacritics(rawTargetPinyin || "");
 
       const cleanSpoken = spokenText
         .trim()
-        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()!?！。，？"']/g, "");
+        .replace(/[.,/#!$%^&*;:{}=\-_`~()!?！。，？"']/g, "");
       const normalizedSpoken = cleanSpoken.replace(/\s+/g, "");
       const spokenPinyinClean = stripDiacritics(cleanSpoken);
 
@@ -181,7 +219,7 @@ export function usePronunciationTrainer(visible: boolean, cards: Card[]) {
       let finalErrorDetail: string | null = null;
       let finalTip: string | null = null;
 
-      const fallbackToneTip = getToneTip(currentCard.pinyin);
+      const fallbackToneTip = getToneTip(rawTargetPinyin);
 
       if (!cleanSpoken) {
         calcScore = 0;
@@ -201,42 +239,41 @@ export function usePronunciationTrainer(visible: boolean, cards: Card[]) {
             spokenPinyinClean.includes(targetPinyinClean) ||
             targetPinyinClean.includes(spokenPinyinClean));
 
-        if (hasExactChar || hasExactPinyin) {
+        let matchedCharsCount = 0;
+        for (const ch of normalizedTarget) {
+          if (normalizedSpoken.includes(ch)) {
+            matchedCharsCount++;
+          }
+        }
+        const overlapRatio =
+          normalizedTarget.length > 0 ? matchedCharsCount / normalizedTarget.length : 0;
+
+        if (hasExactChar || hasExactPinyin || (isSentence && overlapRatio >= 0.8)) {
           calcScore = 95;
-          msg = "Hoàn hảo! Bạn phát âm Pinyin & Thanh điệu chính xác.";
+          msg = isSentence
+            ? "Tuyệt vời! Bạn đọc cả câu trôi chảy và chuẩn ngữ điệu."
+            : "Hoàn hảo! Bạn phát âm Pinyin & Thanh điệu chính xác.";
           finalErrorDetail = null;
           finalTip = aiPronunciationTip || fallbackToneTip;
           triggerHaptic("success");
           awardArcadeXP(ARCADE_XP_REWARDS.PERFECT_PRONUNCIATION);
+        } else if (overlapRatio > 0) {
+          calcScore = Math.max(60, Math.min(88, Math.floor(overlapRatio * 100)));
+          msg = `Gần chính xác! Âm nhận diện là "${cleanSpoken}".`;
+          finalErrorDetail =
+            aiErrorDetail ||
+            `Chú ý cao độ thanh điệu hoặc âm tiết. Chuẩn là "${rawTargetText}" (${rawTargetPinyin}).`;
+          finalTip = aiPronunciationTip || fallbackToneTip;
+          triggerHaptic("warning");
+          awardArcadeXP(ARCADE_XP_REWARDS.GOOD_PRONUNCIATION);
         } else {
-          let matchedCharsCount = 0;
-          for (const ch of normalizedTarget) {
-            if (normalizedSpoken.includes(ch)) {
-              matchedCharsCount++;
-            }
-          }
-
-          const overlapRatio =
-            normalizedTarget.length > 0 ? matchedCharsCount / normalizedTarget.length : 0;
-
-          if (overlapRatio > 0) {
-            calcScore = Math.max(60, Math.min(85, Math.floor(overlapRatio * 100)));
-            msg = `Gần chính xác! Âm nhận diện là "${cleanSpoken}".`;
-            finalErrorDetail =
-              aiErrorDetail ||
-              `Chú ý cao độ thanh điệu hoặc phụ âm đầu. Từ chuẩn là "${targetChar}" (${currentCard.pinyin}).`;
-            finalTip = aiPronunciationTip || fallbackToneTip;
-            triggerHaptic("warning");
-            awardArcadeXP(ARCADE_XP_REWARDS.GOOD_PRONUNCIATION);
-          } else {
-            calcScore = 30;
-            msg = `Chưa đúng! Âm nhận diện là "${cleanSpoken}".`;
-            finalErrorDetail =
-              aiErrorDetail ||
-              `Âm đọc chưa khớp với từ "${targetChar}" (${currentCard.pinyin}). Hãy nghe âm chuẩn và thử lại!`;
-            finalTip = aiPronunciationTip || fallbackToneTip;
-            triggerHaptic("error");
-          }
+          calcScore = 30;
+          msg = `Chưa đúng! Âm nhận diện là "${cleanSpoken}".`;
+          finalErrorDetail =
+            aiErrorDetail ||
+            `Âm đọc chưa khớp với "${rawTargetText}" (${rawTargetPinyin}). Hãy nghe âm chuẩn và thử lại!`;
+          finalTip = aiPronunciationTip || fallbackToneTip;
+          triggerHaptic("error");
         }
       }
 
@@ -252,7 +289,7 @@ export function usePronunciationTrainer(visible: boolean, cards: Card[]) {
         useNativeDriver: true,
       }).start();
     },
-    [shuffledCards, currentIndex, drawerAnim]
+    [shuffledCards, currentIndex, trainerMode, drawerAnim],
   );
 
   const transcribeAudioWithAI = useCallback(
@@ -265,69 +302,39 @@ export function usePronunciationTrainer(visible: boolean, cards: Card[]) {
         return;
       }
 
+      const isSentence =
+        trainerMode === "sentence_shadowing" &&
+        currentCard.examples &&
+        currentCard.examples.length > 0 &&
+        Boolean(currentCard.examples[0].chinese);
+
+      const targetHanzi = isSentence ? currentCard.examples![0].chinese : currentCard.character;
+      const targetPinyin = isSentence
+        ? currentCard.examples![0].pinyin || currentCard.pinyin
+        : currentCard.pinyin;
+      const targetMeaning = isSentence
+        ? currentCard.examples![0].vietnamese
+        : currentCard.translation;
+
       try {
         const base64Audio = await FileSystem.readAsStringAsync(uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
 
-        const prompt = `Bạn là trợ lý AI chuyên gia phân tích và chấm điểm phát âm Tiếng Trung (Mandarin).
-Từ vựng chuẩn mục tiêu là:
-- Hán tự: "${currentCard.character}"
-- Pinyin chuẩn: "${currentCard.pinyin}"
-- Nghĩa Tiếng Việt: "${currentCard.translation}"
-
-NHIỆM VỤ:
-1. Nghe kỹ file âm thanh thu âm của người dùng.
-2. Trích xuất chính xác văn bản Tiếng Trung hoặc Pinyin mà người dùng đã đọc (transcript).
-3. Nếu người dùng đọc sai thanh điệu, sai âm đầu (initials) hoặc vận mẫu (finals), hãy chỉ rõ lỗi sai ngắn gọn trong "errorDetail".
-4. Đưa ra 1 mẹo phát âm cực kỳ dễ hiểu bằng Tiếng Việt trong "pronunciationTip" giúp họ phát âm chuẩn từ "${currentCard.character}" (${currentCard.pinyin}).
-
-TRẢ VỀ DUY NHẤT FORMAT JSON SAU (Không thêm text thừa):
-{
-  "transcript": "<văn bản hoặc pinyin AI nghe được từ thu âm>",
-  "errorDetail": "<phân tích lỗi sai cụ thể nếu có>",
-  "pronunciationTip": "<mẹo phát âm ngắn gọn bằng Tiếng Việt>"
-}`;
-
-        const requestBody = {
-          contents: [
-            {
-              parts: [
-                { inlineData: { mimeType: "audio/m4a", data: base64Audio } },
-                { text: prompt },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-            temperature: 0.1,
-          },
-        };
-
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody),
-          }
+        const parsed = await evaluateChineseSpeechAudio(
+          base64Audio,
+          targetHanzi,
+          targetPinyin || "",
+          targetMeaning,
         );
-
-        const data = await response.json();
-        const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
-        if (responseText) {
-          const parsed: GeminiSpeechResponse = JSON.parse(responseText);
-          evaluateSpeech(parsed.transcript || "", parsed.errorDetail, parsed.pronunciationTip);
-        } else {
-          evaluateSpeech("");
-        }
+        await recordReviewToday();
+        evaluateSpeech(parsed.transcript || "", parsed.errorDetail, parsed.pronunciationTip);
       } catch (err) {
         console.warn("[transcribeAudioWithAI] Failed:", err);
         evaluateSpeech("");
       }
     },
-    [shuffledCards, currentIndex, evaluateSpeech]
+    [shuffledCards, currentIndex, trainerMode, evaluateSpeech],
   );
 
   const handleStartRecording = useCallback(async () => {
@@ -394,6 +401,10 @@ TRẢ VỀ DUY NHẤT FORMAT JSON SAU (Không thêm text thừa):
   }, [resetState]);
 
   return {
+    trainerMode,
+    changeTrainerMode,
+    pinyinRevealed,
+    setPinyinRevealed,
     currentIndex,
     shuffledCards,
     isRecording,

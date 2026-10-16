@@ -3,6 +3,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Card } from "../store/slices/types";
 import { triggerHaptic } from "../constants/theme";
 import { awardArcadeXP, ARCADE_XP_REWARDS } from "../lib/arcadeScoring";
+import { selectCardsByFSRSPriority } from "../lib/srs";
+import { recordReviewToday } from "../lib/reviewTracker";
 
 export type SpeedMatchMode = "mixed" | "hanzi_meaning" | "hanzi_pinyin" | "pinyin_meaning";
 
@@ -50,7 +52,8 @@ export function useSpeedMatch(visible: boolean, cards: Card[]) {
   const generateTiles = useCallback(
     (availableCards: Card[], selectedMode: SpeedMatchMode) => {
       if (availableCards.length < 2) return [];
-      const pool = shuffleArray(availableCards).slice(0, 6);
+      const topCandidates = selectCardsByFSRSPriority(availableCards, 18);
+      const pool = shuffleArray(topCandidates).slice(0, 6);
 
       // Determine the active sub-mode for this round
       let activeMode: SpeedMatchMode = selectedMode;
@@ -170,6 +173,7 @@ export function useSpeedMatch(visible: boolean, cards: Card[]) {
         triggerHaptic("success");
         setScore((prev) => prev + ARCADE_XP_REWARDS.SPEED_MATCH_BASE);
         awardArcadeXP(ARCADE_XP_REWARDS.SPEED_MATCH_BASE);
+        recordReviewToday();
 
         setTiles((prev) => {
           const updated = prev.map((t) =>

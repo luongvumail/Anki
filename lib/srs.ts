@@ -255,27 +255,52 @@ export interface QuizMemoryEvaluation {
   feedbackLabel: string;
 }
 
+export type QuizInteractionMode = "choice" | "typing" | "speaking";
+
 /**
- * Evaluates memory retention & FSRS rating based on response speed and correctness.
+ * Returns cognitive response time thresholds (in ms) tailored to the interaction mode:
+ * - "choice" (Multiple Choice): Fast <= 3500ms, Normal <= 5000ms
+ * - "typing" (Active Recall Typing / Dictation / Cloze): Fast <= 8000ms, Normal <= 15000ms
+ * - "speaking" (Voice Recording & Pronunciation): Fast <= 10000ms, Normal <= 18000ms
+ */
+export function getModeResponseThresholds(interactionMode: QuizInteractionMode = "choice"): {
+  fastMs: number;
+  slowMs: number;
+} {
+  if (interactionMode === "typing") {
+    return { fastMs: 8000, slowMs: 15000 };
+  }
+  if (interactionMode === "speaking") {
+    return { fastMs: 10000, slowMs: 18000 };
+  }
+  return {
+    fastMs: Math.round(APP_CONFIG.SLOW_RESPONSE_THRESHOLD_MS * 0.7),
+    slowMs: APP_CONFIG.SLOW_RESPONSE_THRESHOLD_MS,
+  };
+}
+
+/**
+ * Evaluates memory retention & FSRS rating based on response speed, interaction mode, and correctness.
  * - Incorrect: AGAIN (1)
  * - Retry: HARD (2)
- * - Correct & <= 2500ms: EASY (4) -> Reflex fast
- * - Correct & 2500ms..5000ms: GOOD (3) -> Normal speed
- * - Correct & > 5000ms: HARD (2) -> Hesitant / slow
+ * - Correct & <= fastMs: EASY (4) -> Reflex fast
+ * - Correct & fastMs..slowMs: GOOD (3) -> Normal speed
+ * - Correct & > slowMs: HARD (2) -> Hesitant / slow
  */
 export function calculateQuizSRS(
   isCorrect: boolean,
   isRetry: boolean,
   responseTimeMs: number,
   currentInput?: Partial<SRSState>,
+  interactionMode: QuizInteractionMode = "choice",
 ): QuizMemoryEvaluation {
   const current = normalizeSRSState(currentInput);
   let grade: SRSGrade;
   let speedCategory: "fast" | "normal" | "slow" | "wrong";
   let feedbackLabel: string;
 
-  const FAST_THRESHOLD_MS = Math.round(APP_CONFIG.SLOW_RESPONSE_THRESHOLD_MS * 0.7);
-  const SLOW_THRESHOLD_MS = APP_CONFIG.SLOW_RESPONSE_THRESHOLD_MS;
+  const { fastMs: FAST_THRESHOLD_MS, slowMs: SLOW_THRESHOLD_MS } =
+    getModeResponseThresholds(interactionMode);
 
   if (!isCorrect) {
     grade = SRS_GRADES.AGAIN;
@@ -301,6 +326,59 @@ export function calculateQuizSRS(
 
   const newSRS = calculateSRS(grade, current);
   return { newSRS, grade, speedCategory, feedbackLabel };
+}
+
+/**
+ * Computes real-time Retrievability R(t, S) in [0, 1] for a card at the current moment.
+ * Lower values mean higher risk of forgetting.
+ */
+export function getCardRetrievability(srsInput?: Partial<SRSState>): number {
+  const srs = normalizeSRSState(srsInput);
+  if (srs.state === FSRSState.New) return 0;
+
+  const now = Date.now();
+  let elapsedDays = 0;
+  if (srs.lastReviewedDate) {
+    const lastMs = new Date(srs.lastReviewedDate).getTime();
+    if (!Number.isNaN(lastMs)) {
+      elapsedDays = Math.max(0, (now - lastMs) / (1000 * 60 * 60 * 24));
+    }
+  } else if (srs.dueDate) {
+    const dueMs = new Date(srs.dueDate).getTime();
+    if (!Number.isNaN(dueMs)) {
+      const daysUntilDue = (dueMs - now) / (1000 * 60 * 60 * 24);
+      elapsedDays = Math.max(0, (srs.interval || 1) - daysUntilDue);
+    }
+  }
+
+  return calculateRetrievability(elapsedDays, srs.stability);
+}
+
+/**
+ * Prioritizes cards according to FSRS memory principles:
+ * 1. Due or Relearning/Learning cards come first.
+ * 2. Cards with lowest Retrievability R(t, S) and highest Difficulty D are prioritized.
+ * 3. Adds slight jitter (0..0.04) so repeated practice sessions maintain variety among similarly urgent cards.
+ */
+export function selectCardsByFSRSPriority<T extends { srs?: Partial<SRSState> }>(
+  cards: T[],
+  limit?: number,
+): T[] {
+  if (!cards || cards.length === 0) return [];
+
+  const scored = cards.map((card) => {
+    const srs = normalizeSRSState(card.srs);
+    const dueFlag = isDue(srs) ? 0 : 1; // 0 = Due (higher priority), 1 = Not due yet
+    const r = getCardRetrievability(srs); // Lower R = closer to forgetting
+    const diffWeight = (10 - srs.difficulty) * 0.015; // Higher difficulty -> smaller score -> higher priority
+    const jitter = Math.random() * 0.04;
+    const priorityScore = dueFlag * 10 + r + diffWeight + jitter;
+    return { card, priorityScore };
+  });
+
+  scored.sort((a, b) => a.priorityScore - b.priorityScore);
+  const sortedCards = scored.map((item) => item.card);
+  return typeof limit === "number" && limit > 0 ? sortedCards.slice(0, limit) : sortedCards;
 }
 
 // ================================================================

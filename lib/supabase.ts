@@ -5,10 +5,19 @@ import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 
 // Complete web browser session if returning from OAuth redirect
-WebBrowser.maybeCompleteAuthSession();
+try {
+  WebBrowser.maybeCompleteAuthSession();
+} catch (e) {
+  console.warn("[supabase] maybeCompleteAuthSession ignored:", e);
+}
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
+const FALLBACK_SUPABASE_URL = "https://ozrntreitrnenhvwupbx.supabase.co";
+const FALLBACK_SUPABASE_ANON_KEY = "sb_publishable_cJlt3U8d1xNnjl_DwN6BLw_nf496Rv3";
+
+const supabaseUrl = (process.env.EXPO_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL).trim();
+const supabaseAnonKey = (
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY
+).trim();
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

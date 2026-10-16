@@ -31,7 +31,12 @@ export interface AIAddCardModalProps {
   initialDeckId?: string;
 }
 
-export function AIAddCardModal({ visible, onClose, initialDeckId }: AIAddCardModalProps) {
+export function AIAddCardModal(props: AIAddCardModalProps) {
+  if (!props.visible) return null;
+  return <AIAddCardModalInner {...props} />;
+}
+
+function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModalProps) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const {
@@ -50,8 +55,6 @@ export function AIAddCardModal({ visible, onClose, initialDeckId }: AIAddCardMod
     toggleSelectCard,
     handleSaveSelected,
   } = useAICardGenerator(initialDeckId, onClose);
-
-  if (!visible) return null;
 
   return (
     <Modal

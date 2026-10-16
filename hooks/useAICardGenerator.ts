@@ -5,6 +5,7 @@ import {
   generateCardDataBatch,
   generateCardData,
   generateCardsFromImage,
+  generateCardsFromMultipleImages,
   CardData,
 } from "../lib/gemini";
 import { triggerHaptic } from "../constants/theme";
@@ -17,12 +18,14 @@ export interface SelectedImageAsset {
   mimeType: string;
 }
 
+const MAX_IMAGES = 5;
+
 export function useAICardGenerator(initialDeckId?: string, onClose?: () => void) {
   const decks = useStore((s) => s.decks);
   const addCardsBatch = useStore((s) => s.addCardsBatch);
 
   const [prompt, setPrompt] = useState("");
-  const [selectedImage, setSelectedImage] = useState<SelectedImageAsset | null>(null);
+  const [selectedImages, setSelectedImages] = useState<SelectedImageAsset[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string>(
     initialDeckId || (decks.length > 0 ? decks[0].id : ""),
   );
@@ -38,6 +41,12 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
     setInfoMessage(null);
     triggerHaptic("selection");
 
+    if (selectedImages.length >= MAX_IMAGES) {
+      setErrorMessage(`Bạn chỉ có thể chọn tối đa ${MAX_IMAGES} ảnh cùng lúc.`);
+      triggerHaptic("error");
+      return;
+    }
+
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
@@ -50,7 +59,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ["images"],
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.7,
         base64: true,
       });
@@ -61,23 +70,33 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
           setErrorMessage("Không thể đọc dữ liệu ảnh từ Camera. Vui lòng thử lại.");
           return;
         }
-        setSelectedImage({
-          uri: asset.uri,
-          base64: asset.base64,
-          mimeType: asset.mimeType || "image/jpeg",
-        });
+        setSelectedImages((prev) => [
+          ...prev.slice(0, MAX_IMAGES - 1),
+          {
+            uri: asset.uri,
+            base64: asset.base64!,
+            mimeType: asset.mimeType || "image/jpeg",
+          },
+        ]);
         triggerHaptic("light");
       }
     } catch {
       setErrorMessage("Không thể mở Camera trên thiết bị này.");
       triggerHaptic("error");
     }
-  }, []);
+  }, [selectedImages.length]);
 
   const handlePickImage = useCallback(async () => {
     setErrorMessage(null);
     setInfoMessage(null);
     triggerHaptic("selection");
+
+    const remainingSlots = MAX_IMAGES - selectedImages.length;
+    if (remainingSlots <= 0) {
+      setErrorMessage(`Bạn đã chọn đủ số lượng tối đa (${MAX_IMAGES} ảnh).`);
+      triggerHaptic("error");
+      return;
+    }
 
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -91,39 +110,54 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
-        allowsEditing: true,
+        allowsMultipleSelection: true,
+        selectionLimit: remainingSlots,
         quality: 0.7,
         base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        if (!asset.base64) {
-          setErrorMessage("Không thể đọc dữ liệu ảnh đã chọn. Vui lòng thử ảnh khác.");
+        const validAssets: SelectedImageAsset[] = [];
+        for (const asset of result.assets) {
+          if (asset.base64) {
+            validAssets.push({
+              uri: asset.uri,
+              base64: asset.base64,
+              mimeType: asset.mimeType || "image/jpeg",
+            });
+          }
+        }
+
+        if (validAssets.length === 0) {
+          setErrorMessage("Không thể đọc dữ liệu các ảnh đã chọn. Vui lòng thử lại.");
           return;
         }
-        setSelectedImage({
-          uri: asset.uri,
-          base64: asset.base64,
-          mimeType: asset.mimeType || "image/jpeg",
-        });
+
+        setSelectedImages((prev) => [...prev, ...validAssets].slice(0, MAX_IMAGES));
         triggerHaptic("light");
       }
     } catch {
       setErrorMessage("Không thể mở Thư viện ảnh trên thiết bị này.");
       triggerHaptic("error");
     }
+  }, [selectedImages.length]);
+
+  const handleRemoveImage = useCallback((index: number) => {
+    triggerHaptic("selection");
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+    setErrorMessage(null);
+    setInfoMessage(null);
   }, []);
 
   const handleClearImage = useCallback(() => {
     triggerHaptic("selection");
-    setSelectedImage(null);
+    setSelectedImages([]);
     setErrorMessage(null);
     setInfoMessage(null);
   }, []);
 
   const handleGenerate = useCallback(async () => {
-    if (!selectedImage && !prompt.trim()) return;
+    if (selectedImages.length === 0 && !prompt.trim()) return;
     setLoading(true);
     setErrorMessage(null);
     setInfoMessage(null);
@@ -132,16 +166,22 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
     try {
       const deduplicateBatch = useStore.getState().deduplicateBatch;
 
-      if (selectedImage) {
-        const rawVisionResults = await generateCardsFromImage(
-          selectedImage.base64,
-          selectedImage.mimeType,
-          prompt.trim() || undefined,
-        );
+      if (selectedImages.length > 0) {
+        const rawVisionResults =
+          selectedImages.length === 1
+            ? await generateCardsFromImage(
+                selectedImages[0].base64,
+                selectedImages[0].mimeType,
+                prompt.trim() || undefined,
+              )
+            : await generateCardsFromMultipleImages(
+                selectedImages.map((img) => ({ base64: img.base64, mimeType: img.mimeType })),
+                prompt.trim() || undefined,
+              );
 
         if (!rawVisionResults || rawVisionResults.length === 0) {
           setErrorMessage(
-            "AI không nhận diện được từ vựng nào trong ảnh. Vui lòng chụp rõ nét hơn hoặc thử ảnh khác.",
+            "AI không nhận diện được từ vựng nào trong ảnh. Vui lòng chụp/chọn ảnh rõ nét hơn.",
           );
           triggerHaptic("error");
           return;
@@ -162,7 +202,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
             );
           } else {
             setInfoMessage(
-              `AI đã phân tích ảnh và trích xuất thành công ${uniqueCards.length} từ vựng mới!`,
+              `AI đã phân tích ${selectedImages.length} ảnh và trích xuất thành công ${uniqueCards.length} từ vựng mới!`,
             );
           }
           triggerHaptic("success");
@@ -172,7 +212,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
           setErrorMessage(
             removedDuplicatesCount > 0
               ? `Tất cả ${removedDuplicatesCount} từ vựng trong ảnh (${removedDatabaseWords.join(", ")}) đều đã có sẵn trong cơ sở dữ liệu!`
-              : "AI không tạo được từ vựng mới từ bức ảnh này.",
+              : "AI không tạo được từ vựng mới từ các bức ảnh này.",
           );
           triggerHaptic("error");
         }
@@ -242,7 +282,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
     } finally {
       setLoading(false);
     }
-  }, [prompt, selectedImage]);
+  }, [prompt, selectedImages]);
 
   const toggleSelectCard = useCallback((index: number) => {
     triggerHaptic("selection");
@@ -281,7 +321,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
         radical: cardData.radical,
         strokeCount: cardData.strokeCount,
         hskLevel: cardData.hskLevel,
-        tags: cardData.tags || (selectedImage ? ["Quét từ ảnh"] : ["AI-Generated"]),
+        tags: cardData.tags || (selectedImages.length > 0 ? ["Quét từ ảnh"] : ["AI-Generated"]),
         srs: createDefaultFSRSState(),
       }));
 
@@ -289,7 +329,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
 
       triggerHaptic("success");
       setPrompt("");
-      setSelectedImage(null);
+      setSelectedImages([]);
       setGeneratedCards([]);
       setSelectedIndices(new Set());
       setInfoMessage(null);
@@ -301,14 +341,15 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
     } finally {
       setLoading(false);
     }
-  }, [selectedDeckId, generatedCards, selectedIndices, selectedImage, addCardsBatch, onClose]);
+  }, [selectedDeckId, generatedCards, selectedIndices, selectedImages.length, addCardsBatch, onClose]);
 
   return {
     prompt,
     setPrompt,
-    selectedImage,
+    selectedImages,
     handleTakePhoto,
     handlePickImage,
+    handleRemoveImage,
     handleClearImage,
     selectedDeckId,
     setSelectedDeckId,

@@ -21,7 +21,7 @@ async function generateWithModels(
   prompt: string,
   responseMimeType?: string,
   temperature = 0.1,
-  inlineImage?: { data: string; mimeType: string },
+  inlineImage?: { data: string; mimeType: string } | { data: string; mimeType: string }[],
 ): Promise<string> {
   let lastError: unknown = null;
 
@@ -40,8 +40,21 @@ async function generateWithModels(
             temperature,
           },
         });
-        const result = inlineImage
-          ? await model.generateContent([
+
+        let parts: any[] = [prompt];
+        if (inlineImage) {
+          if (Array.isArray(inlineImage)) {
+            parts = [
+              ...inlineImage.map((img) => ({
+                inlineData: {
+                  data: img.data,
+                  mimeType: img.mimeType,
+                },
+              })),
+              prompt,
+            ];
+          } else {
+            parts = [
               prompt,
               {
                 inlineData: {
@@ -49,8 +62,11 @@ async function generateWithModels(
                   mimeType: inlineImage.mimeType,
                 },
               },
-            ])
-          : await model.generateContent(prompt);
+            ];
+          }
+        }
+
+        const result = inlineImage ? await model.generateContent(parts) : await model.generateContent(prompt);
         const text = result.response.text();
         if (__DEV__) console.log(`[Gemini] Success using model: ${modelName}`);
         return text;
@@ -88,6 +104,13 @@ function generateVisionWithFallback(
     data: base64Data,
     mimeType,
   });
+}
+
+function generateMultiVisionWithFallback(
+  prompt: string,
+  images: { data: string; mimeType: string }[],
+): Promise<string> {
+  return generateWithModels(prompt, "application/json", 0.1, images);
 }
 
 function generateWithFallbackText(prompt: string): Promise<string> {
@@ -426,6 +449,75 @@ Trả về JSON array (CHỈ JSON array hợp lệ, không dùng markdown):
   const jsonText = extractCleanJson(text);
   if (!jsonText) {
     throw new Error("AI không tìm thấy từ vựng hợp lệ trong bức ảnh này.");
+  }
+
+  const rawResults = JSON.parse(jsonText);
+  const itemsArray = Array.isArray(rawResults) ? rawResults : [rawResults];
+  return itemsArray
+    .map(validateSingleCardData)
+    .filter((card) => card.character && card.character.trim().length > 0);
+}
+
+/**
+ * Uses Gemini Multimodal Vision to analyze multiple images (up to 5 images) at once and extract Chinese vocabulary cards.
+ */
+export async function generateCardsFromMultipleImages(
+  images: { base64: string; mimeType: string }[],
+  userHint?: string,
+): Promise<CardData[]> {
+  if (images.length === 0) return [];
+  if (images.length === 1) {
+    return generateCardsFromImage(images[0].base64, images[0].mimeType, userHint);
+  }
+
+  await enforceRateLimit();
+
+  const formattedImages = images.map((img) => ({
+    data: img.base64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, "").trim(),
+    mimeType: img.mimeType || "image/jpeg",
+  }));
+
+  const hintInstruction =
+    userHint && userHint.trim().length > 0
+      ? `\nGHI CHÚ / YÊU CẦU TỪ NGƯỜI DÙNG: "${sanitizeInput(userHint)}"\nHãy ưu tiên thực hiện theo yêu cầu này khi trích xuất từ vựng.`
+      : "";
+
+  const prompt = `Bạn là chuyên gia sư phạm Hán-Việt và nhận diện hình ảnh (OCR & Vision).
+Người dùng đã tải lên ${images.length} hình ảnh (tối đa 5 ảnh).
+Hãy phân tích TẤT CẢ các bức ảnh được đính kèm và trích xuất danh sách từ vựng tiếng Trung quan trọng nhất (tối đa 25 từ vựng):
+1. Nếu ảnh là trang sách giáo khoa, bảng từ vựng, ghi chú viết tay, biển báo, thực đơn, phụ đề phim hoặc văn bản tiếng Trung: hãy trích xuất các từ vựng tiếng Trung xuất hiện trong tất cả các ảnh (tự động loại bỏ các từ trùng lặp giữa các ảnh).
+2. Nếu ảnh là danh sách từ tiếng Việt/tiếng Anh hoặc chụp đồ vật/khung cảnh đời thực: hãy nhận diện và chuyển sang các từ vựng tiếng Trung tương ứng phù hợp nhất.${hintInstruction}
+
+BẮT BUỘC VỀ TRƯỜNG "radical":
+Trường "radical" ngắn gọn tối đa 2 câu: Câu 1 liệt kê bộ thủ cấu thành (tên Hán-Việt + ký tự + nghĩa). Câu 2 nêu mẹo nhớ hình ảnh.
+Ví dụ: "好: bộ Nữ (女) + bộ Tử (子). Mẹ ôm con → tốt đẹp."
+
+Trả về JSON array (CHỈ JSON array hợp lệ, không dùng markdown):
+[
+  {
+    "character": "chữ giản thể",
+    "traditional": "chữ phồn thể",
+    "pinyin": "phiên âm có dấu",
+    "hanviet": "âm Hán-Việt",
+    "translation": "nghĩa tiếng Việt ngắn gọn (tối đa 3 nghĩa)",
+    "examples": [
+      {
+        "chinese": "câu ví dụ ngắn",
+        "pinyin": "phiên âm câu ví dụ",
+        "vietnamese": "dịch nghĩa"
+      }
+    ],
+    "radical": "tối đa 2 câu: bộ thủ + mẹo nhớ",
+    "strokeCount": 0,
+    "hskLevel": 1,
+    "tags": ["Quét từ ảnh"]
+  }
+]`;
+
+  const text = await generateMultiVisionWithFallback(prompt, formattedImages);
+  const jsonText = extractCleanJson(text);
+  if (!jsonText) {
+    throw new Error("AI không tìm thấy từ vựng hợp lệ trong các bức ảnh này.");
   }
 
   const rawResults = JSON.parse(jsonText);

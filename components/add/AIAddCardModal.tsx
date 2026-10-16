@@ -44,9 +44,10 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
   const {
     prompt,
     setPrompt,
-    selectedImage,
+    selectedImages,
     handleTakePhoto,
     handlePickImage,
+    handleRemoveImage,
     handleClearImage,
     selectedDeckId,
     setSelectedDeckId,
@@ -73,12 +74,12 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
     >
       <View
         style={[
-          styles.container,
+          styles.modalContainer,
           { paddingTop: Math.max(insets.top, Spacing.lg), backgroundColor: theme.bg },
         ]}
       >
-        {/* Header */}
-        <View style={styles.header}>
+        {/* Header - Styled identical to decks.tsx modalHeader */}
+        <View style={styles.modalHeader}>
           <TouchableOpacity
             style={styles.closeBtn}
             onPress={() => {
@@ -94,7 +95,7 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
               THÊM TỪ VỰNG BẰNG AI
             </Text>
             <Text style={[styles.headerSub, { color: theme.textMuted }]}>
-              Quét ảnh / Từ khóa & Tự động lọc từ trùng CSDL
+              Quét tối đa 5 ảnh & Tự động lọc từ trùng CSDL
             </Text>
           </View>
 
@@ -117,9 +118,14 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
 
           {/* AI Vision & Prompt Input Section */}
           <AppCard style={styles.inputCard}>
-            <Text style={[styles.inputLabel, { color: theme.textMuted }]}>
-              1. Quét từ vựng từ Ảnh chụp / Thư viện:
-            </Text>
+            <View style={styles.inputLabelRow}>
+              <Text style={[styles.inputLabel, { color: theme.textMuted, marginBottom: 0 }]}>
+                1. Quét từ vựng từ Ảnh (Tối đa 5 ảnh):
+              </Text>
+              <Text style={[styles.imageCountBadge, { color: selectedImages.length >= 5 ? theme.yellow : theme.blue }]}>
+                {selectedImages.length}/5 ảnh
+              </Text>
+            </View>
 
             <View style={styles.imageActionsRow}>
               <TouchableOpacity
@@ -128,10 +134,11 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
                   {
                     backgroundColor: theme.blueDim,
                     borderColor: theme.blue,
+                    opacity: selectedImages.length >= 5 ? 0.5 : 1,
                   },
                 ]}
                 activeOpacity={0.8}
-                disabled={loading}
+                disabled={loading || selectedImages.length >= 5}
                 onPress={handleTakePhoto}
               >
                 <Ionicons name="camera" size={20} color={theme.blue} />
@@ -144,54 +151,79 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
                   {
                     backgroundColor: theme.bgSoft,
                     borderColor: theme.cardBorder,
+                    opacity: selectedImages.length >= 5 ? 0.5 : 1,
                   },
                 ]}
                 activeOpacity={0.8}
-                disabled={loading}
+                disabled={loading || selectedImages.length >= 5}
                 onPress={handlePickImage}
               >
                 <Ionicons name="images" size={20} color={theme.textPrimary} />
                 <Text style={[styles.imageActionText, { color: theme.textPrimary }]}>
-                  Tải ảnh lên
+                  Tải ảnh ({selectedImages.length}/5)
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Selected Image Preview */}
-            {selectedImage && (
+            {/* Selected Images Gallery Preview */}
+            {selectedImages.length > 0 && (
               <View
                 style={[
-                  styles.selectedImageBox,
+                  styles.selectedImagesContainer,
                   {
                     backgroundColor: theme.bgSoft,
                     borderColor: theme.blue,
                   },
                 ]}
               >
-                <Image source={{ uri: selectedImage.uri }} style={styles.imageThumb} />
-                <View style={styles.selectedImageInfo}>
+                <View style={styles.selectedImagesHeader}>
                   <View style={styles.imageBadgeRow}>
-                    <Ionicons name="scan-circle" size={16} color={theme.blue} />
+                    <Ionicons name="scan-circle" size={18} color={theme.blue} />
                     <Text style={[styles.selectedImageTitle, { color: theme.textPrimary }]}>
-                      Đã sẵn sàng phân tích ảnh
+                      Đã chọn {selectedImages.length} ảnh để phân tích
                     </Text>
                   </View>
-                  <Text style={[styles.selectedImageSub, { color: theme.textMuted }]}>
-                    AI sẽ tự động nhận diện từ vựng & loại bỏ các từ đã có trong CSDL.
-                  </Text>
+                  <TouchableOpacity
+                    style={[styles.clearAllBtn, { backgroundColor: theme.redDim }]}
+                    onPress={handleClearImage}
+                    disabled={loading}
+                  >
+                    <Ionicons name="trash-outline" size={14} color={theme.red} />
+                    <Text style={[styles.clearAllText, { color: theme.red }]}>Xóa tất cả</Text>
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={[styles.clearImageBtn, { backgroundColor: theme.redDim }]}
-                  onPress={handleClearImage}
-                  disabled={loading}
+
+                {/* Horizontal thumbnail list */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.thumbnailsScroll}
                 >
-                  <Ionicons name="trash-outline" size={18} color={theme.red} />
-                </TouchableOpacity>
+                  {selectedImages.map((img, index) => (
+                    <View key={img.uri + index} style={styles.thumbnailWrapper}>
+                      <Image source={{ uri: img.uri }} style={styles.imageThumb} />
+                      <TouchableOpacity
+                        style={styles.thumbnailRemoveBadge}
+                        onPress={() => handleRemoveImage(index)}
+                        disabled={loading}
+                      >
+                        <Ionicons name="close-circle" size={22} color={theme.red} />
+                      </TouchableOpacity>
+                      <View style={styles.imageIndexTag}>
+                        <Text style={styles.imageIndexText}>#{index + 1}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+
+                <Text style={[styles.selectedImageSub, { color: theme.textMuted }]}>
+                  AI sẽ đọc văn bản trong tất cả các ảnh và tự động loại bỏ từ trùng trong CSDL.
+                </Text>
               </View>
             )}
 
             <Text style={[styles.inputLabel, { color: theme.textMuted, marginTop: Spacing.md }]}>
-              {selectedImage
+              {selectedImages.length > 0
                 ? "2. Ghi chú thêm cho AI khi quét ảnh (Tuỳ chọn):"
                 : "2. Hoặc nhập từ Hán, Pinyin, Chủ đề:"}
             </Text>
@@ -201,7 +233,7 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
                 { backgroundColor: theme.bgSoft, color: theme.textPrimary },
               ]}
               placeholder={
-                selectedImage
+                selectedImages.length > 0
                   ? "Ví dụ: Chỉ lấy từ mới HSK 3, lấy tên món ăn..."
                   : "Ví dụ: 苹果, Du lịch, Ăn uống, HSK 3..."
               }
@@ -214,17 +246,17 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
             <AppButton
               title={
                 loading
-                  ? selectedImage
-                    ? "AI ĐANG PHÂN TÍCH ẢNH..."
+                  ? selectedImages.length > 0
+                    ? `AI ĐANG PHÂN TÍCH ${selectedImages.length} ẢNH...`
                     : "AI ĐANG TẠO..."
-                  : selectedImage
-                    ? "PHÂN TÍCH ẢNH & LỌC TỪ TRÙNG"
+                  : selectedImages.length > 0
+                    ? `PHÂN TÍCH ${selectedImages.length} ẢNH & LỌC TỪ TRÙNG`
                     : "TẠO TỪ VỰNG BẰNG AI"
               }
               variant="blue"
               size="lg"
               loading={loading}
-              disabled={loading || (!selectedImage && !prompt.trim())}
+              disabled={loading || (selectedImages.length === 0 && !prompt.trim())}
               onPress={handleGenerate}
               style={{ marginTop: Spacing.md }}
               icon={
@@ -232,7 +264,7 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
                   <ActivityIndicator size="small" color={theme.blue} />
                 ) : (
                   <Ionicons
-                    name={selectedImage ? "scan" : "sparkles"}
+                    name={selectedImages.length > 0 ? "scan" : "sparkles"}
                     size={Layout.iconMd}
                     color="#FFFFFF"
                   />
@@ -293,24 +325,16 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
 }
 
 const styles = StyleSheet.create({
-  container: {
+  modalContainer: {
     flex: 1,
   },
-  header: {
+  modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: Spacing.pageMargin,
     paddingBottom: Spacing.cellPadding,
-    borderBottomWidth: 0,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
-    zIndex: 10,
   },
-
   closeBtn: {
     padding: Spacing.sm,
   },
@@ -335,6 +359,16 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginBottom: Spacing.md,
   },
+  inputLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.sm,
+  },
+  imageCountBadge: {
+    fontSize: Typography.caption1.fontSize,
+    fontWeight: Typography.weight.bold,
+  },
   imageActionsRow: {
     flexDirection: "row",
     gap: Spacing.sm,
@@ -354,29 +388,72 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodyMD.fontSize,
     fontWeight: Typography.weight.bold,
   },
-  selectedImageBox: {
-    flexDirection: "row",
-    alignItems: "center",
+  selectedImagesContainer: {
     padding: Spacing.sm,
     borderRadius: Radii.lg,
     borderWidth: BorderWidths.thin,
     marginTop: Spacing.sm,
+  },
+  selectedImagesHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.xs,
+  },
+  clearAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radii.sm,
+  },
+  clearAllText: {
+    fontSize: Typography.caption2.fontSize,
+    fontWeight: Typography.weight.bold,
+  },
+  thumbnailsScroll: {
+    flexDirection: "row",
     gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  thumbnailWrapper: {
+    position: "relative",
+    width: 68,
+    height: 68,
   },
   imageThumb: {
-    width: 60,
-    height: 60,
+    width: 68,
+    height: 68,
     borderRadius: Radii.md,
     backgroundColor: "#E2E8F0",
   },
-  selectedImageInfo: {
-    flex: 1,
+  thumbnailRemoveBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 11,
+    zIndex: 5,
+  },
+  imageIndexTag: {
+    position: "absolute",
+    bottom: 2,
+    left: 2,
+    backgroundColor: "rgba(15, 23, 42, 0.75)",
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  imageIndexText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: Typography.weight.bold,
   },
   imageBadgeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginBottom: 2,
   },
   selectedImageTitle: {
     fontSize: Typography.caption.fontSize,
@@ -385,13 +462,7 @@ const styles = StyleSheet.create({
   selectedImageSub: {
     fontSize: Typography.caption2.fontSize,
     lineHeight: 16,
-  },
-  clearImageBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: Radii.md,
-    alignItems: "center",
-    justifyContent: "center",
+    marginTop: Spacing.xs,
   },
   inputLabel: {
     fontSize: Typography.caption.fontSize,

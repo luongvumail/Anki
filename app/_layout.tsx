@@ -43,62 +43,87 @@ export default function RootLayout() {
     ]).start();
 
     // 2. Listen to authentication state changes with Supabase
+    let isInitialAuthCheck = true;
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const user = session?.user ?? null;
-      const isLoggingIn = prevUserIdRef.current === null && user !== null;
-      const isLoggingOut =
-        prevUserIdRef.current !== null && prevUserIdRef.current !== undefined && user === null;
+      try {
+        const user = session?.user ?? null;
+        const isFirstCall = isInitialAuthCheck;
+        isInitialAuthCheck = false;
 
-      prevUserIdRef.current = user ? user.id : null;
+        const isLoggingIn = !isFirstCall && prevUserIdRef.current === null && user !== null;
+        const isLoggingOut =
+          !isFirstCall &&
+          prevUserIdRef.current !== null &&
+          prevUserIdRef.current !== undefined &&
+          user === null;
 
-      if (isLoggingIn || isLoggingOut) {
-        setShowSplash(true);
-        splashOpacity.setValue(1);
-        logoOpacity.setValue(1);
-        logoScale.setValue(1);
-      }
+        prevUserIdRef.current = user ? user.id : null;
 
-      if (user) {
-        setUserId(user.id);
-        try {
-          await Promise.all([
-            useStore.getState().fetchDecks(),
-            useStore.getState().fetchUserProgress(),
-          ]);
-        } catch (e) {
-          console.warn("[RootLayout] Initial data fetch failed:", e);
+        if (isLoggingIn || isLoggingOut) {
+          setShowSplash(true);
+          splashOpacity.setValue(1);
+          logoOpacity.setValue(1);
+          logoScale.setValue(1);
         }
-        router.replace("/(tabs)");
-      } else {
-        resetUserState();
-        router.replace("/auth");
-      }
 
-      if (isLoggingOut) {
-        setTimeout(() => {
-          Animated.timing(splashOpacity, {
-            toValue: 0,
-            duration: APP_CONFIG.LOGOUT_FADE_MS,
-            useNativeDriver: true,
-          }).start(() => {
-            setShowSplash(false);
-          });
-        }, APP_CONFIG.LOGOUT_SPLASH_DELAY_MS);
-      } else {
-        const elapsed = Date.now() - startTime;
-        const remainingTime = Math.max(0, APP_CONFIG.SPLASH_MIN_DISPLAY_MS - elapsed);
+        if (user) {
+          setUserId(user.id);
+          try {
+            await Promise.all([
+              useStore.getState().fetchDecks(),
+              useStore.getState().fetchUserProgress(),
+            ]);
+          } catch (e) {
+            console.warn("[RootLayout] Initial data fetch failed:", e);
+          }
+          // Delay routing slightly on cold start to ensure Stack navigator is ready
+          setTimeout(() => {
+            try {
+              router.replace("/(tabs)");
+            } catch (navErr) {
+              console.warn("[RootLayout] Navigation to tabs delayed:", navErr);
+            }
+          }, 0);
+        } else {
+          resetUserState();
+          setTimeout(() => {
+            try {
+              router.replace("/auth");
+            } catch (navErr) {
+              console.warn("[RootLayout] Navigation to auth delayed:", navErr);
+            }
+          }, 0);
+        }
 
-        setTimeout(() => {
-          Animated.timing(splashOpacity, {
-            toValue: 0,
-            duration: APP_CONFIG.SPLASH_FADE_MS,
-            useNativeDriver: true,
-          }).start(() => {
-            setShowSplash(false);
-          });
-        }, remainingTime);
+        if (isLoggingOut) {
+          setTimeout(() => {
+            Animated.timing(splashOpacity, {
+              toValue: 0,
+              duration: APP_CONFIG.LOGOUT_FADE_MS,
+              useNativeDriver: true,
+            }).start(() => {
+              setShowSplash(false);
+            });
+          }, APP_CONFIG.LOGOUT_SPLASH_DELAY_MS);
+        } else {
+          const elapsed = Date.now() - startTime;
+          const remainingTime = Math.max(0, APP_CONFIG.SPLASH_MIN_DISPLAY_MS - elapsed);
+
+          setTimeout(() => {
+            Animated.timing(splashOpacity, {
+              toValue: 0,
+              duration: APP_CONFIG.SPLASH_FADE_MS,
+              useNativeDriver: true,
+            }).start(() => {
+              setShowSplash(false);
+            });
+          }, remainingTime);
+        }
+      } catch (err) {
+        console.error("[RootLayout] Unhandled error during authStateChange:", err);
+        setShowSplash(false);
       }
     });
 

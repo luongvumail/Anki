@@ -1,16 +1,28 @@
 import { useState, useCallback } from "react";
+import * as ImagePicker from "expo-image-picker";
 import { useStore } from "../store/useStore";
-import { generateCardDataBatch, generateCardData, CardData } from "../lib/gemini";
+import {
+  generateCardDataBatch,
+  generateCardData,
+  generateCardsFromImage,
+  CardData,
+} from "../lib/gemini";
 import { triggerHaptic } from "../constants/theme";
 import { createDefaultFSRSState } from "../lib/srs";
 import { getGeminiErrorMessage, getDatabaseErrorMessage } from "../lib/errorHandler";
 
+export interface SelectedImageAsset {
+  uri: string;
+  base64: string;
+  mimeType: string;
+}
+
 export function useAICardGenerator(initialDeckId?: string, onClose?: () => void) {
   const decks = useStore((s) => s.decks);
-  const cards = useStore((s) => s.cards);
   const addCardsBatch = useStore((s) => s.addCardsBatch);
 
   const [prompt, setPrompt] = useState("");
+  const [selectedImage, setSelectedImage] = useState<SelectedImageAsset | null>(null);
   const [selectedDeckId, setSelectedDeckId] = useState<string>(
     initialDeckId || (decks.length > 0 ? decks[0].id : ""),
   );
@@ -19,70 +31,207 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
   const [generatedCards, setGeneratedCards] = useState<CardData[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  const handleTakePhoto = useCallback(async () => {
+    setErrorMessage(null);
+    setInfoMessage(null);
+    triggerHaptic("selection");
+
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setErrorMessage(
+          "Vui lòng cấp quyền truy cập Camera trong Cài đặt để chụp ảnh trích xuất từ vựng.",
+        );
+        triggerHaptic("error");
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        if (!asset.base64) {
+          setErrorMessage("Không thể đọc dữ liệu ảnh từ Camera. Vui lòng thử lại.");
+          return;
+        }
+        setSelectedImage({
+          uri: asset.uri,
+          base64: asset.base64,
+          mimeType: asset.mimeType || "image/jpeg",
+        });
+        triggerHaptic("light");
+      }
+    } catch {
+      setErrorMessage("Không thể mở Camera trên thiết bị này.");
+      triggerHaptic("error");
+    }
+  }, []);
+
+  const handlePickImage = useCallback(async () => {
+    setErrorMessage(null);
+    setInfoMessage(null);
+    triggerHaptic("selection");
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setErrorMessage(
+          "Vui lòng cấp quyền truy cập Thư viện ảnh để tải ảnh trích xuất từ vựng.",
+        );
+        triggerHaptic("error");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        if (!asset.base64) {
+          setErrorMessage("Không thể đọc dữ liệu ảnh đã chọn. Vui lòng thử ảnh khác.");
+          return;
+        }
+        setSelectedImage({
+          uri: asset.uri,
+          base64: asset.base64,
+          mimeType: asset.mimeType || "image/jpeg",
+        });
+        triggerHaptic("light");
+      }
+    } catch {
+      setErrorMessage("Không thể mở Thư viện ảnh trên thiết bị này.");
+      triggerHaptic("error");
+    }
+  }, []);
+
+  const handleClearImage = useCallback(() => {
+    triggerHaptic("selection");
+    setSelectedImage(null);
+    setErrorMessage(null);
+    setInfoMessage(null);
+  }, []);
 
   const handleGenerate = useCallback(async () => {
-    if (!prompt.trim()) return;
+    if (!selectedImage && !prompt.trim()) return;
     setLoading(true);
     setErrorMessage(null);
+    setInfoMessage(null);
     triggerHaptic("medium");
 
     try {
-      let existingDeckCards = cards[selectedDeckId];
-      if (!existingDeckCards && selectedDeckId) {
-        existingDeckCards = await useStore.getState().fetchCards(selectedDeckId);
+      const deduplicateBatch = useStore.getState().deduplicateBatch;
+
+      if (selectedImage) {
+        const rawVisionResults = await generateCardsFromImage(
+          selectedImage.base64,
+          selectedImage.mimeType,
+          prompt.trim() || undefined,
+        );
+
+        if (!rawVisionResults || rawVisionResults.length === 0) {
+          setErrorMessage(
+            "AI không nhận diện được từ vựng nào trong ảnh. Vui lòng chụp rõ nét hơn hoặc thử ảnh khác.",
+          );
+          triggerHaptic("error");
+          return;
+        }
+
+        const {
+          unique: uniqueCards,
+          removedDuplicatesCount,
+          removedDatabaseWords,
+        } = await deduplicateBatch(rawVisionResults);
+
+        if (uniqueCards.length > 0) {
+          setGeneratedCards(uniqueCards);
+          setSelectedIndices(new Set(uniqueCards.map((_, i) => i)));
+          if (removedDuplicatesCount > 0) {
+            setInfoMessage(
+              `Đã tự động lọc bỏ ${removedDuplicatesCount} từ bị trùng trong cơ sở dữ liệu (${removedDatabaseWords.join(", ")}).`,
+            );
+          } else {
+            setInfoMessage(
+              `AI đã phân tích ảnh và trích xuất thành công ${uniqueCards.length} từ vựng mới!`,
+            );
+          }
+          triggerHaptic("success");
+        } else {
+          setGeneratedCards([]);
+          setSelectedIndices(new Set());
+          setErrorMessage(
+            removedDuplicatesCount > 0
+              ? `Tất cả ${removedDuplicatesCount} từ vựng trong ảnh (${removedDatabaseWords.join(", ")}) đều đã có sẵn trong cơ sở dữ liệu!`
+              : "AI không tạo được từ vựng mới từ bức ảnh này.",
+          );
+          triggerHaptic("error");
+        }
+        return;
       }
-      if (!existingDeckCards) existingDeckCards = [];
 
-      const existingCharSet = new Set(
-        existingDeckCards.map((c) => (c.character || "").trim().toLowerCase()),
-      );
-
+      // Text input generation flow: pre-check duplicates before calling AI
       const rawInputs = prompt
         .split(/[,，\n]/)
         .map((s) => s.trim())
         .filter(Boolean);
 
-      let inputsToGenerate = rawInputs;
-      let skippedDuplicatesCount = 0;
+      const itemsToCheck = rawInputs.map((word) => ({ character: word }));
+      const {
+        unique: nonDuplicateInputs,
+        removedDuplicatesCount: preRemovedCount,
+        removedDatabaseWords: preRemovedWords,
+      } = await deduplicateBatch(itemsToCheck);
 
-      // Filter out duplicate words if user inputs a list of words
-      if (rawInputs.length > 1) {
-        inputsToGenerate = rawInputs.filter(
-          (word) => !existingCharSet.has(word.toLowerCase()),
+      if (rawInputs.length > 1 && nonDuplicateInputs.length === 0) {
+        setErrorMessage(
+          `Tất cả ${rawInputs.length} từ vựng (${preRemovedWords.join(", ")}) đều đã có sẵn trong cơ sở dữ liệu!`,
         );
-        skippedDuplicatesCount = rawInputs.length - inputsToGenerate.length;
-
-        if (inputsToGenerate.length === 0) {
-          setErrorMessage(`Tất cả ${rawInputs.length} từ vựng này đều đã có sẵn trong bộ thẻ!`);
-          triggerHaptic("error");
-          setLoading(false);
-          return;
-        }
+        triggerHaptic("error");
+        setLoading(false);
+        return;
       }
+
+      const inputsToGenerate = nonDuplicateInputs.map((item) => item.character);
 
       const rawResults =
         inputsToGenerate.length > 1
           ? await generateCardDataBatch(inputsToGenerate)
           : [await generateCardData(prompt.trim())];
 
-      // Double-check & filter out any AI-generated cards that already exist in the deck
-      const results = rawResults.filter(
-        (card) => !existingCharSet.has((card.character || "").trim().toLowerCase()),
-      );
+      const {
+        unique: uniqueCards,
+        removedDuplicatesCount: postRemovedCount,
+        removedDatabaseWords: postRemovedWords,
+      } = await deduplicateBatch(rawResults);
 
-      if (results && results.length > 0) {
-        setGeneratedCards(results);
-        setSelectedIndices(new Set(results.map((_, i) => i)));
-        if (skippedDuplicatesCount > 0) {
-          setErrorMessage(
-            `Đã tự động loại bỏ ${skippedDuplicatesCount} từ đã có trong bộ thẻ.`,
+      const allRemovedWords = Array.from(new Set([...preRemovedWords, ...postRemovedWords]));
+      const totalRemovedCount = preRemovedCount + postRemovedCount;
+
+      if (uniqueCards.length > 0) {
+        setGeneratedCards(uniqueCards);
+        setSelectedIndices(new Set(uniqueCards.map((_, i) => i)));
+        if (totalRemovedCount > 0) {
+          setInfoMessage(
+            `Đã tự động lọc bỏ ${totalRemovedCount} từ bị trùng trong cơ sở dữ liệu (${allRemovedWords.join(", ")}).`,
           );
         }
         triggerHaptic("success");
       } else {
+        setGeneratedCards([]);
+        setSelectedIndices(new Set());
         setErrorMessage(
-          skippedDuplicatesCount > 0
-            ? "Tất cả từ vựng này đều đã có sẵn trong bộ thẻ!"
+          totalRemovedCount > 0
+            ? `Từ vựng (${allRemovedWords.join(", ")}) đã có sẵn trong cơ sở dữ liệu!`
             : "AI không tạo được từ vựng từ từ khóa này. Vui lòng thử từ khóa khác.",
         );
         triggerHaptic("error");
@@ -93,7 +242,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
     } finally {
       setLoading(false);
     }
-  }, [prompt, selectedDeckId, cards]);
+  }, [prompt, selectedImage]);
 
   const toggleSelectCard = useCallback((index: number) => {
     triggerHaptic("selection");
@@ -132,13 +281,19 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
         radical: cardData.radical,
         strokeCount: cardData.strokeCount,
         hskLevel: cardData.hskLevel,
-        tags: cardData.tags || ["AI-Generated"],
+        tags: cardData.tags || (selectedImage ? ["Quét từ ảnh"] : ["AI-Generated"]),
         srs: createDefaultFSRSState(),
       }));
 
       await addCardsBatch(formattedCards);
 
       triggerHaptic("success");
+      setPrompt("");
+      setSelectedImage(null);
+      setGeneratedCards([]);
+      setSelectedIndices(new Set());
+      setInfoMessage(null);
+      setErrorMessage(null);
       if (onClose) onClose();
     } catch (err: unknown) {
       setErrorMessage(getDatabaseErrorMessage(err));
@@ -146,11 +301,15 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
     } finally {
       setLoading(false);
     }
-  }, [selectedDeckId, generatedCards, selectedIndices, addCardsBatch, onClose]);
+  }, [selectedDeckId, generatedCards, selectedIndices, selectedImage, addCardsBatch, onClose]);
 
   return {
     prompt,
     setPrompt,
+    selectedImage,
+    handleTakePhoto,
+    handlePickImage,
+    handleClearImage,
     selectedDeckId,
     setSelectedDeckId,
     isDeckPickerOpen,
@@ -159,6 +318,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
     generatedCards,
     selectedIndices,
     errorMessage,
+    infoMessage,
     decks,
     handleGenerate,
     toggleSelectCard,

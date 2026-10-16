@@ -12,14 +12,21 @@
       "bundleIdentifier": "com.luongvu.anki"
     },
     "android": {
+      "package": "com.luongvu.anki",
+      "versionCode": 1,
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F8FAFC"
       },
-      "package": "com.luongvu.anki",
       "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
@@ -41,9 +48,23 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Ứng dụng cần quyền truy cập Camera để chụp ảnh tài liệu/văn bản và trích xuất từ vựng tiếng Trung bằng AI.",
+          "photosPermission": "Ứng dụng cần quyền truy cập Thư viện ảnh để chọn ảnh và trích xuất từ vựng tiếng Trung bằng AI."
+        }
+      ],
+      [
         "expo-audio",
         {
           "microphonePermission": "Ứng dụng cần truy cập microphone để luyện phát âm tiếng Trung cùng AI."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0EA5E9"
         }
       ],
       "expo-web-browser",

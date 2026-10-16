@@ -52,6 +52,7 @@ export function SpeedMatchModal({ visible, onClose, cards }: SpeedMatchModalProp
       visible={visible}
       animationType="slide"
       presentationStyle="fullScreen"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
       <View

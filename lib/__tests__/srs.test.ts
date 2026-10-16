@@ -7,6 +7,7 @@ import {
   calculateQuizFSRS,
   calculateRetrievability,
   getIntervalLabel,
+  selectCardsByFSRSPriority,
 } from "../srs";
 
 function assertStrictEqual<T>(actual: T, expected: T, message?: string) {
@@ -58,7 +59,7 @@ export function runFSRSTests() {
   const rFuture = calculateRetrievability(10, 5);
   assertOk(rFuture < 1.0 && rFuture > 0, "Retrievability should decay over time");
 
-  // Test 6: Quiz Speed Evaluation (with 5000ms threshold)
+  // Test 6: Quiz Speed Evaluation (with 5000ms threshold for choice)
   // Fast response (<= 3500ms) -> EASY
   const fastEval = calculateQuizFSRS(true, false, 2000, initial);
   assertStrictEqual(fastEval.grade, FSRS_GRADES.EASY, "Fast response should yield EASY grade");
@@ -83,6 +84,17 @@ export function runFSRSTests() {
   assertStrictEqual(wrongEval.grade, FSRS_GRADES.AGAIN, "Incorrect answer should yield AGAIN grade");
   assertStrictEqual(wrongEval.speedCategory, "wrong");
 
+  // Test 6b: Typing & Speaking interaction modes have cognitive-fair thresholds
+  // 7000ms on typing should be EASY (<= 8000ms), NOT HARD!
+  const typingFast = calculateQuizFSRS(true, false, 7000, initial, "typing");
+  assertStrictEqual(typingFast.grade, FSRS_GRADES.EASY, "7s typing response should be EASY");
+  // 12000ms on typing should be GOOD (<= 15000ms), NOT HARD!
+  const typingGood = calculateQuizFSRS(true, false, 12000, initial, "typing");
+  assertStrictEqual(typingGood.grade, FSRS_GRADES.GOOD, "12s typing response should be GOOD");
+  // 9000ms on speaking should be EASY (<= 10000ms)
+  const speakingFast = calculateQuizFSRS(true, false, 9000, initial, "speaking");
+  assertStrictEqual(speakingFast.grade, FSRS_GRADES.EASY, "9s speaking response should be EASY");
+
   // Test 7: isDue comparison
   const pastDate = new Date();
   pastDate.setDate(pastDate.getDate() - 1);
@@ -103,4 +115,35 @@ export function runFSRSTests() {
   // Test 8: getIntervalLabel
   assertStrictEqual(getIntervalLabel(FSRS_GRADES.AGAIN, initial), "Ôn lại ngay");
   assertOk(typeof getIntervalLabel(FSRS_GRADES.GOOD, initial) === "string");
+
+  // Test 9: selectCardsByFSRSPriority prioritizes due cards ahead of future cards
+  const cardsForPriority = [
+    {
+      id: "future_easy",
+      srs: {
+        repetitions: 5,
+        interval: 30,
+        easeFactor: 2.5,
+        dueDate: futureDate.toISOString(),
+        stability: 30,
+        difficulty: 3.0,
+        state: FSRSState.Review,
+      },
+    },
+    {
+      id: "due_hard",
+      srs: {
+        repetitions: 2,
+        interval: 1,
+        easeFactor: 2.5,
+        dueDate: pastDate.toISOString(),
+        stability: 1,
+        difficulty: 8.5,
+        state: FSRSState.Review,
+      },
+    },
+  ];
+  const prioritized = selectCardsByFSRSPriority(cardsForPriority, 1);
+  assertStrictEqual(prioritized.length, 1);
+  assertStrictEqual(prioritized[0].id, "due_hard", "Due & harder card must be prioritized first");
 }

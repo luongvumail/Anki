@@ -106,4 +106,43 @@ export function runCardSliceLogicTests() {
     return sum + (deckCards ? deckCards.length : d.cardCount || 0);
   }, 0);
   assertStrictEqual(aggregatedTotal, 14, "Aggregated total should be 1 (deck_1 loaded) + 13 (deck_unloaded) = 14");
+
+  // Test 8: AI Image/Text Vocabulary Deduplication against entire database + intra-batch duplicates
+  const existingDbChars = new Set<string>(["苹果", "香蕉", "學習"]);
+  const aiExtractedBatch = [
+    { character: "苹果", traditional: "蘋果", pinyin: "píng guǒ", translation: "Quả táo" }, // duplicate in DB
+    { character: "西瓜", traditional: "西瓜", pinyin: "xī guā", translation: "Dưa hấu" }, // new
+    { character: "西瓜", traditional: "西瓜", pinyin: "xī guā", translation: "Dưa hấu" }, // duplicate within same photo
+    { character: "学习", traditional: "學習", pinyin: "xué xí", translation: "Học tập" }, // duplicate in DB via traditional character
+    { character: "草莓", traditional: "草莓", pinyin: "cǎo méi", translation: "Dâu tây" }, // new
+  ];
+
+  const uniqueCards: typeof aiExtractedBatch = [];
+  const seenInBatch = new Set<string>();
+  const removedDatabaseWords: string[] = [];
+  let removedDuplicatesCount = 0;
+
+  for (const card of aiExtractedBatch) {
+    const cleanChar = card.character.trim().toLowerCase();
+    const cleanTrad = (card.traditional || "").trim().toLowerCase();
+    const isInDatabase =
+      existingDbChars.has(cleanChar) || (cleanTrad.length > 0 && existingDbChars.has(cleanTrad));
+    if (isInDatabase) {
+      removedDuplicatesCount++;
+      if (!removedDatabaseWords.includes(card.character.trim())) {
+        removedDatabaseWords.push(card.character.trim());
+      }
+      continue;
+    }
+    if (seenInBatch.has(cleanChar) || (cleanTrad.length > 0 && seenInBatch.has(cleanTrad))) {
+      continue;
+    }
+    seenInBatch.add(cleanChar);
+    if (cleanTrad.length > 0) seenInBatch.add(cleanTrad);
+    uniqueCards.push(card);
+  }
+
+  assertStrictEqual(uniqueCards.length, 2, "Should keep only 2 unique new words (西瓜, 草莓)");
+  assertStrictEqual(removedDuplicatesCount, 2, "Should detect 2 words already in database (苹果, 学习)");
+  assertStrictEqual(removedDatabaseWords.join(","), "苹果,学习", "Should list removed database duplicate words");
 }

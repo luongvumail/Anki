@@ -14,6 +14,8 @@ import { SectionTitle } from "../../components/ui/SectionTitle";
 import { SpeedMatchModal } from "../../components/practice/SpeedMatchModal";
 import { SentenceBuilderModal } from "../../components/practice/SentenceBuilderModal";
 import { PronunciationTrainerModal } from "../../components/practice/PronunciationTrainerModal";
+import { ListeningDictationModal } from "../../components/practice/ListeningDictationModal";
+import { TypingRecallModal } from "../../components/practice/TypingRecallModal";
 
 export default function PracticeScreen() {
   const insets = useSafeAreaInsets();
@@ -28,6 +30,8 @@ export default function PracticeScreen() {
   const [showSpeedMatch, setShowSpeedMatch] = useState(false);
   const [showSentenceBuilder, setShowSentenceBuilder] = useState(false);
   const [showPronunciationTrainer, setShowPronunciationTrainer] = useState(false);
+  const [showListeningDictation, setShowListeningDictation] = useState(false);
+  const [showTypingRecall, setShowTypingRecall] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -92,6 +96,28 @@ export default function PracticeScreen() {
     setShowPronunciationTrainer(true);
   };
 
+  const handleOpenListeningDictation = () => {
+    if (allCardsList.length === 0) {
+      Alert.alert(
+        "Chưa có từ vựng",
+        "Bạn cần nạp từ vựng vào bộ thẻ trước khi luyện nghe chép chính tả.",
+      );
+      return;
+    }
+    setShowListeningDictation(true);
+  };
+
+  const handleOpenTypingRecall = () => {
+    if (allCardsList.length === 0) {
+      Alert.alert(
+        "Chưa có từ vựng",
+        "Bạn cần nạp từ vựng vào bộ thẻ trước khi luyện gõ từ phản xạ.",
+      );
+      return;
+    }
+    setShowTypingRecall(true);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <AppHeader streakCount={streakCount} />
@@ -117,7 +143,8 @@ export default function PracticeScreen() {
                 GAME GHÉP TỪ NHANH 60S
               </Text>
               <Text style={[styles.modeDesc, { color: theme.textMuted }]}>
-                Ghép ngẫu nhiên Chữ Hán & Nghĩa tương ứng trong 60 giây. Luyện phản xạ siêu tốc!
+                Ghép ngẫu nhiên Chữ Hán, Pinyin & Nghĩa tương ứng trong 60 giây. Luyện phản xạ siêu
+                tốc!
               </Text>
             </View>
           </View>
@@ -131,7 +158,59 @@ export default function PracticeScreen() {
           />
         </AppCard>
 
-        {/* Mode 2: Sentence Builder */}
+        {/* Mode 2: Typing Recall Drill */}
+        <AppCard style={styles.modeCard}>
+          <View style={styles.modeRow}>
+            <View style={[styles.modeIconTile, { backgroundColor: theme.blueDim }]}>
+              <Ionicons name="keypad" size={Layout.iconXl} color={theme.blue} />
+            </View>
+            <View style={styles.modeTextCol}>
+              <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>
+                THỬ THÁCH TỰ GÕ TỪ (ACTIVE RECALL)
+              </Text>
+              <Text style={[styles.modeDesc, { color: theme.textMuted }]}>
+                Tự nhớ và gõ lại Chữ Hán, Pinyin kèm thanh điệu hoặc từ khuyết trong câu mà không
+                cần gợi ý A/B/C/D.
+              </Text>
+            </View>
+          </View>
+          <AppButton
+            title="LUYỆN GÕ NGAY"
+            icon={<Ionicons name="create" size={Layout.iconMd} color="#FFFFFF" />}
+            variant="blue"
+            size="lg"
+            onPress={handleOpenTypingRecall}
+            style={{ marginTop: Spacing.md }}
+          />
+        </AppCard>
+
+        {/* Mode 3: Listening Dictation */}
+        <AppCard style={styles.modeCard}>
+          <View style={styles.modeRow}>
+            <View style={[styles.modeIconTile, { backgroundColor: theme.purpleDim }]}>
+              <Ionicons name="headset" size={Layout.iconXl} color={theme.purple} />
+            </View>
+            <View style={styles.modeTextCol}>
+              <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>
+                NGHE CHÉP CHÍNH TẢ (DICTATION)
+              </Text>
+              <Text style={[styles.modeDesc, { color: theme.textMuted }]}>
+                Nghe phát âm từ vựng hoặc cả câu (tốc độ chuẩn 1.0x & chậm 0.5x) rồi gõ lại chính
+                xác.
+              </Text>
+            </View>
+          </View>
+          <AppButton
+            title="LUYỆN NGHE NGAY"
+            icon={<Ionicons name="ear" size={Layout.iconMd} color="#FFFFFF" />}
+            variant="primary"
+            size="lg"
+            onPress={handleOpenListeningDictation}
+            style={{ marginTop: Spacing.md }}
+          />
+        </AppCard>
+
+        {/* Mode 4: Sentence Builder */}
         <AppCard style={styles.modeCard}>
           <View style={styles.modeRow}>
             <View style={[styles.modeIconTile, { backgroundColor: theme.blueDim }]}>
@@ -154,7 +233,7 @@ export default function PracticeScreen() {
           />
         </AppCard>
 
-        {/* Mode 3: AI Pronunciation Trainer */}
+        {/* Mode 5: AI Pronunciation Trainer */}
         <AppCard style={styles.modeCard}>
           <View style={styles.modeRow}>
             <View style={[styles.modeIconTile, { backgroundColor: theme.greenDim }]}>
@@ -162,11 +241,11 @@ export default function PracticeScreen() {
             </View>
             <View style={styles.modeTextCol}>
               <Text style={[styles.modeTitle, { color: theme.textPrimary }]}>
-                PHÒNG LUYỆN PHÁT ÂM AI
+                PHÒNG LUYỆN PHÁT ÂM AI (3 CHẾ ĐỘ)
               </Text>
               <Text style={[styles.modeDesc, { color: theme.textMuted }]}>
-                Thu âm giọng đọc Tiếng Trung, AI phân tích nhận diện Pinyin & 4 thanh điệu chuẩn
-                xác.
+                Đọc từ có Pinyin, Ẩn Pinyin tự nhớ cách đọc, hoặc Đọc nhại cả câu (Shadowing) cùng
+                AI.
               </Text>
             </View>
           </View>
@@ -186,6 +265,24 @@ export default function PracticeScreen() {
         <SpeedMatchModal
           visible={showSpeedMatch}
           onClose={() => setShowSpeedMatch(false)}
+          cards={allCardsList}
+        />
+      )}
+
+      {/* Typing Recall Modal */}
+      {showTypingRecall && (
+        <TypingRecallModal
+          visible={showTypingRecall}
+          onClose={() => setShowTypingRecall(false)}
+          cards={allCardsList}
+        />
+      )}
+
+      {/* Listening Dictation Modal */}
+      {showListeningDictation && (
+        <ListeningDictationModal
+          visible={showListeningDictation}
+          onClose={() => setShowListeningDictation(false)}
           cards={allCardsList}
         />
       )}

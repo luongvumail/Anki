@@ -56,6 +56,7 @@ export function SentenceBuilderModal({
       visible={visible}
       animationType="slide"
       presentationStyle="fullScreen"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
       <View style={[styles.container, { paddingTop: Math.max(insets.top, Spacing.lg), backgroundColor: theme.bg }]}>

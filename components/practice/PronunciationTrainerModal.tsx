@@ -23,13 +23,26 @@ import { AppButton } from "../ui/AppButton";
 import { AudioButton } from "../ui/AudioButton";
 import { ProgressBar } from "../ui/ProgressBar";
 import { getPinyinToneColor } from "../../lib/pinyinColor";
-import { usePronunciationTrainer } from "../../hooks/usePronunciationTrainer";
+import {
+  usePronunciationTrainer,
+  PronunciationTrainerMode,
+} from "../../hooks/usePronunciationTrainer";
 
 export interface PronunciationTrainerModalProps {
   visible: boolean;
   onClose: () => void;
   cards: Card[];
 }
+
+const TRAINER_MODES: {
+  key: PronunciationTrainerMode;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { key: "word_guided", label: "Đọc Từ", icon: "book-outline" },
+  { key: "word_blind", label: "Ẩn Pinyin", icon: "eye-off-outline" },
+  { key: "sentence_shadowing", label: "Đọc Câu", icon: "chatbubbles-outline" },
+];
 
 export function PronunciationTrainerModal(props: PronunciationTrainerModalProps) {
   if (!props.visible) return null;
@@ -44,6 +57,10 @@ function PronunciationTrainerModalInner({
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const {
+    trainerMode,
+    changeTrainerMode,
+    pinyinRevealed,
+    setPinyinRevealed,
     currentIndex,
     shuffledCards,
     isRecording,
@@ -69,11 +86,31 @@ function PronunciationTrainerModalInner({
 
   const progress = shuffledCards.length > 0 ? (currentIndex + 1) / shuffledCards.length : 0;
 
+  const isSentenceMode =
+    trainerMode === "sentence_shadowing" &&
+    currentCard?.examples &&
+    currentCard.examples.length > 0 &&
+    Boolean(currentCard.examples[0].chinese);
+
+  const displayHanzi =
+    isSentenceMode && currentCard ? currentCard.examples![0].chinese : currentCard?.character || "";
+  const displayPinyin =
+    isSentenceMode && currentCard
+      ? currentCard.examples![0].pinyin || currentCard.pinyin
+      : currentCard?.pinyin || "";
+  const displayMeaning =
+    isSentenceMode && currentCard
+      ? currentCard.examples![0].vietnamese
+      : currentCard?.translation || "";
+
+  const hidePinyinAndAudio = trainerMode === "word_blind" && !pinyinRevealed && score === null;
+
   return (
     <Modal
       visible={visible}
       animationType="slide"
       presentationStyle="fullScreen"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
       <View
@@ -97,11 +134,46 @@ function PronunciationTrainerModalInner({
           <View style={styles.headerTitleContainer}>
             <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>LUYỆN PHÁT ÂM AI</Text>
             <Text style={[styles.headerSub, { color: theme.textMuted }]}>
-              Chấm điểm & Sửa lỗi Pinyin
+              Chấm điểm Pinyin, Phản xạ & Ngữ điệu câu
             </Text>
           </View>
 
           <View style={{ width: Layout.avatarMd }} />
+        </View>
+
+        {/* Mode Selector Chips */}
+        <View style={styles.modeChipsRow}>
+          {TRAINER_MODES.map((m) => {
+            const isSelected = trainerMode === m.key;
+            return (
+              <TouchableOpacity
+                key={m.key}
+                activeOpacity={0.75}
+                onPress={() => {
+                  triggerHaptic("selection");
+                  changeTrainerMode(m.key);
+                }}
+                style={[
+                  styles.modeChip,
+                  { backgroundColor: isSelected ? theme.green : theme.bgSoft },
+                ]}
+              >
+                <Ionicons
+                  name={m.icon}
+                  size={15}
+                  color={isSelected ? "#FFFFFF" : theme.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.modeChipText,
+                    { color: isSelected ? "#FFFFFF" : theme.textPrimary },
+                  ]}
+                >
+                  {m.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Progress Bar */}
@@ -124,7 +196,7 @@ function PronunciationTrainerModalInner({
               HOÀN THÀNH BÀI PHÁT ÂM!
             </Text>
             <Text style={[styles.doneSub, { color: theme.textMuted }]}>
-              Bạn đã hoàn thành 5 từ vựng luyện giọng nói với AI. Thêm 100 XP tích lũy!
+              Bạn đã hoàn thành 5 mục luyện giọng nói với AI. Thêm 100 XP tích lũy!
             </Text>
             <AppButton
               title="HOÀN THÀNH"
@@ -146,29 +218,56 @@ function PronunciationTrainerModalInner({
             >
               {/* Card Hero Box */}
               <View style={[styles.heroCard, { backgroundColor: theme.cardBg }]}>
-                <Text style={[styles.heroChar, { color: theme.textPrimary }]}>
-                  {currentCard.character}
-                </Text>
                 <Text
-                  style={[styles.heroPinyin, { color: getPinyinToneColor(currentCard.pinyin) }]}
+                  style={[
+                    isSentenceMode ? styles.heroSentenceChar : styles.heroChar,
+                    { color: theme.textPrimary },
+                  ]}
                 >
-                  {currentCard.pinyin}
+                  {displayHanzi}
                 </Text>
-                <Text style={[styles.heroMeaning, { color: theme.textMuted }]}>
-                  {currentCard.translation}
+
+                {hidePinyinAndAudio ? (
+                  <TouchableOpacity
+                    style={[styles.revealHintBtn, { backgroundColor: theme.bgSoft }]}
+                    onPress={() => {
+                      triggerHaptic("selection");
+                      setPinyinRevealed(true);
+                    }}
+                  >
+                    <Ionicons name="eye-outline" size={16} color={theme.blue} />
+                    <Text style={[styles.revealHintText, { color: theme.blue }]}>
+                      Đang ẩn Pinyin — Bấm nếu cần xem gợi ý
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text
+                    style={[
+                      styles.heroPinyin,
+                      { color: getPinyinToneColor(displayPinyin), textAlign: "center" },
+                    ]}
+                  >
+                    {displayPinyin}
+                  </Text>
+                )}
+
+                <Text style={[styles.heroMeaning, { color: theme.textMuted, textAlign: "center" }]}>
+                  {displayMeaning}
                 </Text>
 
                 {/* Listen Model Speaker */}
-                <View style={[styles.speakerBox, { backgroundColor: theme.bgSoft }]}>
-                  <AudioButton
-                    onPress={() => playTTS(currentCard.character)}
-                    isPlaying={speaking}
-                    size="md"
-                  />
-                  <Text style={[styles.speakerLabel, { color: theme.textMuted }]}>
-                    Bấm để nghe phát âm mẫu
-                  </Text>
-                </View>
+                {!hidePinyinAndAudio && (
+                  <View style={[styles.speakerBox, { backgroundColor: theme.bgSoft }]}>
+                    <AudioButton
+                      onPress={() => playTTS(displayHanzi)}
+                      isPlaying={speaking}
+                      size="md"
+                    />
+                    <Text style={[styles.speakerLabel, { color: theme.textMuted }]}>
+                      {isSentenceMode ? "Bấm để nghe câu mẫu" : "Bấm để nghe phát âm mẫu"}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* Mic Action Section */}
@@ -198,7 +297,9 @@ function PronunciationTrainerModalInner({
                     ? "Đang thu âm... Bấm dừng khi đọc xong"
                     : analyzing
                       ? "AI đang phân tích giọng nói..."
-                      : "Bấm Micro để bắt đầu đọc"}
+                      : isSentenceMode
+                        ? "Bấm Micro và đọc trôi chảy cả câu"
+                        : "Bấm Micro để bắt đầu đọc"}
                 </Text>
               </View>
             </ScrollView>
@@ -336,6 +437,25 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: Typography.weight.semibold,
   },
+  modeChipsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.pageMargin,
+    marginBottom: Spacing.sm,
+  },
+  modeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: Radii.full,
+  },
+  modeChipText: {
+    fontSize: Typography.caption1.fontSize,
+    fontWeight: Typography.weight.extraBold,
+  },
   progressContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -365,6 +485,25 @@ const styles = StyleSheet.create({
   heroChar: {
     fontSize: Typography.hanziHero.fontSize,
     fontWeight: Typography.weight.extraBold,
+  },
+  heroSentenceChar: {
+    fontSize: Typography.title1.fontSize,
+    fontWeight: Typography.weight.extraBold,
+    textAlign: "center",
+    lineHeight: 36,
+  },
+  revealHintBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: Radii.full,
+    marginTop: Spacing.sm,
+  },
+  revealHintText: {
+    fontSize: Typography.caption1.fontSize,
+    fontWeight: Typography.weight.bold,
   },
   heroPinyin: {
     fontSize: Typography.titleMD.fontSize,

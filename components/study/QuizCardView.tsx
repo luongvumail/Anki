@@ -233,11 +233,7 @@ export function QuizCardView({ question, onAnswer, isFastRepairMode }: QuizCardV
                 {
                   backgroundColor: theme.cardBg,
                   color: theme.textPrimary,
-                  borderColor: isChecked
-                    ? isCorrect
-                      ? theme.green
-                      : theme.red
-                    : theme.blue,
+                  borderColor: isChecked ? (isCorrect ? theme.green : theme.red) : theme.blue,
                 },
               ]}
               placeholder={question.inputPlaceholder || "Nhập Chữ Hán hoặc Pinyin..."}
@@ -312,11 +308,19 @@ export function QuizCardView({ question, onAnswer, isFastRepairMode }: QuizCardV
                 </Text>
               </View>
 
-              <Animated.View style={{ transform: [{ scale: micPulseAnim }], marginVertical: Spacing.md }}>
+              <Animated.View
+                style={{ transform: [{ scale: micPulseAnim }], marginVertical: Spacing.md }}
+              >
                 <TouchableOpacity
                   style={[
                     styles.micCircleBtn,
-                    { backgroundColor: isRecording ? theme.red : analyzingSpeech ? theme.yellow : theme.green },
+                    {
+                      backgroundColor: isRecording
+                        ? theme.red
+                        : analyzingSpeech
+                          ? theme.yellow
+                          : theme.green,
+                    },
                   ]}
                   onPress={isRecording ? handleStopSpeaking : handleStartSpeaking}
                   disabled={isChecked || analyzingSpeech}
@@ -478,7 +482,12 @@ export function QuizCardView({ question, onAnswer, isFastRepairMode }: QuizCardV
                   </Text>
                 )}
                 {toneHint ? (
-                  <Text style={[styles.correctAnswerLabelText, { color: theme.blue, fontWeight: "700" }]}>
+                  <Text
+                    style={[
+                      styles.correctAnswerLabelText,
+                      { color: theme.blue, fontWeight: "700" },
+                    ]}
+                  >
                     💡 {toneHint}
                   </Text>
                 ) : null}

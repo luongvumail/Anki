@@ -107,7 +107,11 @@ export function getGeminiErrorMessage(error: unknown): string {
     return "Mô hình AI chưa sẵn sàng hoặc đang bảo trì. Vui lòng bấm thử lại.";
   }
 
-  if (msgLower.includes("api key") || msgLower.includes("unauthorized") || msgLower.includes("token")) {
+  if (
+    msgLower.includes("api key") ||
+    msgLower.includes("unauthorized") ||
+    msgLower.includes("token")
+  ) {
     return "Lỗi xác thực dịch vụ AI. Vui lòng kiểm tra lại cấu hình ứng dụng.";
   }
 
@@ -146,7 +150,11 @@ export function getDatabaseErrorMessage(error: unknown): string {
     return "Bạn không có quyền thực hiện thao tác này. Vui lòng đăng nhập lại.";
   }
 
-  if (message.includes("network") || message.includes("Failed to fetch") || message.includes("offline")) {
+  if (
+    message.includes("network") ||
+    message.includes("Failed to fetch") ||
+    message.includes("offline")
+  ) {
     return "Thiết bị đang ngoại tuyến. Vui lòng kiểm tra kết nối mạng.";
   }
 

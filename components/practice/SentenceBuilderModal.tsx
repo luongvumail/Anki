@@ -1,16 +1,16 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Modal,
-  ScrollView,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../../store/slices/types";
-import { Spacing, Radii, Typography, Layout, BorderWidths, triggerHaptic } from "../../constants/theme";
+import {
+  Spacing,
+  Radii,
+  Typography,
+  Layout,
+  BorderWidths,
+  triggerHaptic,
+} from "../../constants/theme";
 import { useTheme } from "../../hooks/useTheme";
 
 import { AudioButton } from "../ui/AudioButton";
@@ -24,11 +24,7 @@ export interface SentenceBuilderModalProps {
   cards: Card[];
 }
 
-export function SentenceBuilderModal({
-  visible,
-  onClose,
-  cards,
-}: SentenceBuilderModalProps) {
+export function SentenceBuilderModal({ visible, onClose, cards }: SentenceBuilderModalProps) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const {
@@ -59,7 +55,12 @@ export function SentenceBuilderModal({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={[styles.container, { paddingTop: Math.max(insets.top, Spacing.lg), backgroundColor: theme.bg }]}>
+      <View
+        style={[
+          styles.container,
+          { paddingTop: Math.max(insets.top, Spacing.lg), backgroundColor: theme.bg },
+        ]}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -74,7 +75,9 @@ export function SentenceBuilderModal({
 
           <View style={styles.headerTitleContainer}>
             <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>XẾP TỪ THÀNH CÂU</Text>
-            <Text style={[styles.headerSub, { color: theme.textMuted }]}>Rèn luyện ngữ pháp & phản xạ câu</Text>
+            <Text style={[styles.headerSub, { color: theme.textMuted }]}>
+              Rèn luyện ngữ pháp & phản xạ câu
+            </Text>
           </View>
 
           <View style={{ width: Layout.avatarMd }} />
@@ -90,14 +93,15 @@ export function SentenceBuilderModal({
           </Text>
         </View>
 
-
         {isDone ? (
           /* Completion Screen */
           <View style={styles.doneContainer}>
             <View style={[styles.doneIconCircle, { backgroundColor: theme.yellowDim }]}>
               <Ionicons name="trophy" size={Layout.fabSize} color={theme.yellow} />
             </View>
-            <Text style={[styles.doneTitle, { color: theme.textPrimary }]}>XUẤT SẮC! HOÀN THÀNH BÀI XẾP CÂU</Text>
+            <Text style={[styles.doneTitle, { color: theme.textPrimary }]}>
+              XUẤT SẮC! HOÀN THÀNH BÀI XẾP CÂU
+            </Text>
             <Text style={[styles.doneSub, { color: theme.textMuted }]}>
               Bạn đã xếp đúng các câu ví dụ mẫu. Thêm XP tích lũy vào tài khoản!
             </Text>
@@ -116,13 +120,22 @@ export function SentenceBuilderModal({
         ) : currentQuestion ? (
           /* Active Question Screen */
           <View style={{ flex: 1 }}>
-            <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              contentContainerStyle={styles.scrollBody}
+              showsVerticalScrollIndicator={false}
+            >
               {/* Vietnamese Meaning Prompt */}
               <View style={[styles.promptCard, { backgroundColor: theme.cardBg }]}>
-                <Text style={[styles.promptTitle, { color: theme.textMuted }]}>DỊCH CÂU SAU SANG TIẾNG TRUNG:</Text>
-                <Text style={[styles.promptVietnamese, { color: theme.textPrimary }]}>"{currentQuestion.vietnamese}"</Text>
+                <Text style={[styles.promptTitle, { color: theme.textMuted }]}>
+                  DỊCH CÂU SAU SANG TIẾNG TRUNG:
+                </Text>
+                <Text style={[styles.promptVietnamese, { color: theme.textPrimary }]}>
+                  "{currentQuestion.vietnamese}"
+                </Text>
                 {currentQuestion.pinyin ? (
-                  <Text style={[styles.promptPinyin, { color: theme.blue }]}>{currentQuestion.pinyin}</Text>
+                  <Text style={[styles.promptPinyin, { color: theme.blue }]}>
+                    {currentQuestion.pinyin}
+                  </Text>
                 ) : null}
               </View>
 
@@ -195,7 +208,6 @@ export function SentenceBuilderModal({
                   })}
                 </View>
               </View>
-
             </ScrollView>
 
             {/* Bottom Footer Actions */}
@@ -225,10 +237,7 @@ export function SentenceBuilderModal({
                       color={isCorrect ? theme.green : theme.red}
                     />
                     <Text
-                      style={[
-                        styles.resultTitle,
-                        { color: isCorrect ? theme.green : theme.red },
-                      ]}
+                      style={[styles.resultTitle, { color: isCorrect ? theme.green : theme.red }]}
                     >
                       {isCorrect ? "CHÍNH XÁC! CÂU ĐÚNG NGHỮ PHÁP." : "CHƯA CHÍNH XÁC!"}
                     </Text>
@@ -236,7 +245,10 @@ export function SentenceBuilderModal({
                   </View>
                   {!isCorrect ? (
                     <Text style={[styles.correctAnswerText, { color: theme.textMuted }]}>
-                      Đáp án đúng: <Text style={{ color: theme.textPrimary, fontWeight: "800" }}>{currentQuestion.chinese}</Text>
+                      Đáp án đúng:{" "}
+                      <Text style={{ color: theme.textPrimary, fontWeight: "800" }}>
+                        {currentQuestion.chinese}
+                      </Text>
                     </Text>
                   ) : null}
                   <AppButton

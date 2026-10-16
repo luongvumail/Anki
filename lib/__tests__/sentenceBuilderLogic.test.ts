@@ -5,9 +5,7 @@ function assertStrictEqual<T>(actual: T, expected: T, message?: string) {
 }
 
 function cleanChineseSentence(sentence: string): string {
-  return sentence
-    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()!?！。，？"']/g, "")
-    .replace(/\s+/g, "");
+  return sentence.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()!?！。，？"']/g, "").replace(/\s+/g, "");
 }
 
 export function runSentenceBuilderLogicTests() {

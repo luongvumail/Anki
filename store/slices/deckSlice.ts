@@ -47,7 +47,10 @@ export const createDeckSlice: StateCreator<DeckSlice & UISlice & CardSlice, [], 
         }
 
         // Fallback: If view query fails or view doesn't exist, query standard decks table directly
-        console.warn("[fetchDecks] deck_with_stats view query failed, falling back to decks table:", primaryRes.error?.message);
+        console.warn(
+          "[fetchDecks] deck_with_stats view query failed, falling back to decks table:",
+          primaryRes.error?.message,
+        );
         return supabase
           .from("decks")
           .select("*")

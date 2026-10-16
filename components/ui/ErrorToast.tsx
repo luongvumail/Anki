@@ -1,7 +1,15 @@
 import React, { useEffect, useRef } from "react";
 import { Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Radii, Spacing, Typography, Layout, BorderWidths, Animations, triggerHaptic } from "../../constants/theme";
+import {
+  Radii,
+  Spacing,
+  Typography,
+  Layout,
+  BorderWidths,
+  Animations,
+  triggerHaptic,
+} from "../../constants/theme";
 import { useTheme } from "../../hooks/useTheme";
 
 export interface ErrorToastProps {
@@ -64,7 +72,10 @@ export const ErrorToast = React.memo(function ErrorToast({
       </Text>
 
       {onRetry && (
-        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: theme.red }]} onPress={onRetry}>
+        <TouchableOpacity
+          style={[styles.retryBtn, { backgroundColor: theme.red }]}
+          onPress={onRetry}
+        >
           <Text style={styles.retryText}>THỬ LẠI</Text>
         </TouchableOpacity>
       )}

@@ -47,7 +47,8 @@ export function runAIParserTests() {
   assertStrictEqual(res1[0].character, "你好");
 
   // Test 2: JSON wrapped in ```json ... ``` markdown
-  const raw2 = 'Here is the generated flashcard:\n```json\n[{"character": "谢谢", "pinyin": "xièxie", "translation": "Cảm ơn"}]\n```\nHope it helps!';
+  const raw2 =
+    'Here is the generated flashcard:\n```json\n[{"character": "谢谢", "pinyin": "xièxie", "translation": "Cảm ơn"}]\n```\nHope it helps!';
   const res2 = extractJsonFromAIResponse(raw2);
   assertStrictEqual(res2.length, 1);
   assertStrictEqual(res2[0].character, "谢谢");

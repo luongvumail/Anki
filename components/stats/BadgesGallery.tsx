@@ -14,7 +14,10 @@ interface BadgesGalleryProps {
   learnedCards?: number;
 }
 
-export function BadgesGallery({ streakCount: propStreak, learnedCards: propLearned }: BadgesGalleryProps) {
+export function BadgesGallery({
+  streakCount: propStreak,
+  learnedCards: propLearned,
+}: BadgesGalleryProps) {
   const { theme } = useTheme();
   const unlockedBadgeIds = useStore((s) => s.unlockedBadgeIds || []);
   const checkAndUnlockBadges = useStore((s) => s.checkAndUnlockBadges);
@@ -113,7 +116,6 @@ export function BadgesGallery({ streakCount: propStreak, learnedCards: propLearn
                 </Text>
               </View>
             </AppCard>
-
           );
         })}
       </ScrollView>
@@ -159,4 +161,3 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.extraBold,
   },
 });
-

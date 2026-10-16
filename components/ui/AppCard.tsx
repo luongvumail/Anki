@@ -95,7 +95,6 @@ export function AppCard({
   );
 }
 
-
 const styles = StyleSheet.create({
   cardBase: {
     width: "100%",

@@ -1,14 +1,17 @@
-import React from 'react';
-import { Text, StyleSheet, TextStyle } from 'react-native';
-import { Typography, Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/useTheme';
+import React from "react";
+import { Text, StyleSheet, TextStyle } from "react-native";
+import { Typography, Spacing } from "../../constants/theme";
+import { useTheme } from "../../hooks/useTheme";
 
 interface SectionTitleProps {
   children: React.ReactNode;
   style?: TextStyle;
 }
 
-export const SectionTitle = React.memo(function SectionTitle({ children, style }: SectionTitleProps) {
+export const SectionTitle = React.memo(function SectionTitle({
+  children,
+  style,
+}: SectionTitleProps) {
   const { theme } = useTheme();
   return <Text style={[styles.title, { color: theme.textMuted }, style]}>{children}</Text>;
 });

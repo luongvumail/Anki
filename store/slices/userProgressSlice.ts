@@ -24,7 +24,12 @@ async function syncProgressToSupabase(userId: string, xp: number, unlockedBadgeI
   }
 }
 
-export const createUserProgressSlice: StateCreator<UserProgressState & AuthSlice, [], [], UserProgressState> = (set, get) => ({
+export const createUserProgressSlice: StateCreator<
+  UserProgressState & AuthSlice,
+  [],
+  [],
+  UserProgressState
+> = (set, get) => ({
   xp: 0,
   unlockedBadgeIds: [],
 
@@ -69,7 +74,10 @@ export const createUserProgressSlice: StateCreator<UserProgressState & AuthSlice
 
       set({ xp, unlockedBadgeIds });
       await AsyncStorage.setItem(`${ASYNC_KEY_XP}_${user.id}`, xp.toString());
-      await AsyncStorage.setItem(`${ASYNC_KEY_BADGES}_${user.id}`, JSON.stringify(unlockedBadgeIds));
+      await AsyncStorage.setItem(
+        `${ASYNC_KEY_BADGES}_${user.id}`,
+        JSON.stringify(unlockedBadgeIds),
+      );
     } catch (err) {
       console.warn("[userProgressSlice] fetchUserProgress failed:", err);
     }

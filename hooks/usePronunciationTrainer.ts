@@ -193,22 +193,16 @@ export function usePronunciationTrainer(visible: boolean, cards: Card[]) {
         currentCard.examples.length > 0 &&
         Boolean(currentCard.examples[0].chinese);
 
-      const rawTargetText = isSentence
-        ? currentCard.examples![0].chinese
-        : currentCard.character;
+      const rawTargetText = isSentence ? currentCard.examples![0].chinese : currentCard.character;
       const rawTargetPinyin = isSentence
         ? currentCard.examples![0].pinyin || currentCard.pinyin
         : currentCard.pinyin;
 
-      const targetChar = rawTargetText
-        .trim()
-        .replace(/[.,/#!$%^&*;:{}=\-_`~()!?！。，？"']/g, "");
+      const targetChar = rawTargetText.trim().replace(/[.,/#!$%^&*;:{}=\-_`~()!?！。，？"']/g, "");
       const normalizedTarget = targetChar.replace(/\s+/g, "");
       const targetPinyinClean = stripDiacritics(rawTargetPinyin || "");
 
-      const cleanSpoken = spokenText
-        .trim()
-        .replace(/[.,/#!$%^&*;:{}=\-_`~()!?！。，？"']/g, "");
+      const cleanSpoken = spokenText.trim().replace(/[.,/#!$%^&*;:{}=\-_`~()!?！。，？"']/g, "");
       const normalizedSpoken = cleanSpoken.replace(/\s+/g, "");
       const spokenPinyinClean = stripDiacritics(cleanSpoken);
 

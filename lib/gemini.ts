@@ -5,11 +5,10 @@ const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const CANDIDATE_MODELS = [
+  "gemini-3.8-flash",
   "gemini-3.7-flash",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
-  "gemini-2.5-flash",
-  "gemini-1.5-flash",
 ];
 
 /**
@@ -66,7 +65,9 @@ async function generateWithModels(
           }
         }
 
-        const result = inlineImage ? await model.generateContent(parts) : await model.generateContent(prompt);
+        const result = inlineImage
+          ? await model.generateContent(parts)
+          : await model.generateContent(prompt);
         const text = result.response.text();
         if (__DEV__) console.log(`[Gemini] Success using model: ${modelName}`);
         return text;

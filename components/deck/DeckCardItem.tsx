@@ -22,7 +22,10 @@ interface DeckCardItemProps {
   onDelete: (deckId: string, name: string) => void;
 }
 
-export const DeckCardItem = React.memo(function DeckCardItem({ itemStats, onDelete }: DeckCardItemProps) {
+export const DeckCardItem = React.memo(function DeckCardItem({
+  itemStats,
+  onDelete,
+}: DeckCardItemProps) {
   const { deck, total, due, masteryPct } = itemStats;
   const { theme } = useTheme();
 
@@ -87,7 +90,6 @@ export const DeckCardItem = React.memo(function DeckCardItem({ itemStats, onDele
   );
 });
 
-
 const styles = StyleSheet.create({
   deckCardItem: { padding: Spacing.md, marginBottom: Spacing.cellPadding },
   deckHeaderRow: { flexDirection: "row", alignItems: "center", gap: Spacing.md },
@@ -100,10 +102,26 @@ const styles = StyleSheet.create({
   },
   deckMainTitleBox: { flex: 1 },
   titleChevronRow: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
-  deckTitle: { fontSize: Typography.bodyLG.fontSize, fontWeight: Typography.weight.extraBold, flexShrink: 1 },
-  deckCardCountText: { fontSize: Typography.caption.fontSize, marginTop: 2, fontWeight: Typography.weight.semibold },
+  deckTitle: {
+    fontSize: Typography.bodyLG.fontSize,
+    fontWeight: Typography.weight.extraBold,
+    flexShrink: 1,
+  },
+  deckCardCountText: {
+    fontSize: Typography.caption.fontSize,
+    marginTop: 2,
+    fontWeight: Typography.weight.semibold,
+  },
   deleteBtn: { padding: Spacing.xs },
   deckDesc: { fontSize: Typography.caption.fontSize, marginTop: Spacing.xs, lineHeight: 17 },
-  masteryBarRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginTop: Spacing.md },
-  masteryPctText: { fontSize: Typography.caption2.fontSize, fontWeight: Typography.weight.extraBold },
+  masteryBarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  masteryPctText: {
+    fontSize: Typography.caption2.fontSize,
+    fontWeight: Typography.weight.extraBold,
+  },
 });

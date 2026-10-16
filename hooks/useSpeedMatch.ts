@@ -49,62 +49,59 @@ export function useSpeedMatch(visible: boolean, cards: Card[]) {
     });
   }, []);
 
-  const generateTiles = useCallback(
-    (availableCards: Card[], selectedMode: SpeedMatchMode) => {
-      if (availableCards.length < 2) return [];
-      const topCandidates = selectCardsByFSRSPriority(availableCards, 18);
-      const pool = shuffleArray(topCandidates).slice(0, 6);
+  const generateTiles = useCallback((availableCards: Card[], selectedMode: SpeedMatchMode) => {
+    if (availableCards.length < 2) return [];
+    const topCandidates = selectCardsByFSRSPriority(availableCards, 18);
+    const pool = shuffleArray(topCandidates).slice(0, 6);
 
-      // Determine the active sub-mode for this round
-      let activeMode: SpeedMatchMode = selectedMode;
-      if (selectedMode === "mixed") {
-        const subModes: SpeedMatchMode[] = ["hanzi_meaning", "hanzi_pinyin", "pinyin_meaning"];
-        activeMode = subModes[Math.floor(Math.random() * subModes.length)];
+    // Determine the active sub-mode for this round
+    let activeMode: SpeedMatchMode = selectedMode;
+    if (selectedMode === "mixed") {
+      const subModes: SpeedMatchMode[] = ["hanzi_meaning", "hanzi_pinyin", "pinyin_meaning"];
+      activeMode = subModes[Math.floor(Math.random() * subModes.length)];
+    }
+    setCurrentRoundMode(activeMode);
+
+    const generated: MatchTile[] = [];
+    pool.forEach((card) => {
+      let leftText = card.character;
+      let leftSub = "";
+      let rightText = card.translation;
+      let rightSub = "";
+
+      if (activeMode === "hanzi_pinyin") {
+        leftText = card.character;
+        rightText = card.pinyin || card.character;
+      } else if (activeMode === "pinyin_meaning") {
+        leftText = card.pinyin || card.character;
+        rightText = card.translation;
+      } else {
+        // hanzi_meaning
+        leftText = card.character;
+        rightText = card.translation;
       }
-      setCurrentRoundMode(activeMode);
 
-      const generated: MatchTile[] = [];
-      pool.forEach((card) => {
-        let leftText = card.character;
-        let leftSub = "";
-        let rightText = card.translation;
-        let rightSub = "";
-
-        if (activeMode === "hanzi_pinyin") {
-          leftText = card.character;
-          rightText = card.pinyin || card.character;
-        } else if (activeMode === "pinyin_meaning") {
-          leftText = card.pinyin || card.character;
-          rightText = card.translation;
-        } else {
-          // hanzi_meaning
-          leftText = card.character;
-          rightText = card.translation;
-        }
-
-        generated.push({
-          id: `l_${card.id}`,
-          cardId: card.id,
-          type: "left",
-          text: leftText,
-          subText: leftSub || undefined,
-          matched: false,
-        });
-
-        generated.push({
-          id: `r_${card.id}`,
-          cardId: card.id,
-          type: "right",
-          text: rightText,
-          subText: rightSub || undefined,
-          matched: false,
-        });
+      generated.push({
+        id: `l_${card.id}`,
+        cardId: card.id,
+        type: "left",
+        text: leftText,
+        subText: leftSub || undefined,
+        matched: false,
       });
 
-      return shuffleArray(generated);
-    },
-    [],
-  );
+      generated.push({
+        id: `r_${card.id}`,
+        cardId: card.id,
+        type: "right",
+        text: rightText,
+        subText: rightSub || undefined,
+        matched: false,
+      });
+    });
+
+    return shuffleArray(generated);
+  }, []);
 
   const startGame = useCallback(() => {
     if (cards.length < 2) return;
@@ -176,9 +173,7 @@ export function useSpeedMatch(visible: boolean, cards: Card[]) {
         recordReviewToday();
 
         setTiles((prev) => {
-          const updated = prev.map((t) =>
-            t.cardId === tile.cardId ? { ...t, matched: true } : t,
-          );
+          const updated = prev.map((t) => (t.cardId === tile.cardId ? { ...t, matched: true } : t));
           // Check if all tiles in current round are matched -> spawn new tiles!
           const remaining = updated.filter((t) => !t.matched);
           if (remaining.length === 0) {

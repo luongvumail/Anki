@@ -23,7 +23,10 @@ export function useStudySession(deckId: string) {
   );
 
   const isCardsLoaded = Boolean(deckId && cardsMap[deckId] !== undefined);
-  const deckCards: Card[] = useMemo(() => (deckId ? cardsMap[deckId] || [] : []), [cardsMap, deckId]);
+  const deckCards: Card[] = useMemo(
+    () => (deckId ? cardsMap[deckId] || [] : []),
+    [cardsMap, deckId],
+  );
 
   const [session, setSession] = useState<StudySession | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -227,13 +230,7 @@ export function useStudySession(deckId: string) {
       const updatedQuestions = [...questions];
 
       if (!isCorrect) {
-        const nextQuestion = generateQuizQuestion(
-          card,
-          deckCards,
-          undefined,
-          weakTag,
-          currIdx + 1,
-        );
+        const nextQuestion = generateQuizQuestion(card, deckCards, undefined, weakTag, currIdx + 1);
         if (nextQuestion) {
           const targetPos = Math.min(updatedQuestions.length, currIdx + 3);
           updatedQuestions.splice(targetPos, 0, nextQuestion);

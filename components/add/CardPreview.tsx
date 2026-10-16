@@ -1,11 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { CardData } from "../../lib/gemini";
 import { Typography, Spacing, Radii, Layout, BorderWidths } from "../../constants/theme";
 import { useTheme } from "../../hooks/useTheme";
@@ -82,9 +76,13 @@ export const CardPreview = React.memo(function CardPreview({
       >
         {/* Hanzi Header */}
         <View style={[styles.previewTop, { borderBottomColor: theme.cardBorder }]}>
-          <Text style={[styles.characterBig, { color: theme.textPrimary }]}>{cardData.character}</Text>
+          <Text style={[styles.characterBig, { color: theme.textPrimary }]}>
+            {cardData.character}
+          </Text>
           {cardData.traditional && cardData.traditional !== cardData.character && (
-            <Text style={[styles.traditional, { color: theme.textMuted }]}>{cardData.traditional} (phồn thể)</Text>
+            <Text style={[styles.traditional, { color: theme.textMuted }]}>
+              {cardData.traditional} (phồn thể)
+            </Text>
           )}
         </View>
 
@@ -92,7 +90,9 @@ export const CardPreview = React.memo(function CardPreview({
         <View style={styles.previewRows}>
           <InfoRow label="Pinyin" value={cardData.pinyin} color={theme.blue} />
           <InfoRow label="Nghĩa TV" value={cardData.translation} />
-          {cardData.hskLevel ? <InfoRow label="Cấp HSK" value={`HSK ${cardData.hskLevel}`} /> : null}
+          {cardData.hskLevel ? (
+            <InfoRow label="Cấp HSK" value={`HSK ${cardData.hskLevel}`} />
+          ) : null}
           {cardData.radical ? <InfoRow label="Bộ thủ" value={cardData.radical} /> : null}
           {cardData.strokeCount ? (
             <InfoRow label="Số nét" value={`${cardData.strokeCount} nét`} />
@@ -115,7 +115,13 @@ export const CardPreview = React.memo(function CardPreview({
 
         {onSave && (
           <AppButton
-            title={saving ? "ĐANG LƯU..." : saved ? "ĐÃ LƯU ✓" : `LƯU VÀO BỘ ${targetDeckName ? `"${targetDeckName}"` : ""}`}
+            title={
+              saving
+                ? "ĐANG LƯU..."
+                : saved
+                  ? "ĐÃ LƯU ✓"
+                  : `LƯU VÀO BỘ ${targetDeckName ? `"${targetDeckName}"` : ""}`
+            }
             variant={saved ? "success" : "primary"}
             size="lg"
             disabled={saving || saved}

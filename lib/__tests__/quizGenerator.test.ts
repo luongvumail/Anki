@@ -26,7 +26,9 @@ const mockCard1: Card = {
   character: "猫",
   pinyin: "māo",
   translation: "Con mèo",
-  examples: [{ chinese: "我有一只猫。", pinyin: "wǒ yǒu yī zhī māo.", vietnamese: "Tôi có một con mèo." }],
+  examples: [
+    { chinese: "我有一只猫。", pinyin: "wǒ yǒu yī zhī māo.", vietnamese: "Tôi có một con mèo." },
+  ],
   srs: { ...createDefaultSRSState(), state: FSRSState.New },
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -38,7 +40,9 @@ const mockCard2: Card = {
   character: "狗",
   pinyin: "gǒu",
   translation: "Con chó",
-  examples: [{ chinese: "这是一只狗。", pinyin: "zhè shì yī zhī gǒu.", vietnamese: "Đây là một con chó." }],
+  examples: [
+    { chinese: "这是一只狗。", pinyin: "zhè shì yī zhī gǒu.", vietnamese: "Đây là một con chó." },
+  ],
   srs: { ...createDefaultSRSState(), state: FSRSState.Learning },
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -50,7 +54,9 @@ const mockCard3: Card = {
   character: "喝水",
   pinyin: "hē shuǐ",
   translation: "Uống nước",
-  examples: [{ chinese: "我想喝水。", pinyin: "wǒ xiǎng hē shuǐ.", vietnamese: "Tôi muốn uống nước." }],
+  examples: [
+    { chinese: "我想喝水。", pinyin: "wǒ xiǎng hē shuǐ.", vietnamese: "Tôi muốn uống nước." },
+  ],
   srs: { ...createDefaultSRSState(), state: FSRSState.Review, repetitions: 3 },
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
@@ -135,4 +141,3 @@ export function runQuizGeneratorTests() {
   const qSpeaking = generateQuizQuestion(mockCard2, allCards, "speaking_check");
   assertStrictEqual(qSpeaking.interactionMode, "speaking");
 }
-

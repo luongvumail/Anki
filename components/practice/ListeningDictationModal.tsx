@@ -13,13 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Speech from "expo-speech";
 import { Card } from "../../store/slices/types";
-import {
-  Spacing,
-  Radii,
-  Typography,
-  Layout,
-  triggerHaptic,
-} from "../../constants/theme";
+import { Spacing, Radii, Typography, Layout, triggerHaptic } from "../../constants/theme";
 import { APP_CONFIG } from "../../constants/config";
 import { useTheme } from "../../hooks/useTheme";
 import { AppButton } from "../ui/AppButton";
@@ -43,11 +37,7 @@ export interface ListeningDictationModalProps {
 
 type DictationMode = "word" | "sentence";
 
-export function ListeningDictationModal({
-  visible,
-  onClose,
-  cards,
-}: ListeningDictationModalProps) {
+export function ListeningDictationModal({ visible, onClose, cards }: ListeningDictationModalProps) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
 
@@ -330,7 +320,8 @@ export function ListeningDictationModal({
               HOÀN THÀNH NGHE CHÉP CHÍNH TẢ!
             </Text>
             <Text style={[styles.doneSub, { color: theme.textMuted }]}>
-              Bạn đã nghe và gõ đúng {correctCount}/{queue.length} câu. Kỹ năng phản xạ nghe của bạn đang tiến bộ vượt bậc!
+              Bạn đã nghe và gõ đúng {correctCount}/{queue.length} câu. Kỹ năng phản xạ nghe của bạn
+              đang tiến bộ vượt bậc!
             </Text>
             <AppButton
               title="LUYỆN LẠI LƯỢT MỚI"
@@ -380,10 +371,7 @@ export function ListeningDictationModal({
                     color={speakingSlow ? "#FFFFFF" : theme.purple}
                   />
                   <Text
-                    style={[
-                      styles.slowBtnText,
-                      { color: speakingSlow ? "#FFFFFF" : theme.purple },
-                    ]}
+                    style={[styles.slowBtnText, { color: speakingSlow ? "#FFFFFF" : theme.purple }]}
                   >
                     0.5x Chậm
                   </Text>
@@ -419,11 +407,7 @@ export function ListeningDictationModal({
                 {
                   backgroundColor: theme.cardBg,
                   color: theme.textPrimary,
-                  borderColor: isChecked
-                    ? isCorrect
-                      ? theme.green
-                      : theme.red
-                    : theme.purple,
+                  borderColor: isChecked ? (isCorrect ? theme.green : theme.red) : theme.purple,
                 },
               ]}
               placeholder="Gõ Chữ Hán hoặc Pinyin bạn nghe được..."
@@ -496,9 +480,7 @@ export function ListeningDictationModal({
                   <Text style={[styles.answerHanzi, { color: theme.textPrimary }]}>
                     {targetHanzi}
                   </Text>
-                  <Text
-                    style={[styles.answerPinyin, { color: getPinyinToneColor(targetPinyin) }]}
-                  >
+                  <Text style={[styles.answerPinyin, { color: getPinyinToneColor(targetPinyin) }]}>
                     {targetPinyin}
                   </Text>
                   <Text style={[styles.answerMeaning, { color: theme.textMuted }]}>
@@ -712,4 +694,3 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
-

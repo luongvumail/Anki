@@ -167,7 +167,6 @@ export function AppButton({
   );
 }
 
-
 const styles = StyleSheet.create({
   buttonBase: {
     width: "100%",

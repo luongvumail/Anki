@@ -20,9 +20,9 @@ import { APP_CONFIG } from "../constants/config";
 // ----------------------------------------------------------------
 export const SRS_GRADES = {
   AGAIN: 1, // Quên / Trả lời sai — reset stability, tăng difficulty
-  HARD: 2,  // Khó / Phản xạ chậm (>5s) — stability tăng nhẹ
-  GOOD: 3,  // Tốt / Phản xạ vừa (2.5s - 5s) — stability tăng chuẩn FSRS
-  EASY: 4,  // Dễ / Phản xạ nhanh (<=2.5s) — stability tăng đột phá
+  HARD: 2, // Khó / Phản xạ chậm (>5s) — stability tăng nhẹ
+  GOOD: 3, // Tốt / Phản xạ vừa (2.5s - 5s) — stability tăng chuẩn FSRS
+  EASY: 4, // Dễ / Phản xạ nhanh (<=2.5s) — stability tăng đột phá
 } as const;
 
 export type SRSGrade = (typeof SRS_GRADES)[keyof typeof SRS_GRADES];
@@ -58,12 +58,10 @@ export interface SRSState {
 // ----------------------------------------------------------------
 export const FSRS_DEFAULT_PARAMS = {
   w: [
-    0.4025, 1.1838, 3.173, 15.691,
-    7.1949, 0.5345, 1.4604, 0.0046,
-    1.5457, 0.1192, 1.0192, 1.9395,
+    0.4025, 1.1838, 3.173, 15.691, 7.1949, 0.5345, 1.4604, 0.0046, 1.5457, 0.1192, 1.0192, 1.9395,
     0.11, 0.296, 2.2698, 0.2315, 2.9898,
   ],
-  requestRetention: 0.90, // Target 90% memory retention rate
+  requestRetention: 0.9, // Target 90% memory retention rate
   maximumInterval: 36500, // Max 100 years
 } as const;
 
@@ -146,9 +144,7 @@ export function calculateSRS(grade: SRSGrade, currentInput?: Partial<SRSState>):
   }
 
   const retrievability =
-    current.state === FSRSState.New
-      ? 1.0
-      : calculateRetrievability(elapsedDays, current.stability);
+    current.state === FSRSState.New ? 1.0 : calculateRetrievability(elapsedDays, current.stability);
 
   let newStability: number;
   let newDifficulty: number;

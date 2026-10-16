@@ -111,7 +111,6 @@ export function SessionDoneScreen({ session, onDone }: SessionDoneScreenProps) {
           onPress={onDone}
           style={{ marginTop: Spacing.lg }}
         />
-
       </Animated.View>
     </View>
   );

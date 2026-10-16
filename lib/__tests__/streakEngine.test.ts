@@ -14,7 +14,10 @@ function getLocalDateString(d: Date = new Date()): string {
 /**
  * Pure streak calculator simulating the logic in reviewTracker
  */
-function calculateStreakFromHistory(history: Record<string, number>, referenceDate: Date = new Date()): number {
+function calculateStreakFromHistory(
+  history: Record<string, number>,
+  referenceDate: Date = new Date(),
+): number {
   let streak = 0;
   for (let i = 0; i < 365; i++) {
     const d = new Date(referenceDate);
@@ -51,7 +54,11 @@ export function runStreakEngineTests() {
   assertStrictEqual(calculateStreakFromHistory({}), 0, "Empty history must yield 0 streak");
 
   // Test 2: Reviewed today only -> 1 streak
-  assertStrictEqual(calculateStreakFromHistory({ [todayStr]: 5 }), 1, "Reviewed today should be 1 streak");
+  assertStrictEqual(
+    calculateStreakFromHistory({ [todayStr]: 5 }),
+    1,
+    "Reviewed today should be 1 streak",
+  );
 
   // Test 3: Reviewed 3 consecutive days (today + yesterday + 2 days ago) -> 3 streak
   assertStrictEqual(

@@ -16,8 +16,26 @@ export interface ExampleQuestion {
 }
 
 const DISTRACTOR_WORDS = [
-  "的", "了", "在", "是", "我", "有", "和", "就", "不", "人",
-  "很", "也", "要", "会", "到", "说", "去", "你", "会", "好",
+  "的",
+  "了",
+  "在",
+  "是",
+  "我",
+  "有",
+  "和",
+  "就",
+  "不",
+  "人",
+  "很",
+  "也",
+  "要",
+  "会",
+  "到",
+  "说",
+  "去",
+  "你",
+  "会",
+  "好",
 ];
 
 function segmentChineseSentence(sentence: string): string[] {
@@ -74,7 +92,7 @@ export function useSentenceBuilder(visible: boolean, cards: Card[]) {
   useEffect(() => {
     if (visible && !prevVisibleRef.current && cards.length > 0) {
       const valid = cards.filter(
-        (c) => c.examples && c.examples.length > 0 && c.examples[0].chinese
+        (c) => c.examples && c.examples.length > 0 && c.examples[0].chinese,
       );
 
       const qs: ExampleQuestion[] = selectCardsByFSRSPriority(valid, 5).map((card) => {
@@ -109,7 +127,7 @@ export function useSentenceBuilder(visible: boolean, cards: Card[]) {
         return [...prev, item];
       });
     },
-    [isSubmitted]
+    [isSubmitted],
   );
 
   const handleRemoveWord = useCallback(
@@ -118,9 +136,8 @@ export function useSentenceBuilder(visible: boolean, cards: Card[]) {
       triggerHaptic("selection");
       setUserSentence((prev) => prev.filter((w) => w.id !== item.id));
     },
-    [isSubmitted]
+    [isSubmitted],
   );
-
 
   const playTTS = useCallback((text: string) => {
     if (!text) return;

@@ -1,11 +1,5 @@
 import React, { useRef, useState } from "react";
-import {
-  StyleSheet,
-  View,
-  Animated,
-  PanResponder,
-  Dimensions,
-} from "react-native";
+import { StyleSheet, View, Animated, PanResponder, Dimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Radii, Layout, Spacing, Animations } from "../../constants/theme";
@@ -24,7 +18,8 @@ export function FloatingAddButton({ onPress, bottomOffset }: FloatingAddButtonPr
   const { theme } = useTheme();
   const [pressed, setPressed] = useState(false);
 
-  const defaultBottom = bottomOffset !== undefined ? bottomOffset : Math.max(insets.bottom + 65, 80);
+  const defaultBottom =
+    bottomOffset !== undefined ? bottomOffset : Math.max(insets.bottom + 65, 80);
   const defaultY = SCREEN_HEIGHT - defaultBottom - FAB_SIZE;
   const defaultX = SCREEN_WIDTH - Spacing.lg - FAB_SIZE;
 
@@ -57,8 +52,14 @@ export function FloatingAddButton({ onPress, bottomOffset }: FloatingAddButtonPr
           const rawX = lastPos.current.x + gestureState.dx;
           const rawY = lastPos.current.y + gestureState.dy;
 
-          const clampedX = Math.max(Spacing.md, Math.min(SCREEN_WIDTH - FAB_SIZE - Spacing.md, rawX));
-          const clampedY = Math.max(insets.top + Spacing.sm, Math.min(SCREEN_HEIGHT - insets.bottom - FAB_SIZE - Spacing.xl, rawY));
+          const clampedX = Math.max(
+            Spacing.md,
+            Math.min(SCREEN_WIDTH - FAB_SIZE - Spacing.md, rawX),
+          );
+          const clampedY = Math.max(
+            insets.top + Spacing.sm,
+            Math.min(SCREEN_HEIGHT - insets.bottom - FAB_SIZE - Spacing.xl, rawY),
+          );
 
           lastPos.current = { x: clampedX, y: clampedY };
 
@@ -73,7 +74,7 @@ export function FloatingAddButton({ onPress, bottomOffset }: FloatingAddButtonPr
       onPanResponderTerminate: () => {
         setPressed(false);
       },
-    })
+    }),
   ).current;
 
   return (

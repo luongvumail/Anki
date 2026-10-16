@@ -7,7 +7,11 @@ function assertStrictEqual<T>(actual: T, expected: T, message?: string) {
   }
 }
 
-function findExistingCard(cardsState: Record<string, Card[]>, character: string, deckId?: string): Card | undefined {
+function findExistingCard(
+  cardsState: Record<string, Card[]>,
+  character: string,
+  deckId?: string,
+): Card | undefined {
   const q = character.trim().toLowerCase();
   if (!q) return undefined;
   if (deckId && cardsState[deckId]) {
@@ -71,7 +75,11 @@ export function runCardSliceLogicTests() {
   assertStrictEqual(notFound, undefined, "Non-existent character must return undefined");
 
   // Test 5: Empty query returns undefined
-  assertStrictEqual(findExistingCard(mockCardsState, "   "), undefined, "Empty query must return undefined");
+  assertStrictEqual(
+    findExistingCard(mockCardsState, "   "),
+    undefined,
+    "Empty query must return undefined",
+  );
 
   // Test 6: Simulating optimistic update for unloaded deck (does not pollute cache with partial array)
   const initialDecks = [
@@ -93,9 +101,21 @@ export function runCardSliceLogicTests() {
   );
 
   const updatedUnloadedDeck = updatedDecks.find((d) => d.id === "deck_unloaded");
-  assertStrictEqual(updatedUnloadedDeck?.cardCount, 13, "Total card count should increment by inserted count (10 + 3 = 13)");
-  assertStrictEqual(updatedUnloadedDeck?.dueCount, 7, "Due count should increment by inserted count (4 + 3 = 7)");
-  assertStrictEqual(updatedUnloadedDeck?.newCount, 7, "New count should increment by inserted count (4 + 3 = 7)");
+  assertStrictEqual(
+    updatedUnloadedDeck?.cardCount,
+    13,
+    "Total card count should increment by inserted count (10 + 3 = 13)",
+  );
+  assertStrictEqual(
+    updatedUnloadedDeck?.dueCount,
+    7,
+    "Due count should increment by inserted count (4 + 3 = 7)",
+  );
+  assertStrictEqual(
+    updatedUnloadedDeck?.newCount,
+    7,
+    "New count should increment by inserted count (4 + 3 = 7)",
+  );
 
   // Test 7: Total card count aggregation across loaded and unloaded decks
   const cardsCache: Record<string, Card[]> = {
@@ -105,7 +125,11 @@ export function runCardSliceLogicTests() {
     const deckCards = cardsCache[d.id];
     return sum + (deckCards ? deckCards.length : d.cardCount || 0);
   }, 0);
-  assertStrictEqual(aggregatedTotal, 14, "Aggregated total should be 1 (deck_1 loaded) + 13 (deck_unloaded) = 14");
+  assertStrictEqual(
+    aggregatedTotal,
+    14,
+    "Aggregated total should be 1 (deck_1 loaded) + 13 (deck_unloaded) = 14",
+  );
 
   // Test 8: AI Image/Text Vocabulary Deduplication against entire database + intra-batch duplicates
   const existingDbChars = new Set<string>(["苹果", "香蕉", "學習"]);
@@ -143,6 +167,14 @@ export function runCardSliceLogicTests() {
   }
 
   assertStrictEqual(uniqueCards.length, 2, "Should keep only 2 unique new words (西瓜, 草莓)");
-  assertStrictEqual(removedDuplicatesCount, 2, "Should detect 2 words already in database (苹果, 学习)");
-  assertStrictEqual(removedDatabaseWords.join(","), "苹果,学习", "Should list removed database duplicate words");
+  assertStrictEqual(
+    removedDuplicatesCount,
+    2,
+    "Should detect 2 words already in database (苹果, 学习)",
+  );
+  assertStrictEqual(
+    removedDatabaseWords.join(","),
+    "苹果,学习",
+    "Should list removed database duplicate words",
+  );
 }

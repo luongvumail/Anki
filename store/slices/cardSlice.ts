@@ -183,11 +183,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     });
 
     try {
-      const { data, error } = await supabase
-        .from("cards")
-        .insert(payload)
-        .select()
-        .single();
+      const { data, error } = await supabase.from("cards").insert(payload).select().single();
 
       if (error) throw error;
 
@@ -267,10 +263,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     });
 
     try {
-      const { data, error } = await supabase
-        .from("cards")
-        .insert(rowsToInsert)
-        .select();
+      const { data, error } = await supabase.from("cards").insert(rowsToInsert).select();
 
       if (error) throw error;
 
@@ -430,10 +423,11 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
       }
       flushOfflineQueue();
     } catch (err) {
-      console.error("[batchUpdateCards] Supabase batch update failed, queuing offline updates:", err);
-      await enqueueOfflineUpdates(
-        items.map((item) => ({ ...item, timestamp: Date.now() })),
+      console.error(
+        "[batchUpdateCards] Supabase batch update failed, queuing offline updates:",
+        err,
       );
+      await enqueueOfflineUpdates(items.map((item) => ({ ...item, timestamp: Date.now() })));
     }
   },
 
@@ -614,10 +608,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        let query = supabase
-          .from("cards")
-          .select("*")
-          .eq("user_id", user.id);
+        let query = supabase.from("cards").select("*").eq("user_id", user.id);
 
         if (deckId) {
           query = query.eq("deck_id", deckId);
@@ -660,8 +651,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
       if (!cleanChar) continue;
 
       const isInDatabase =
-        existingCharSet.has(cleanChar) ||
-        (cleanTrad.length > 0 && existingCharSet.has(cleanTrad));
+        existingCharSet.has(cleanChar) || (cleanTrad.length > 0 && existingCharSet.has(cleanTrad));
 
       if (isInDatabase) {
         removedDuplicatesCount++;

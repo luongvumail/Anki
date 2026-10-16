@@ -177,9 +177,7 @@ export default function DeckDetailScreen() {
                 </View>
                 <View style={[styles.statColDivider, { backgroundColor: theme.cardBorder }]} />
                 <View style={styles.statColItem}>
-                  <Text style={[styles.statNumVal, { color: theme.yellow }]}>
-                    {dueCount}
-                  </Text>
+                  <Text style={[styles.statNumVal, { color: theme.yellow }]}>{dueCount}</Text>
                   <Text style={[styles.statLabelText, { color: theme.textMuted }]}>Cần ôn tập</Text>
                 </View>
                 <View style={[styles.statColDivider, { backgroundColor: theme.cardBorder }]} />
@@ -193,9 +191,7 @@ export default function DeckDetailScreen() {
             {/* Action Buttons Row */}
             <View style={styles.heroActionRow}>
               <AppButton
-                title={
-                  dueCount > 0 ? `ÔN TẬP (${dueCount})` : "HỌC BÀI NGAY"
-                }
+                title={dueCount > 0 ? `ÔN TẬP (${dueCount})` : "HỌC BÀI NGAY"}
                 variant="primary"
                 size="lg"
                 onPress={() => router.push(`/study/${id}`)}

@@ -108,7 +108,6 @@ export function AppMascot({
   );
 }
 
-
 const styles = StyleSheet.create({
   mascotContainer: {
     alignItems: "center",

@@ -76,12 +76,19 @@ export const DeckPicker = React.memo(function DeckPicker({
         <TouchableWithoutFeedback onPress={onToggleOpen}>
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-              <View style={[styles.sheetContainer, { backgroundColor: theme.bgSoft, borderTopColor: theme.cardBorder }]}>
+              <View
+                style={[
+                  styles.sheetContainer,
+                  { backgroundColor: theme.bgSoft, borderTopColor: theme.cardBorder },
+                ]}
+              >
                 {/* SHEET HEADER */}
                 <View style={[styles.sheetHeader, { borderBottomColor: theme.cardBorder }]}>
                   <View style={[styles.dragHandle, { backgroundColor: theme.cardBorder }]} />
                   <View style={styles.headerTitleRow}>
-                    <Text style={[styles.sheetTitle, { color: theme.textPrimary }]}>CHỌN BỘ THẺ LƯU TỪ</Text>
+                    <Text style={[styles.sheetTitle, { color: theme.textPrimary }]}>
+                      CHỌN BỘ THẺ LƯU TỪ
+                    </Text>
                   </View>
 
                   <TouchableOpacity
@@ -121,10 +128,7 @@ export const DeckPicker = React.memo(function DeckPicker({
                         <View style={styles.deckCardLeft}>
                           <View style={styles.deckInfo}>
                             <Text
-                              style={[
-                                styles.deckNameText,
-                                { color: theme.textPrimary },
-                              ]}
+                              style={[styles.deckNameText, { color: theme.textPrimary }]}
                               numberOfLines={1}
                             >
                               {deck.name}

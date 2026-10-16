@@ -38,7 +38,11 @@ export default function TabLayout() {
           options={{
             title: "Học",
             tabBarIcon: ({ focused, color }) => (
-              <Ionicons name={focused ? "home" : "home-outline"} size={Layout.iconLg} color={color} />
+              <Ionicons
+                name={focused ? "home" : "home-outline"}
+                size={Layout.iconLg}
+                color={color}
+              />
             ),
           }}
         />
@@ -47,7 +51,11 @@ export default function TabLayout() {
           options={{
             title: "Từ vựng",
             tabBarIcon: ({ focused, color }) => (
-              <Ionicons name={focused ? "book" : "book-outline"} size={Layout.iconLg} color={color} />
+              <Ionicons
+                name={focused ? "book" : "book-outline"}
+                size={Layout.iconLg}
+                color={color}
+              />
             ),
           }}
         />
@@ -56,7 +64,11 @@ export default function TabLayout() {
           options={{
             title: "Luyện tập",
             tabBarIcon: ({ focused, color }) => (
-              <Ionicons name={focused ? "extension-puzzle" : "extension-puzzle-outline"} size={Layout.iconLg} color={color} />
+              <Ionicons
+                name={focused ? "extension-puzzle" : "extension-puzzle-outline"}
+                size={Layout.iconLg}
+                color={color}
+              />
             ),
           }}
         />
@@ -65,7 +77,11 @@ export default function TabLayout() {
           options={{
             title: "Thống kê",
             tabBarIcon: ({ focused, color }) => (
-              <Ionicons name={focused ? "stats-chart" : "stats-chart-outline"} size={Layout.iconLg} color={color} />
+              <Ionicons
+                name={focused ? "stats-chart" : "stats-chart-outline"}
+                size={Layout.iconLg}
+                color={color}
+              />
             ),
           }}
         />

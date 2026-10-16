@@ -1,6 +1,6 @@
-import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, VECTOR_DECK_ICONS } from '../../constants/theme';
+import React from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { Colors, VECTOR_DECK_ICONS } from "../../constants/theme";
 
 interface DeckIconProps {
   name: string;
@@ -9,9 +9,14 @@ interface DeckIconProps {
   style?: any;
 }
 
-export const DeckIcon = React.memo(function DeckIcon({ name, size = 18, color = Colors.accent.indigoLight, style }: DeckIconProps) {
+export const DeckIcon = React.memo(function DeckIcon({
+  name,
+  size = 18,
+  color = Colors.accent.indigoLight,
+  style,
+}: DeckIconProps) {
   const icon = VECTOR_DECK_ICONS.includes(name)
     ? (name as keyof typeof Ionicons.glyphMap)
-    : 'book-outline';
+    : "book-outline";
   return <Ionicons name={icon} size={size} color={color} style={style} />;
 });

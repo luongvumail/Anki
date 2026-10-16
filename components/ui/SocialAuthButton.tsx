@@ -1,10 +1,5 @@
 import React, { useState } from "react";
-import {
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Text, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Radii, Typography, Layout, Spacing, triggerHaptic } from "../../constants/theme";
 import { useTheme } from "../../hooks/useTheme";
@@ -29,8 +24,8 @@ export function SocialAuthButton({
   const title = loading
     ? "ĐANG KẾT NỐI..."
     : isGoogle
-    ? "Tiếp tục với Google"
-    : "Tiếp tục với Apple";
+      ? "Tiếp tục với Google"
+      : "Tiếp tục với Apple";
 
   const handlePressIn = () => {
     if (disabled || loading) return;

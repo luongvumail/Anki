@@ -20,23 +20,55 @@ interface TestSuite {
 const suites: TestSuite[] = [
   // 1. Core Algorithms
   { name: "FSRS Memory Algorithm & Speed Evaluation", category: "Algorithms", fn: runFSRSTests },
-  { name: "Adaptive Quiz & Distractor Generator", category: "Algorithms", fn: runQuizGeneratorTests },
-  { name: "Daily Study Streak Calculation & Grace Period", category: "Algorithms", fn: runStreakEngineTests },
+  {
+    name: "Adaptive Quiz & Distractor Generator",
+    category: "Algorithms",
+    fn: runQuizGeneratorTests,
+  },
+  {
+    name: "Daily Study Streak Calculation & Grace Period",
+    category: "Algorithms",
+    fn: runStreakEngineTests,
+  },
   { name: "Deck Statistics & Mastery Calculations", category: "Algorithms", fn: runDeckUtilsTests },
 
   // 2. Game & Progress Logic
-  { name: "User Levels, XP & 24 Badges Configuration", category: "Game Logic", fn: runUserProgressTests },
-  { name: "Speed Match 60s Mini-Game Pairing Logic", category: "Game Logic", fn: runSpeedMatchLogicTests },
-  { name: "Sentence Builder Grammar & Clean Logic", category: "Game Logic", fn: runSentenceBuilderLogicTests },
+  {
+    name: "User Levels, XP & 24 Badges Configuration",
+    category: "Game Logic",
+    fn: runUserProgressTests,
+  },
+  {
+    name: "Speed Match 60s Mini-Game Pairing Logic",
+    category: "Game Logic",
+    fn: runSpeedMatchLogicTests,
+  },
+  {
+    name: "Sentence Builder Grammar & Clean Logic",
+    category: "Game Logic",
+    fn: runSentenceBuilderLogicTests,
+  },
 
   // 3. Storage & Sync
-  { name: "Offline Sync Queue Deduplication & Merging", category: "Storage & Sync", fn: runOfflineQueueTests },
-  { name: "Card Duplicate Detection & Multi-Deck Search", category: "Storage & Sync", fn: runCardSliceLogicTests },
+  {
+    name: "Offline Sync Queue Deduplication & Merging",
+    category: "Storage & Sync",
+    fn: runOfflineQueueTests,
+  },
+  {
+    name: "Card Duplicate Detection & Multi-Deck Search",
+    category: "Storage & Sync",
+    fn: runCardSliceLogicTests,
+  },
 
   // 4. AI & UI Helpers
   { name: "AI Markdown Response & JSON Extractor", category: "AI & UI", fn: runAIParserTests },
   { name: "Pinyin Neon Tone Colors & Labels Mapper", category: "AI & UI", fn: runPinyinColorTests },
-  { name: "Centralized Error Handler & Status Messages", category: "AI & UI", fn: runErrorHandlerTests },
+  {
+    name: "Centralized Error Handler & Status Messages",
+    category: "AI & UI",
+    fn: runErrorHandlerTests,
+  },
 ];
 
 async function main() {

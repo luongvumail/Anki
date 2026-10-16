@@ -16,7 +16,10 @@ function assertStrictEqual<T>(actual: T, expected: T, message?: string) {
 /**
  * Pure queue merger simulating the logic in offlineQueue
  */
-function mergeOfflineQueue(current: PendingCardUpdate[], incoming: PendingCardUpdate[]): PendingCardUpdate[] {
+function mergeOfflineQueue(
+  current: PendingCardUpdate[],
+  incoming: PendingCardUpdate[],
+): PendingCardUpdate[] {
   const map = new Map<string, PendingCardUpdate>();
   for (const item of current) {
     map.set(item.cardId, item);

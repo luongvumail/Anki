@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
-import { Radii, Spacing } from '../../constants/theme';
-import { useTheme } from '../../hooks/useTheme';
+import React from "react";
+import { View, StyleSheet, ViewStyle } from "react-native";
+import { Radii, Spacing } from "../../constants/theme";
+import { useTheme } from "../../hooks/useTheme";
 
 interface ProgressBarProps {
   progress: number;
@@ -39,11 +39,11 @@ export const ProgressBar = React.memo(function ProgressBar({
 const styles = StyleSheet.create({
   track: {
     borderRadius: Radii.full,
-    overflow: 'hidden',
-    width: '100%',
+    overflow: "hidden",
+    width: "100%",
   },
   fill: {
-    height: '100%',
+    height: "100%",
     borderRadius: Radii.full,
   },
 });

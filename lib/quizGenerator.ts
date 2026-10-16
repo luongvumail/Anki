@@ -522,11 +522,7 @@ export function generateQuizQuestion(
   }
 
   // 5. Điền khuyết câu ví dụ - Trắc nghiệm hoặc Tự gõ (Cloze / Cloze Typing)
-  if (
-    (type === "cloze" || type === "cloze_typing") &&
-    card.examples &&
-    card.examples.length > 0
-  ) {
+  if ((type === "cloze" || type === "cloze_typing") && card.examples && card.examples.length > 0) {
     const ex = card.examples[0];
     if (ex.chinese) {
       let targetToReplace = "";
@@ -679,4 +675,3 @@ export function generateQuizQuestion(
     correctAnswer: card.pinyin,
   };
 }
-

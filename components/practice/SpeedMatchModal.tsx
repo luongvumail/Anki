@@ -74,7 +74,9 @@ export function SpeedMatchModal({ visible, onClose, cards }: SpeedMatchModalProp
           </TouchableOpacity>
 
           <View style={styles.headerTitleContainer}>
-            <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>GHÉP TỪ NHANH 60S</Text>
+            <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
+              GHÉP TỪ NHANH 60S
+            </Text>
             <Text style={[styles.headerSub, { color: theme.blue }]}>{currentModeLabel}</Text>
           </View>
 
@@ -189,10 +191,7 @@ export function SpeedMatchModal({ visible, onClose, cards }: SpeedMatchModalProp
                   ]}
                 >
                   <Text
-                    style={[
-                      styles.tileText,
-                      { color: isSelected ? "#FFFFFF" : theme.textPrimary },
-                    ]}
+                    style={[styles.tileText, { color: isSelected ? "#FFFFFF" : theme.textPrimary }]}
                     numberOfLines={2}
                   >
                     {tile.text}

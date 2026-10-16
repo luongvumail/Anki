@@ -81,7 +81,11 @@ export function runFSRSTests() {
 
   // Incorrect response -> AGAIN
   const wrongEval = calculateQuizFSRS(false, false, 1500, initial);
-  assertStrictEqual(wrongEval.grade, FSRS_GRADES.AGAIN, "Incorrect answer should yield AGAIN grade");
+  assertStrictEqual(
+    wrongEval.grade,
+    FSRS_GRADES.AGAIN,
+    "Incorrect answer should yield AGAIN grade",
+  );
   assertStrictEqual(wrongEval.speedCategory, "wrong");
 
   // Test 6b: Typing & Speaking interaction modes have cognitive-fair thresholds

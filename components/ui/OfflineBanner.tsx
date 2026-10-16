@@ -63,7 +63,12 @@ export const OfflineBanner = React.memo(function OfflineBanner() {
   if (!isOffline) return null;
 
   return (
-    <Animated.View style={[styles.banner, { backgroundColor: theme.red, transform: [{ translateY: slideAnim }] }]}>
+    <Animated.View
+      style={[
+        styles.banner,
+        { backgroundColor: theme.red, transform: [{ translateY: slideAnim }] },
+      ]}
+    >
       <Ionicons name="cloud-offline-outline" size={Layout.iconSm} color="#FFFFFF" />
       <Text style={styles.bannerText}>Chế độ ngoại tuyến (Offline) — Đang lưu dữ liệu tại máy</Text>
     </Animated.View>

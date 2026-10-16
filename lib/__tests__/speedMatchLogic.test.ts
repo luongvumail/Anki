@@ -82,17 +82,41 @@ export function runSpeedMatchLogicTests() {
   assertOk(checkTileMatch(tile1Meaning, tile1Hanzi), "Order of selection must not affect match");
 
   // Test 2: Invalid Match (Same card but same type)
-  assertStrictEqual(checkTileMatch(tile1Hanzi, tile1Hanzi), false, "Same tile must not match itself");
+  assertStrictEqual(
+    checkTileMatch(tile1Hanzi, tile1Hanzi),
+    false,
+    "Same tile must not match itself",
+  );
 
   // Test 3: Invalid Match (Different cards)
-  assertStrictEqual(checkTileMatch(tile1Hanzi, tile2Hanzi), false, "Different card Hanzi must not match");
-  assertStrictEqual(checkTileMatch(tile1Meaning, tile2Hanzi), false, "Different card Meaning + Hanzi must not match");
+  assertStrictEqual(
+    checkTileMatch(tile1Hanzi, tile2Hanzi),
+    false,
+    "Different card Hanzi must not match",
+  );
+  assertStrictEqual(
+    checkTileMatch(tile1Meaning, tile2Hanzi),
+    false,
+    "Different card Meaning + Hanzi must not match",
+  );
 
   // Test 4: Tile generation count for 2 cards -> 4 tiles
   const generated: MatchTile[] = [];
   mockCards.forEach((c) => {
-    generated.push({ id: `h_${c.id}`, cardId: c.id, type: "hanzi", text: c.character, matched: false });
-    generated.push({ id: `m_${c.id}`, cardId: c.id, type: "meaning", text: c.translation, matched: false });
+    generated.push({
+      id: `h_${c.id}`,
+      cardId: c.id,
+      type: "hanzi",
+      text: c.character,
+      matched: false,
+    });
+    generated.push({
+      id: `m_${c.id}`,
+      cardId: c.id,
+      type: "meaning",
+      text: c.translation,
+      matched: false,
+    });
   });
   assertStrictEqual(generated.length, 4, "2 cards should produce 4 tiles");
   const hanziTiles = generated.filter((t) => t.type === "hanzi");

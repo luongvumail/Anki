@@ -1,31 +1,30 @@
-import React from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
-  View,
+  ActivityIndicator,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Modal,
-  ScrollView,
-  ActivityIndicator,
-  Image,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import {
-  Spacing,
-  Radii,
-  Typography,
-  Layout,
   BorderWidths,
+  Layout,
+  Radii,
+  Spacing,
   triggerHaptic,
+  Typography,
 } from "../../constants/theme";
+import { useAICardGenerator } from "../../hooks/useAICardGenerator";
 import { useTheme } from "../../hooks/useTheme";
 import { AppButton } from "../ui/AppButton";
 import { AppCard } from "../ui/AppCard";
-import { DeckPicker } from "./DeckPicker";
 import { CardPreview } from "./CardPreview";
-import { useAICardGenerator } from "../../hooks/useAICardGenerator";
+import { DeckPicker } from "./DeckPicker";
 
 export interface AIAddCardModalProps {
   visible: boolean;
@@ -122,7 +121,12 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
               <Text style={[styles.inputLabel, { color: theme.textMuted, marginBottom: 0 }]}>
                 1. Quét từ vựng từ Ảnh (Tối đa 5 ảnh):
               </Text>
-              <Text style={[styles.imageCountBadge, { color: selectedImages.length >= 5 ? theme.yellow : theme.blue }]}>
+              <Text
+                style={[
+                  styles.imageCountBadge,
+                  { color: selectedImages.length >= 5 ? theme.yellow : theme.blue },
+                ]}
+              >
                 {selectedImages.length}/5 ảnh
               </Text>
             </View>
@@ -217,7 +221,7 @@ function AIAddCardModalInner({ visible, onClose, initialDeckId }: AIAddCardModal
                 </ScrollView>
 
                 <Text style={[styles.selectedImageSub, { color: theme.textMuted }]}>
-                  AI sẽ đọc văn bản trong tất cả các ảnh và tự động loại bỏ từ trùng trong CSDL.
+                  AI sẽ đọc văn bản trong tất cả các ảnh và tự động loại bỏ từ trùng lặp.
                 </Text>
               </View>
             )}

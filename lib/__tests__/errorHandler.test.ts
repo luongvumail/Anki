@@ -1,4 +1,8 @@
-import { getAuthErrorMessage, getGeminiErrorMessage, getFirestoreErrorMessage } from "../errorHandler";
+import {
+  getAuthErrorMessage,
+  getGeminiErrorMessage,
+  getFirestoreErrorMessage,
+} from "../errorHandler";
 
 function assertStrictEqual<T>(actual: T, expected: T, message?: string) {
   if (actual !== expected) {
@@ -12,7 +16,10 @@ export function runErrorHandlerTests() {
   assertStrictEqual(msgAuth1, "Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.");
 
   const msgAuth2 = getAuthErrorMessage({ code: "auth/network-request-failed" });
-  assertStrictEqual(msgAuth2, "Không thể kết nối máy chủ đăng nhập. Vui lòng kiểm tra Wi-Fi hoặc 4G của bạn.");
+  assertStrictEqual(
+    msgAuth2,
+    "Không thể kết nối máy chủ đăng nhập. Vui lòng kiểm tra Wi-Fi hoặc 4G của bạn.",
+  );
 
   // Test Gemini errors
   const msgGemini1 = getGeminiErrorMessage(new Error("RESOURCE_EXHAUSTED: 429 quota exceeded"));
@@ -25,4 +32,3 @@ export function runErrorHandlerTests() {
   const msgFs1 = getFirestoreErrorMessage({ code: "permission-denied" });
   assertStrictEqual(msgFs1, "Bạn không có quyền thực hiện thao tác này. Vui lòng đăng nhập lại.");
 }
-

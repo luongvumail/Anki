@@ -11,13 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Card } from "../../store/slices/types";
-import {
-  Spacing,
-  Radii,
-  Typography,
-  Layout,
-  triggerHaptic,
-} from "../../constants/theme";
+import { Spacing, Radii, Typography, Layout, triggerHaptic } from "../../constants/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { AppButton } from "../ui/AppButton";
 import { AudioButton } from "../ui/AudioButton";

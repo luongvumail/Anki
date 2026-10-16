@@ -86,7 +86,11 @@ export const FlashcardView = React.memo(function FlashcardView({
       },
       onPanResponderRelease: (_, gestureState) => {
         const { dy, dx, vy } = gestureState;
-        const { onNext: nextFn, onPrev: prevFn, handleToggleDetail: toggleFn } = callbacksRef.current;
+        const {
+          onNext: nextFn,
+          onPrev: prevFn,
+          handleToggleDetail: toggleFn,
+        } = callbacksRef.current;
 
         if (dy < -60 || vy < -0.45) {
           // Swipe UP -> Next Card
@@ -130,7 +134,7 @@ export const FlashcardView = React.memo(function FlashcardView({
           }).start();
         }
       },
-    })
+    }),
   ).current;
 
   // Fluid TikTok swipe interpolations
@@ -178,19 +182,12 @@ export const FlashcardView = React.memo(function FlashcardView({
           cardThemeStyle,
           {
             opacity: swipeOpacity,
-            transform: [
-              { translateY: swipeAnim },
-              { scale: swipeScale },
-              { rotate: swipeRotate },
-            ],
+            transform: [{ translateY: swipeAnim }, { scale: swipeScale }, { rotate: swipeRotate }],
           },
         ]}
       >
         {/* Main Content Area (Click Anywhere to Toggle Detail) */}
-        <Pressable
-          style={styles.centerStageContainer}
-          onPress={handleToggleDetail}
-        >
+        <Pressable style={styles.centerStageContainer} onPress={handleToggleDetail}>
           <ScrollView
             style={styles.scrollViewStyle}
             contentContainerStyle={styles.centeredScrollContent}
@@ -215,12 +212,7 @@ export const FlashcardView = React.memo(function FlashcardView({
             {isRevealed && (
               <Animated.View style={[styles.detailSheetContainer, detailAnimatedStyle]}>
                 {/* Pinyin */}
-                <Text
-                  style={[
-                    styles.detailPinyin,
-                    { color: getPinyinToneColor(card.pinyin) },
-                  ]}
-                >
+                <Text style={[styles.detailPinyin, { color: getPinyinToneColor(card.pinyin) }]}>
                   {card.pinyin}
                 </Text>
 
@@ -281,9 +273,7 @@ export const FlashcardView = React.memo(function FlashcardView({
                           {ex.chinese}
                         </Text>
                         {ex.pinyin ? (
-                          <Text style={[styles.examplePy, { color: theme.blue }]}>
-                            {ex.pinyin}
-                          </Text>
+                          <Text style={[styles.examplePy, { color: theme.blue }]}>{ex.pinyin}</Text>
                         ) : null}
                         {ex.vietnamese ? (
                           <Text style={[styles.exampleVi, { color: theme.textMuted }]}>
@@ -319,10 +309,7 @@ export const FlashcardView = React.memo(function FlashcardView({
   );
 });
 
-
-
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     alignItems: "center",
@@ -494,7 +481,3 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weight.semibold,
   },
 });
-
-
-
-

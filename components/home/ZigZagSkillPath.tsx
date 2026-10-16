@@ -1,13 +1,13 @@
-import React, { useRef, useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import {
+  BorderWidths,
+  Layout,
   Radii,
   Spacing,
-  Typography,
-  Layout,
-  BorderWidths,
   triggerHaptic,
+  Typography,
 } from "../../constants/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { Deck } from "../../store/slices/types";
@@ -184,7 +184,7 @@ export function ZigZagSkillPath({ decks, dueCardsMap, onSelectDeck }: ZigZagSkil
           </View>
         </View>
 
-        <Text style={styles.unitBannerTitle}>HÀNH TRÌNH TỪ VỰNG TIẾNG TRUNG</Text>
+        <Text style={styles.unitBannerTitle}>HÀNH TRÌNH TIẾNG TRUNG</Text>
         <Text style={styles.unitBannerSub}>
           Chọn bộ thẻ bên dưới để bắt đầu lật Flashcard & thực hành phản xạ FSRS!
         </Text>

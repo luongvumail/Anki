@@ -2,12 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Animated, Keyboard } from "react-native";
 import * as Speech from "expo-speech";
 import * as FileSystem from "expo-file-system/legacy";
-import {
-  useAudioRecorder,
-  AudioModule,
-  RecordingPresets,
-  setAudioModeAsync,
-} from "expo-audio";
+import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from "expo-audio";
 import { QuizQuestion, evaluateTypedAnswer, stripPinyinTones } from "../lib/quizGenerator";
 import { evaluateChineseSpeechAudio } from "../lib/gemini";
 import { triggerHaptic } from "../constants/theme";
@@ -49,10 +44,9 @@ export function useQuizCard(
 
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
-  const activeMode =
-    isFastRepairMode
-      ? "choice"
-      : modeOverride || question.interactionMode || "choice";
+  const activeMode = isFastRepairMode
+    ? "choice"
+    : modeOverride || question.interactionMode || "choice";
 
   const playTTS = useCallback((text: string) => {
     if (!text) return;
@@ -373,5 +367,3 @@ export function useQuizCard(
     handleContinue,
   };
 }
-
-

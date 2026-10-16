@@ -77,8 +77,7 @@ export async function flushOfflineQueue(): Promise<void> {
             payload.srs_next_review = updates.srs.dueDate;
           }
         }
-        if (updates.lastReviewedAt !== undefined)
-          payload.last_reviewed_at = updates.lastReviewedAt;
+        if (updates.lastReviewedAt !== undefined) payload.last_reviewed_at = updates.lastReviewedAt;
 
         const { error } = await supabase.from("cards").update(payload).eq("id", cardId);
         if (error) {

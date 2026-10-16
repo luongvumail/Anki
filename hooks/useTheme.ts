@@ -20,8 +20,7 @@ export function useTheme(): {
   const themeMode = useStore((s) => s.themeMode) || "light";
   const setThemeMode = useStore((s) => s.setThemeMode);
 
-  const isDark =
-    themeMode === "dark" || (themeMode === "system" && systemColorScheme === "dark");
+  const isDark = themeMode === "dark" || (themeMode === "system" && systemColorScheme === "dark");
 
   const theme = isDark ? DarkTheme : LightTheme;
 

@@ -28,10 +28,10 @@ export function getPinyinToneColor(pinyin: string): string {
 }
 
 export function getToneLabel(pinyin: string): string {
-  if (!pinyin) return 'Thanh 1';
-  if (TONE1_REGEX.test(pinyin)) return 'Thanh 1 (Ngang)';
-  if (TONE2_REGEX.test(pinyin)) return 'Thanh 2 (Sắc)';
-  if (TONE3_REGEX.test(pinyin)) return 'Thanh 3 (Hỏi)';
-  if (TONE4_REGEX.test(pinyin)) return 'Thanh 4 (Huyền / Nặng)';
-  return 'Thanh nhẹ';
+  if (!pinyin) return "Thanh 1";
+  if (TONE1_REGEX.test(pinyin)) return "Thanh 1 (Ngang)";
+  if (TONE2_REGEX.test(pinyin)) return "Thanh 2 (Sắc)";
+  if (TONE3_REGEX.test(pinyin)) return "Thanh 3 (Hỏi)";
+  if (TONE4_REGEX.test(pinyin)) return "Thanh 4 (Huyền / Nặng)";
+  return "Thanh nhẹ";
 }

@@ -1,15 +1,15 @@
-const expoConfig = require('eslint-config-expo/flat');
+const expoConfig = require("eslint-config-expo/flat");
 
 module.exports = [
   {
-    ignores: ['.expo/**'],
+    ignores: [".expo/**"],
   },
   ...expoConfig,
   {
     rules: {
-      'no-unused-vars': 'off',
-      'react-hooks/refs': 'off',
-      'react/no-unescaped-entities': 'off',
+      "no-unused-vars": "off",
+      "react-hooks/refs": "off",
+      "react/no-unescaped-entities": "off",
     },
   },
 ];

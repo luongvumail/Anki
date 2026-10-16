@@ -13,13 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Speech from "expo-speech";
 import { Card } from "../../store/slices/types";
-import {
-  Spacing,
-  Radii,
-  Typography,
-  Layout,
-  triggerHaptic,
-} from "../../constants/theme";
+import { Spacing, Radii, Typography, Layout, triggerHaptic } from "../../constants/theme";
 import { APP_CONFIG } from "../../constants/config";
 import { useTheme } from "../../hooks/useTheme";
 import { AppButton } from "../ui/AppButton";
@@ -55,11 +49,7 @@ const DRILL_MODES: {
   { key: "cloze_typing", label: "Điền Khuyết", icon: "document-text-outline" },
 ];
 
-export function TypingRecallModal({
-  visible,
-  onClose,
-  cards,
-}: TypingRecallModalProps) {
+export function TypingRecallModal({ visible, onClose, cards }: TypingRecallModalProps) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
 
@@ -98,11 +88,10 @@ export function TypingRecallModal({
 
       const typingTypes = ["type_pinyin", "type_hanzi", "cloze_typing"] as const;
       const generated = picked.map((card, idx) => {
-        const hasEx = Boolean(card.examples && card.examples.length > 0 && card.examples[0].chinese);
-        let qType =
-          selectedMode === "mixed"
-            ? typingTypes[idx % typingTypes.length]
-            : selectedMode;
+        const hasEx = Boolean(
+          card.examples && card.examples.length > 0 && card.examples[0].chinese,
+        );
+        let qType = selectedMode === "mixed" ? typingTypes[idx % typingTypes.length] : selectedMode;
         if (qType === "cloze_typing" && !hasEx) {
           qType = "type_hanzi";
         }
@@ -267,7 +256,8 @@ export function TypingRecallModal({
               HOÀN THÀNH THỬ THÁCH GÕ TỪ!
             </Text>
             <Text style={[styles.doneSub, { color: theme.textMuted }]}>
-              Bạn đã tự nhớ và gõ chính xác {correctCount}/{questions.length} từ vựng mà không cần nhìn đáp án trắc nghiệm!
+              Bạn đã tự nhớ và gõ chính xác {correctCount}/{questions.length} từ vựng mà không cần
+              nhìn đáp án trắc nghiệm!
             </Text>
             <AppButton
               title="LUYỆN LẠI LƯỢT MỚI"
@@ -337,11 +327,7 @@ export function TypingRecallModal({
                 {
                   backgroundColor: theme.cardBg,
                   color: theme.textPrimary,
-                  borderColor: isChecked
-                    ? isCorrect
-                      ? theme.green
-                      : theme.red
-                    : theme.blue,
+                  borderColor: isChecked ? (isCorrect ? theme.green : theme.red) : theme.blue,
                 },
               ]}
               placeholder={currentQuestion.inputPlaceholder || "Nhập Chữ Hán hoặc Pinyin..."}
@@ -405,9 +391,7 @@ export function TypingRecallModal({
                 </View>
 
                 {toneHint ? (
-                  <Text style={[styles.toneHintText, { color: theme.blue }]}>
-                    💡 {toneHint}
-                  </Text>
+                  <Text style={[styles.toneHintText, { color: theme.blue }]}>💡 {toneHint}</Text>
                 ) : null}
 
                 <View style={[styles.answerDetailBox, { backgroundColor: theme.bgSoft }]}>
@@ -642,4 +626,3 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
-

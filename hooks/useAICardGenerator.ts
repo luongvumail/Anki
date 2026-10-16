@@ -101,9 +101,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        setErrorMessage(
-          "Vui lòng cấp quyền truy cập Thư viện ảnh để tải ảnh trích xuất từ vựng.",
-        );
+        setErrorMessage("Vui lòng cấp quyền truy cập Thư viện ảnh để tải ảnh trích xuất từ vựng.");
         triggerHaptic("error");
         return;
       }
@@ -341,7 +339,14 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
     } finally {
       setLoading(false);
     }
-  }, [selectedDeckId, generatedCards, selectedIndices, selectedImages.length, addCardsBatch, onClose]);
+  }, [
+    selectedDeckId,
+    generatedCards,
+    selectedIndices,
+    selectedImages.length,
+    addCardsBatch,
+    onClose,
+  ]);
 
   return {
     prompt,

@@ -44,7 +44,12 @@ const TRAINER_MODES: {
   { key: "sentence_shadowing", label: "Đọc Câu", icon: "chatbubbles-outline" },
 ];
 
-export function PronunciationTrainerModal({
+export function PronunciationTrainerModal(props: PronunciationTrainerModalProps) {
+  if (!props.visible) return null;
+  return <PronunciationTrainerModalInner {...props} />;
+}
+
+function PronunciationTrainerModalInner({
   visible,
   onClose,
   cards,
@@ -78,8 +83,6 @@ export function PronunciationTrainerModal({
     handleNextWord,
     handleRetryWord,
   } = usePronunciationTrainer(visible, cards);
-
-  if (!visible) return null;
 
   const progress = shuffledCards.length > 0 ? (currentIndex + 1) / shuffledCards.length : 0;
 

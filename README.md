@@ -84,25 +84,3 @@ Anki/
 └── tsconfig.json             # TypeScript Configuration
 ```
 
----
-
-## 💻 Hướng Dẫn Khởi Chạy & Deploy Web PWA
-
-### 1. Cài đặt & Chạy Server Development
-
-```bash
-npm install
-npm run start
-```
-
-### 2. Đóng gói Web & Deploy PWA (Chạy vĩnh viễn trên iPhone)
-
-```bash
-# Export bản web static
-npx expo export -p web
-
-# Deploy lên Vercel miễn phí trong 30s
-npx vercel --prod
-```
-
-Sau đó mở link web trên Safari iPhone ➔ Chọn **Chia sẻ (Share)** ➔ **Thêm vào Màn hình chính (Add to Home Screen)**.

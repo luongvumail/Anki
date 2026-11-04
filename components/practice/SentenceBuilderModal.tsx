@@ -239,7 +239,7 @@ export function SentenceBuilderModal({ visible, onClose, cards }: SentenceBuilde
                     <Text
                       style={[styles.resultTitle, { color: isCorrect ? theme.green : theme.red }]}
                     >
-                      {isCorrect ? "CHÍNH XÁC! CÂU ĐÚNG NGHỮ PHÁP." : "CHƯA CHÍNH XÁC!"}
+                      {isCorrect ? "CHÍNH XÁC! CÂU ĐÚNG NGỮ PHÁP." : "CHƯA CHÍNH XÁC!"}
                     </Text>
                     <AudioButton onPress={() => playTTS(currentQuestion.chinese)} size="sm" />
                   </View>

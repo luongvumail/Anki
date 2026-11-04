@@ -4,12 +4,7 @@ import { APP_CONFIG } from "../constants/config";
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(apiKey);
 
-const CANDIDATE_MODELS = [
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
-  "gemini-3.6-flash",
-  "gemini-3.5-flash",
-];
+const CANDIDATE_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash"];
 
 /**
  * Sleep helper for retry backoff

@@ -68,7 +68,8 @@ export async function requestNotificationPermissions(): Promise<boolean> {
       await Notifications.setNotificationChannelAsync("default", {
         name: "Nhắc nhở học tập",
         importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
+        enableVibrate: false,
+        vibrationPattern: [],
         lightColor: "#0EA5E9",
       });
     }

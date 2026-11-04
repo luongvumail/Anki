@@ -1,5 +1,4 @@
 // Centralized Design System & Theme Engine according to DESIGN.md
-import * as Haptics from "expo-haptics";
 import { StyleSheet } from "react-native";
 
 export type ThemeMode = "system" | "light" | "dark";
@@ -466,19 +465,7 @@ export function createCommonStyles(theme: ColorPalette) {
 }
 
 export const triggerHaptic = (
-  type: "light" | "medium" | "heavy" | "selection" | "success" | "warning" | "error" = "light",
+  _type: "light" | "medium" | "heavy" | "selection" | "success" | "warning" | "error" = "light",
 ) => {
-  try {
-    if (type === "light") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    else if (type === "medium") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    else if (type === "heavy") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    else if (type === "selection") Haptics.selectionAsync();
-    else if (type === "success")
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    else if (type === "warning")
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    else if (type === "error") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-  } catch {
-    // safe fallback
-  }
+  // Toàn bộ tính năng rung / haptic đã được tắt
 };

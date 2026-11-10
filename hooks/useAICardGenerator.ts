@@ -60,7 +60,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ["images"],
         allowsEditing: false,
-        quality: 0.7,
+        quality: 0.5,
         base64: true,
       });
 
@@ -110,7 +110,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
         mediaTypes: ["images"],
         allowsMultipleSelection: true,
         selectionLimit: remainingSlots,
-        quality: 0.7,
+        quality: 0.5,
         base64: true,
       });
 
@@ -219,9 +219,16 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
 
       // Text input generation flow: pre-check duplicates before calling AI
       const rawInputs = prompt
-        .split(/[,，\n]/)
+        .split(/[,，;\n\r\t]+/)
         .map((s) => s.trim())
         .filter(Boolean);
+
+      if (rawInputs.length === 0) {
+        setErrorMessage("Vui lòng nhập từ vựng tiếng Trung hoặc chọn ảnh.");
+        triggerHaptic("error");
+        setLoading(false);
+        return;
+      }
 
       const itemsToCheck = rawInputs.map((word) => ({ character: word }));
       const {
@@ -230,9 +237,11 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
         removedDatabaseWords: preRemovedWords,
       } = await deduplicateBatch(itemsToCheck);
 
-      if (rawInputs.length > 1 && nonDuplicateInputs.length === 0) {
+      if (nonDuplicateInputs.length === 0) {
         setErrorMessage(
-          `Tất cả ${rawInputs.length} từ vựng (${preRemovedWords.join(", ")}) đều đã có sẵn trong cơ sở dữ liệu!`,
+          rawInputs.length > 1
+            ? `Tất cả ${rawInputs.length} từ vựng (${preRemovedWords.join(", ")}) đều đã có sẵn trong cơ sở dữ liệu!`
+            : `Từ vựng "${rawInputs[0]}" đã có sẵn trong cơ sở dữ liệu!`,
         );
         triggerHaptic("error");
         setLoading(false);
@@ -244,7 +253,7 @@ export function useAICardGenerator(initialDeckId?: string, onClose?: () => void)
       const rawResults =
         inputsToGenerate.length > 1
           ? await generateCardDataBatch(inputsToGenerate)
-          : [await generateCardData(prompt.trim())];
+          : [await generateCardData(inputsToGenerate[0])];
 
       const {
         unique: uniqueCards,

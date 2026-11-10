@@ -120,6 +120,14 @@ export function getGeminiErrorMessage(error: unknown): string {
   }
 
   if (
+    msgLower.includes("quá thời gian") ||
+    msgLower.includes("timed out") ||
+    msgLower.includes("timeout")
+  ) {
+    return "Yêu cầu tới AI bị quá thời gian chờ. Vui lòng kiểm tra lại kết nối mạng và thử lại.";
+  }
+
+  if (
     msgLower.includes("network") ||
     msgLower.includes("failed to fetch") ||
     msgLower.includes("offline") ||

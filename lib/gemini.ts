@@ -4,12 +4,27 @@ import { APP_CONFIG } from "../constants/config";
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(apiKey);
 
-const CANDIDATE_MODELS = ["gemini-3.8-flash", "gemini-3.7-flash"];
+const CANDIDATE_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash"];
+
+const REQUEST_TIMEOUT_MS = 14000;
 
 /**
  * Sleep helper for retry backoff
  */
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Wraps a promise with a timeout rejection to prevent hanging network requests
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, errorMsg: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(errorMsg)), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
 
 async function generateWithModels(
   prompt: string,
@@ -20,19 +35,24 @@ async function generateWithModels(
   let lastError: unknown = null;
 
   for (const modelName of CANDIDATE_MODELS) {
-    // Retry up to 2 times for transient errors or 429 rate limits
+    // Retry up to 2 times for transient errors
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         if (__DEV__)
           console.log(
             `[Gemini] Attempting generation with model: ${modelName} (attempt ${attempt + 1})`,
           );
+
+        const generationConfig: Record<string, unknown> = {
+          ...(responseMimeType ? { responseMimeType } : {}),
+          temperature,
+          // Explicitly disable thinking/reasoning budget to eliminate delays and maximize generation speed
+          thinkingConfig: { thinkingBudget: 0 },
+        };
+
         const model = genAI.getGenerativeModel({
           model: modelName,
-          generationConfig: {
-            ...(responseMimeType ? { responseMimeType } : {}),
-            temperature,
-          },
+          generationConfig: generationConfig as any,
         });
 
         let parts: any[] = [prompt];
@@ -60,9 +80,16 @@ async function generateWithModels(
           }
         }
 
-        const result = inlineImage
-          ? await model.generateContent(parts)
-          : await model.generateContent(prompt);
+        const callPromise = inlineImage
+          ? model.generateContent(parts)
+          : model.generateContent(prompt);
+
+        const result = await withTimeout(
+          callPromise,
+          REQUEST_TIMEOUT_MS,
+          `Yêu cầu AI tới mô hình ${modelName} bị quá thời gian (${REQUEST_TIMEOUT_MS / 1000}s).`,
+        );
+
         const text = result.response.text();
         if (__DEV__) console.log(`[Gemini] Success using model: ${modelName}`);
         return text;
@@ -71,12 +98,19 @@ async function generateWithModels(
         const msg = err instanceof Error ? err.message : String(err);
         const isRateLimit =
           msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota");
+        const isTimeout = msg.includes("quá thời gian") || msg.includes("timed out");
+        const isNotFound = msg.includes("404") || msg.includes("not found");
 
         console.warn(`[Gemini] Model ${modelName} attempt ${attempt + 1} failed: ${msg}`);
 
-        if (isRateLimit && attempt === 0) {
-          // Wait 1.5s before second attempt on same model
-          await delay(1500);
+        // If rate limit, timeout, or model not found: immediately switch to next model without waiting!
+        if (isRateLimit || isTimeout || isNotFound) {
+          break; // Move immediately to next fallback candidate
+        }
+
+        // For other transient network glitches, do a short 400ms retry
+        if (attempt === 0) {
+          await delay(400);
           continue;
         }
         break; // Move to fallback model
@@ -191,10 +225,10 @@ export interface CardData {
 export async function generateCardData(input: string): Promise<CardData> {
   await enforceRateLimit();
   const cleanInput = sanitizeInput(input);
-  const prompt = `Bạn là chuyên gia Hán-Việt. Phân tích chi tiết từ tiếng Trung: "${cleanInput}"
+  const prompt = `Bạn là chuyên gia ngôn ngữ tiếng Trung. Phân tích chi tiết từ: "${cleanInput}"
 
 TRƯỜNG "radical" — BẮT BUỘC, NGẮN GỌN TỐI ĐA 2 CÂU:
-Câu 1: bộ thủ cấu thành (tên Hán-Việt + ký tự + nghĩa). Câu 2: mẹo nhớ hình ảnh.
+Câu 1: bộ thủ cấu thành (ký tự + nghĩa). Câu 2: mẹo nhớ hình ảnh.
 Ví dụ: "好: bộ Nữ (女) + bộ Tử (子). Mẹ ôm con → tốt đẹp."
 Ví dụ: "休: bộ Nhân (亻) + bộ Mộc (木). Người tựa cây nghỉ ngơi."
 
@@ -235,27 +269,34 @@ export function validateSingleCardData(raw: unknown): CardData {
   }
   const item = raw as Record<string, unknown>;
   return {
-    character: typeof item.character === "string" ? item.character : "",
-    traditional: typeof item.traditional === "string" ? item.traditional : undefined,
-    pinyin: typeof item.pinyin === "string" ? item.pinyin : "",
-    hanviet: typeof item.hanviet === "string" ? item.hanviet : undefined,
-    translation: typeof item.translation === "string" ? item.translation : "",
+    character: typeof item.character === "string" ? item.character.trim() : "",
+    traditional:
+      typeof item.traditional === "string" && item.traditional.trim()
+        ? item.traditional.trim()
+        : undefined,
+    pinyin: typeof item.pinyin === "string" ? item.pinyin.trim() : "",
+    hanviet:
+      typeof item.hanviet === "string" && item.hanviet.trim()
+        ? item.hanviet.trim()
+        : undefined,
+    translation: typeof item.translation === "string" ? item.translation.trim() : "",
     examples: Array.isArray(item.examples)
       ? item.examples.map((ex: unknown) => {
           if (!ex || typeof ex !== "object") return { chinese: "", pinyin: "", vietnamese: "" };
           const e = ex as Record<string, unknown>;
           return {
-            chinese: typeof e.chinese === "string" ? e.chinese : "",
-            pinyin: typeof e.pinyin === "string" ? e.pinyin : "",
-            vietnamese: typeof e.vietnamese === "string" ? e.vietnamese : "",
+            chinese: typeof e.chinese === "string" ? e.chinese.trim() : "",
+            pinyin: typeof e.pinyin === "string" ? e.pinyin.trim() : "",
+            vietnamese: typeof e.vietnamese === "string" ? e.vietnamese.trim() : "",
           };
         })
       : [],
-    radical: typeof item.radical === "string" ? item.radical : undefined,
+    radical:
+      typeof item.radical === "string" && item.radical.trim() ? item.radical.trim() : undefined,
     strokeCount: typeof item.strokeCount === "number" ? item.strokeCount : undefined,
     hskLevel: typeof item.hskLevel === "number" ? item.hskLevel : undefined,
     tags: Array.isArray(item.tags)
-      ? item.tags.filter((t): t is string => typeof t === "string")
+      ? item.tags.filter((t): t is string => typeof t === "string" && t.trim().length > 0)
       : [],
   };
 }
@@ -265,11 +306,11 @@ async function generateSingleSubBatch(chunkInputs: string[]): Promise<CardData[]
   const cleanInputs = chunkInputs.map(sanitizeInput);
   const wordList = cleanInputs.map((w, i) => `${i + 1}. "${w}"`).join("\n");
 
-  const prompt = `Bạn là chuyên gia Hán-Việt. Phân tích chi tiết các từ tiếng Trung sau đây:
+  const prompt = `Bạn là chuyên gia ngôn ngữ tiếng Trung. Phân tích chi tiết các từ sau đây:
 ${wordList}
 
 BẮT BUỘC VỀ TRƯỜNG "radical":
-Trường "radical" BẮT BUỘC phải phân tích rõ ràng từng chữ Hán được ghép từ các bộ thủ chính nào, tên Hán-Việt và ý nghĩa của từng bộ thủ. KHÔNG ĐƯỢC bỏ trống hoặc trả về chung chung.
+Trường "radical" BẮT BUỘC phải phân tích rõ ràng từng chữ Hán được ghép từ các bộ thủ chính nào (ký tự + ý nghĩa) và mẹo nhớ. KHÔNG ĐƯỢC bỏ trống hoặc trả về chung chung.
 Ví dụ:
 - "休": "Gồm bộ Nhân (亻 - người) + bộ Mộc (木 - cây). Người tựa vào gốc cây nghỉ ngơi."
 - "语": "Gồm bộ Ngôn (讠 - lời nói) + bộ Ngũ (五) + bộ Khẩu (口 - miệng). Lời nói phát ra từ miệng."
@@ -300,31 +341,68 @@ Trả về JSON array (CHỈ JSON array, không markdown), với mỗi phần t�
     const text = await generateWithFallback(prompt);
     const jsonText = extractCleanJson(text);
     const rawResults = JSON.parse(jsonText);
-    if (!Array.isArray(rawResults) || rawResults.length !== chunkInputs.length) {
-      throw new Error(
-        `Expected ${chunkInputs.length} results, got ${Array.isArray(rawResults) ? rawResults.length : "non-array"}`,
-      );
+    if (!Array.isArray(rawResults)) {
+      throw new Error(`Expected JSON array, got non-array`);
     }
-    return rawResults.map(validateSingleCardData);
+
+    const validated = rawResults
+      .map(validateSingleCardData)
+      .filter((c) => c.character && c.character.length > 0);
+
+    if (validated.length === 0) {
+      throw new Error("Không có từ vựng hợp lệ được trích xuất từ batch.");
+    }
+
+    // If batch returned all requested words, return directly
+    if (validated.length >= chunkInputs.length) {
+      return validated;
+    }
+
+    // If some words were missed, attempt to fetch missing words individually
+    const foundChars = new Set(validated.map((c) => c.character.toLowerCase()));
+    const missingInputs = chunkInputs.filter(
+      (input) => !foundChars.has(input.trim().toLowerCase()),
+    );
+
+    if (missingInputs.length > 0) {
+      for (const input of missingInputs) {
+        try {
+          const singleCard = await generateCardData(input);
+          if (singleCard.character) validated.push(singleCard);
+        } catch (singleErr) {
+          console.warn(`[Gemini] Failed to generate missing word "${input}":`, singleErr);
+        }
+      }
+    }
+
+    return validated;
   } catch (err) {
     console.warn("[Gemini] Sub-batch failed, falling back to sequential calls:", err);
     const results: CardData[] = [];
     for (const input of chunkInputs) {
-      results.push(await generateCardData(input));
+      try {
+        const card = await generateCardData(input);
+        if (card.character) results.push(card);
+      } catch (singleErr) {
+        console.warn(`[Gemini] Sequential fallback failed for "${input}":`, singleErr);
+      }
+    }
+    if (results.length === 0) {
+      throw err;
     }
     return results;
   }
 }
 
 /**
- * Uses Gemini request batching with automatic sub-chunking (max 12 words per chunk) to generate card data for multiple words safely.
+ * Uses Gemini request batching with automatic sub-chunking (max 6 words per chunk) to generate card data for multiple words safely and quickly.
  * Handles rate-limiting and token limits gracefully.
  */
 export async function generateCardDataBatch(inputs: string[]): Promise<CardData[]> {
   if (inputs.length === 0) return [];
   if (inputs.length === 1) return [await generateCardData(inputs[0])];
 
-  const BATCH_CHUNK_SIZE = 12;
+  const BATCH_CHUNK_SIZE = 6;
   const allResults: CardData[] = [];
 
   for (let i = 0; i < inputs.length; i += BATCH_CHUNK_SIZE) {
@@ -410,13 +488,13 @@ export async function generateCardsFromImage(
       ? `\nGHI CHÚ / YÊU CẦU TỪ NGƯỜI DÙNG: "${sanitizeInput(userHint)}"\nHãy ưu tiên thực hiện theo yêu cầu này khi trích xuất từ vựng.`
       : "";
 
-  const prompt = `Bạn là chuyên gia sư phạm Hán-Việt và nhận diện hình ảnh (OCR & Vision).
+  const prompt = `Bạn là chuyên gia sư phạm tiếng Trung và nhận diện hình ảnh (OCR & Vision).
 Hãy phân tích hình ảnh được đính kèm và trích xuất danh sách từ vựng tiếng Trung quan trọng nhất (tối đa 15 từ vựng):
 1. Nếu ảnh là trang sách giáo khoa, bảng từ vựng, ghi chú viết tay, biển báo, thực đơn, phụ đề phim hoặc văn bản tiếng Trung: hãy trích xuất các từ vựng tiếng Trung xuất hiện trong ảnh (loại bỏ các từ trùng lặp trong cùng bức ảnh).
 2. Nếu ảnh là danh sách từ tiếng Việt/tiếng Anh hoặc chụp đồ vật/khung cảnh đời thực: hãy nhận diện và chuyển sang các từ vựng tiếng Trung tương ứng phù hợp nhất.${hintInstruction}
 
 BẮT BUỘC VỀ TRƯỜNG "radical":
-Trường "radical" ngắn gọn tối đa 2 câu: Câu 1 liệt kê bộ thủ cấu thành (tên Hán-Việt + ký tự + nghĩa). Câu 2 nêu mẹo nhớ hình ảnh.
+Trường "radical" ngắn gọn tối đa 2 câu: Câu 1 liệt kê bộ thủ cấu thành (ký tự + nghĩa). Câu 2 nêu mẹo nhớ hình ảnh.
 Ví dụ: "好: bộ Nữ (女) + bộ Tử (子). Mẹ ôm con → tốt đẹp."
 
 Trả về JSON array (CHỈ JSON array hợp lệ, không dùng markdown):
@@ -425,7 +503,6 @@ Trả về JSON array (CHỈ JSON array hợp lệ, không dùng markdown):
     "character": "chữ giản thể",
     "traditional": "chữ phồn thể",
     "pinyin": "phiên âm có dấu",
-    "hanviet": "âm Hán-Việt",
     "translation": "nghĩa tiếng Việt ngắn gọn (tối đa 3 nghĩa)",
     "examples": [
       {
@@ -478,14 +555,14 @@ export async function generateCardsFromMultipleImages(
       ? `\nGHI CHÚ / YÊU CẦU TỪ NGƯỜI DÙNG: "${sanitizeInput(userHint)}"\nHãy ưu tiên thực hiện theo yêu cầu này khi trích xuất từ vựng.`
       : "";
 
-  const prompt = `Bạn là chuyên gia sư phạm Hán-Việt và nhận diện hình ảnh (OCR & Vision).
+  const prompt = `Bạn là chuyên gia sư phạm tiếng Trung và nhận diện hình ảnh (OCR & Vision).
 Người dùng đã tải lên ${images.length} hình ảnh (tối đa 5 ảnh).
 Hãy phân tích TẤT CẢ các bức ảnh được đính kèm và trích xuất danh sách từ vựng tiếng Trung quan trọng nhất (tối đa 25 từ vựng):
 1. Nếu ảnh là trang sách giáo khoa, bảng từ vựng, ghi chú viết tay, biển báo, thực đơn, phụ đề phim hoặc văn bản tiếng Trung: hãy trích xuất các từ vựng tiếng Trung xuất hiện trong tất cả các ảnh (tự động loại bỏ các từ trùng lặp giữa các ảnh).
 2. Nếu ảnh là danh sách từ tiếng Việt/tiếng Anh hoặc chụp đồ vật/khung cảnh đời thực: hãy nhận diện và chuyển sang các từ vựng tiếng Trung tương ứng phù hợp nhất.${hintInstruction}
 
 BẮT BUỘC VỀ TRƯỜNG "radical":
-Trường "radical" ngắn gọn tối đa 2 câu: Câu 1 liệt kê bộ thủ cấu thành (tên Hán-Việt + ký tự + nghĩa). Câu 2 nêu mẹo nhớ hình ảnh.
+Trường "radical" ngắn gọn tối đa 2 câu: Câu 1 liệt kê bộ thủ cấu thành (ký tự + nghĩa). Câu 2 nêu mẹo nhớ hình ảnh.
 Ví dụ: "好: bộ Nữ (女) + bộ Tử (子). Mẹ ôm con → tốt đẹp."
 
 Trả về JSON array (CHỈ JSON array hợp lệ, không dùng markdown):
@@ -494,7 +571,6 @@ Trả về JSON array (CHỈ JSON array hợp lệ, không dùng markdown):
     "character": "chữ giản thể",
     "traditional": "chữ phồn thể",
     "pinyin": "phiên âm có dấu",
-    "hanviet": "âm Hán-Việt",
     "translation": "nghĩa tiếng Việt ngắn gọn (tối đa 3 nghĩa)",
     "examples": [
       {
@@ -559,7 +635,7 @@ Trả về JSON:
 export async function generateRadical(character: string): Promise<string> {
   const clean = sanitizeInput(character);
   const prompt = `Phân tích chiết tự từ "${clean}" bằng tiếng Việt, ngắn gọn tối đa 2 câu.
-Câu 1: liệt kê bộ thủ (tên Hán-Việt + ký tự + nghĩa). Câu 2: mẹo nhớ hình ảnh.
+Câu 1: liệt kê bộ thủ cấu thành (ký tự + nghĩa). Câu 2: mẹo nhớ hình ảnh.
 Không dùng markdown, không giải thích thêm, không chào hỏi.
 Ví dụ tốt: "好: bộ Nữ (女) + bộ Tử (子). Mẹ ôm con → tốt đẹp."
 Ví dụ tốt: "学: bộ Học (學) gồm 宀+子, trẻ con ngồi dưới mái học bài → học tập."

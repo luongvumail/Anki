@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useStore } from "../../store/useStore";
-import { getFirestoreErrorMessage } from "../../lib/errorHandler";
+import { getDatabaseErrorMessage } from "../../lib/errorHandler";
 import {
   Spacing,
   Radii,
@@ -110,7 +110,7 @@ export default function DecksScreen() {
       setDeckDesc("");
       setShowCreate(false);
     } catch (e: unknown) {
-      Alert.alert("Tạo bộ thẻ thất bại", getFirestoreErrorMessage(e));
+      Alert.alert("Tạo bộ thẻ thất bại", getDatabaseErrorMessage(e));
     } finally {
       setCreating(false);
     }

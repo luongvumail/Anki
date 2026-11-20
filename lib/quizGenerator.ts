@@ -523,51 +523,57 @@ export function generateQuizQuestion(
 
   // 5. Điền khuyết câu ví dụ - Trắc nghiệm hoặc Tự gõ (Cloze / Cloze Typing)
   if ((type === "cloze" || type === "cloze_typing") && card.examples && card.examples.length > 0) {
-    const ex = card.examples[0];
-    if (ex.chinese) {
-      let targetToReplace = "";
+    let matchedEx: { chinese: string; pinyin: string; vietnamese: string } | null = null;
+    let targetToReplace = "";
+
+    // Search across all available examples to find a suitable sentence containing the character
+    for (const ex of card.examples) {
+      if (!ex.chinese) continue;
       if (ex.chinese.includes(card.character)) {
+        matchedEx = ex;
         targetToReplace = card.character;
-      } else {
-        for (const char of card.character) {
-          if (char.trim() && ex.chinese.includes(char)) {
-            targetToReplace = char;
-            break;
-          }
+        break;
+      }
+      for (const char of card.character) {
+        if (char.trim() && ex.chinese.includes(char)) {
+          matchedEx = ex;
+          targetToReplace = char;
+          break;
         }
       }
+      if (matchedEx) break;
+    }
 
-      if (targetToReplace) {
-        const blankedChinese = ex.chinese.replaceAll(targetToReplace, "（___）");
-        const distractors = getCharacterDistractors(card, allCards);
-        const options = shuffleArray(Array.from(new Set([card.character, ...distractors])));
+    if (matchedEx && targetToReplace) {
+      const blankedChinese = matchedEx.chinese.replaceAll(targetToReplace, "（___）");
+      const distractors = getCharacterDistractors(card, allCards);
+      const options = shuffleArray(Array.from(new Set([card.character, ...distractors])));
 
-        if (type === "cloze_typing") {
-          return {
-            card,
-            type: "cloze_typing",
-            interactionMode: "typing",
-            prompt: "Gõ từ tiếng Trung (Chữ Hán hoặc Pinyin) còn thiếu vào chỗ trống:",
-            clozeSentence: blankedChinese,
-            clozeTranslation: ex.vietnamese,
-            inputPlaceholder: "Nhập Chữ Hán hoặc Pinyin...",
-            acceptedAnswers: [card.character, card.pinyin, targetToReplace].filter(Boolean),
-            options,
-            correctAnswer: card.character,
-          };
-        }
-
+      if (type === "cloze_typing") {
         return {
           card,
-          type: "cloze",
-          interactionMode: "choice",
-          prompt: "Điền từ thích hợp vào ô trống trong câu:",
+          type: "cloze_typing",
+          interactionMode: "typing",
+          prompt: "Gõ từ tiếng Trung (Chữ Hán hoặc Pinyin) còn thiếu vào chỗ trống:",
           clozeSentence: blankedChinese,
-          clozeTranslation: ex.vietnamese,
+          clozeTranslation: matchedEx.vietnamese,
+          inputPlaceholder: "Nhập Chữ Hán hoặc Pinyin...",
+          acceptedAnswers: [card.character, card.pinyin, targetToReplace].filter(Boolean),
           options,
           correctAnswer: card.character,
         };
       }
+
+      return {
+        card,
+        type: "cloze",
+        interactionMode: "choice",
+        prompt: "Điền từ thích hợp vào ô trống trong câu:",
+        clozeSentence: blankedChinese,
+        clozeTranslation: matchedEx.vietnamese,
+        options,
+        correctAnswer: card.character,
+      };
     }
   }
 

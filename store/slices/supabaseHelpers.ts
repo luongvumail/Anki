@@ -1,4 +1,5 @@
 import { supabase } from "../../lib/supabase";
+import { Card } from "./types";
 
 export async function getUserIdAsync(): Promise<string> {
   const {
@@ -23,4 +24,36 @@ export function sanitizeForSupabase<T extends object>(obj: T): Partial<T> {
     }
   });
   return clean as Partial<T>;
+}
+
+/**
+ * Centralized mapping from Partial<Card> (camelCase) to Supabase database columns (snake_case).
+ * Eliminates repetitive payload code across slices and offline queue.
+ */
+export function mapCardUpdatesToSupabaseRow(updates: Partial<Card>): Record<string, any> {
+  const payload: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (updates.character !== undefined) payload.character = updates.character;
+  if (updates.traditional !== undefined) payload.traditional = updates.traditional;
+  if (updates.pinyin !== undefined) payload.pinyin = updates.pinyin;
+  if (updates.hanviet !== undefined) payload.hanviet = updates.hanviet;
+  if (updates.translation !== undefined) payload.translation = updates.translation;
+  if (updates.examples !== undefined) payload.examples = updates.examples;
+  if (updates.radical !== undefined) payload.radical = updates.radical;
+  if (updates.strokeCount !== undefined) payload.stroke_count = updates.strokeCount;
+  if (updates.hskLevel !== undefined) payload.hsk_level = updates.hskLevel;
+  if (updates.tags !== undefined) payload.tags = updates.tags;
+  if (updates.srs !== undefined) {
+    payload.srs = updates.srs;
+    if (updates.srs.dueDate) {
+      payload.srs_next_review = updates.srs.dueDate;
+    }
+  }
+  if (updates.lastReviewedAt !== undefined) {
+    payload.last_reviewed_at = updates.lastReviewedAt;
+  }
+
+  return payload;
 }

@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
 import { Card } from "../store/slices/types";
+import { mapCardUpdatesToSupabaseRow } from "../store/slices/supabaseHelpers";
 
 const OFFLINE_QUEUE_STORAGE_KEY = "@anki_offline_card_updates_v1";
 
@@ -53,40 +54,21 @@ export async function flushOfflineQueue(): Promise<void> {
     const queue = await getOfflineQueue();
     if (queue.length === 0) return;
 
+    // Concurrently process offline updates via Promise.allSettled
+    const results = await Promise.allSettled(
+      queue.map(async (item) => {
+        const payload = mapCardUpdatesToSupabaseRow(item.updates);
+        const { error } = await supabase.from("cards").update(payload).eq("id", item.cardId);
+        if (error) throw error;
+      }),
+    );
+
     const remaining: PendingCardUpdate[] = [];
-
-    for (const item of queue) {
-      try {
-        const payload: Record<string, any> = {
-          updated_at: new Date().toISOString(),
-        };
-        const { updates, cardId } = item;
-        if (updates.character !== undefined) payload.character = updates.character;
-        if (updates.traditional !== undefined) payload.traditional = updates.traditional;
-        if (updates.pinyin !== undefined) payload.pinyin = updates.pinyin;
-        if (updates.hanviet !== undefined) payload.hanviet = updates.hanviet;
-        if (updates.translation !== undefined) payload.translation = updates.translation;
-        if (updates.examples !== undefined) payload.examples = updates.examples;
-        if (updates.radical !== undefined) payload.radical = updates.radical;
-        if (updates.strokeCount !== undefined) payload.stroke_count = updates.strokeCount;
-        if (updates.hskLevel !== undefined) payload.hsk_level = updates.hskLevel;
-        if (updates.tags !== undefined) payload.tags = updates.tags;
-        if (updates.srs !== undefined) {
-          payload.srs = updates.srs;
-          if (updates.srs.dueDate) {
-            payload.srs_next_review = updates.srs.dueDate;
-          }
-        }
-        if (updates.lastReviewedAt !== undefined) payload.last_reviewed_at = updates.lastReviewedAt;
-
-        const { error } = await supabase.from("cards").update(payload).eq("id", cardId);
-        if (error) {
-          remaining.push(item);
-        }
-      } catch {
-        remaining.push(item);
+    results.forEach((res, index) => {
+      if (res.status === "rejected") {
+        remaining.push(queue[index]);
       }
-    }
+    });
 
     if (remaining.length !== queue.length) {
       await AsyncStorage.setItem(OFFLINE_QUEUE_STORAGE_KEY, JSON.stringify(remaining));

@@ -9,7 +9,14 @@ import { getDatabaseErrorMessage } from "../../lib/errorHandler";
 import { APP_CONFIG } from "../../constants/config";
 import { enqueueOfflineUpdates, flushOfflineQueue } from "../../lib/offlineQueue";
 
-import { sanitizeForSupabase } from "./supabaseHelpers";
+import { sanitizeForSupabase, mapCardUpdatesToSupabaseRow } from "./supabaseHelpers";
+
+let userCharactersCache: { charSet: Set<string>; timestamp: number } | null = null;
+const CACHE_TTL_MS = 30000;
+
+export function invalidateUserCharactersCache(): void {
+  userCharactersCache = null;
+}
 
 export const PAGE_SIZE = APP_CONFIG.PAGE_SIZE;
 
@@ -39,6 +46,7 @@ export interface CardSlice {
   cards: Record<string, Card[]>; // deckId → cards
   hasMoreCards: Record<string, boolean>; // deckId → boolean
   isFetchingMoreCards: Record<string, boolean>; // deckId → boolean
+  isFetchingCards: Record<string, boolean>; // deckId → boolean
   fetchCards: (deckId: string) => Promise<Card[]>;
   fetchDueCards: (deckId: string) => Promise<Card[]>;
   addCard: (card: Omit<Card, "id" | "createdAt" | "updatedAt">) => Promise<void>;
@@ -73,6 +81,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
   cards: {},
   hasMoreCards: {},
   isFetchingMoreCards: {},
+  isFetchingCards: {},
 
   fetchCards: async (deckId) => {
     const {
@@ -80,7 +89,10 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     } = await supabase.auth.getUser();
     if (!user) return [];
 
-    set({ isLoading: true });
+    set((s) => ({
+      isFetchingCards: { ...s.isFetchingCards, [deckId]: true },
+    }));
+
     try {
       const { data, error } = await supabase
         .from("cards")
@@ -95,7 +107,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
       set((s) => ({
         cards: { ...s.cards, [deckId]: fetchedCards },
         hasMoreCards: { ...s.hasMoreCards, [deckId]: false },
-        isLoading: false,
+        isFetchingCards: { ...s.isFetchingCards, [deckId]: false },
       }));
 
       // Flush any queued offline updates upon fetching cards
@@ -104,7 +116,10 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
       return fetchedCards;
     } catch (e: unknown) {
       const msg = getDatabaseErrorMessage(e);
-      set({ error: msg, isLoading: false });
+      set((s) => ({
+        error: msg,
+        isFetchingCards: { ...s.isFetchingCards, [deckId]: false },
+      }));
       return [];
     }
   },
@@ -224,10 +239,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
         }));
       }
 
-      // Sync decks stats from database in background
-      get()
-        .fetchDecks()
-        .catch((err) => console.warn("[addCard] fetchDecks sync failed:", err));
+      invalidateUserCharactersCache();
     } catch (err) {
       console.error("[addCard] Supabase insert failed:", err);
       throw err;
@@ -270,47 +282,34 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
       const insertedCards = (data || []).map(mapRowToCard);
       if (insertedCards.length === 0) return;
 
-      const deckId = insertedCards[0].deckId;
-      const existingCards = get().cards[deckId];
-      const isCardsLoaded = Boolean(existingCards);
+      invalidateUserCharactersCache();
 
-      if (isCardsLoaded && existingCards) {
-        const updatedCards = [...insertedCards, ...existingCards];
-        const realDueCount = computeDueCount(updatedCards);
-        const realNewCount = computeNewCount(updatedCards);
+      set((s) => {
+        const updatedCardsMap = { ...s.cards };
+        const deckDelta: Record<string, number> = {};
 
-        set((s) => ({
-          cards: { ...s.cards, [deckId]: updatedCards },
-          decks: s.decks.map((deck) =>
-            deck.id === deckId
-              ? {
-                  ...deck,
-                  cardCount: (deck.cardCount || 0) + insertedCards.length,
-                  dueCount: realDueCount,
-                  newCount: realNewCount,
-                }
-              : deck,
-          ),
-        }));
-      } else {
-        set((s) => ({
-          decks: s.decks.map((deck) =>
-            deck.id === deckId
-              ? {
-                  ...deck,
-                  cardCount: (deck.cardCount || 0) + insertedCards.length,
-                  dueCount: (deck.dueCount || 0) + insertedCards.length,
-                  newCount: (deck.newCount || 0) + insertedCards.length,
-                }
-              : deck,
-          ),
-        }));
-      }
+        for (const card of insertedCards) {
+          if (!updatedCardsMap[card.deckId]) {
+            updatedCardsMap[card.deckId] = [];
+          }
+          updatedCardsMap[card.deckId] = [card, ...updatedCardsMap[card.deckId]];
+          deckDelta[card.deckId] = (deckDelta[card.deckId] || 0) + 1;
+        }
 
-      // Sync decks stats from database in background
-      get()
-        .fetchDecks()
-        .catch((err) => console.warn("[addCardsBatch] fetchDecks sync failed:", err));
+        const updatedDecks = s.decks.map((deck) => {
+          const delta = deckDelta[deck.id];
+          if (!delta) return deck;
+          const deckCards = updatedCardsMap[deck.id];
+          return {
+            ...deck,
+            cardCount: (deck.cardCount || 0) + delta,
+            dueCount: deckCards ? computeDueCount(deckCards) : (deck.dueCount || 0) + delta,
+            newCount: deckCards ? computeNewCount(deckCards) : (deck.newCount || 0) + delta,
+          };
+        });
+
+        return { cards: updatedCardsMap, decks: updatedDecks };
+      });
     } catch (err) {
       console.error("[addCardsBatch] Supabase batch insert failed:", err);
       throw err;
@@ -331,27 +330,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     }));
 
     try {
-      const payload: Record<string, any> = {
-        updated_at: new Date().toISOString(),
-      };
-      if (updates.character !== undefined) payload.character = updates.character;
-      if (updates.traditional !== undefined) payload.traditional = updates.traditional;
-      if (updates.pinyin !== undefined) payload.pinyin = updates.pinyin;
-      if (updates.hanviet !== undefined) payload.hanviet = updates.hanviet;
-      if (updates.translation !== undefined) payload.translation = updates.translation;
-      if (updates.examples !== undefined) payload.examples = updates.examples;
-      if (updates.radical !== undefined) payload.radical = updates.radical;
-      if (updates.strokeCount !== undefined) payload.stroke_count = updates.strokeCount;
-      if (updates.hskLevel !== undefined) payload.hsk_level = updates.hskLevel;
-      if (updates.tags !== undefined) payload.tags = updates.tags;
-      if (updates.srs !== undefined) {
-        payload.srs = updates.srs;
-        if (updates.srs.dueDate) {
-          payload.srs_next_review = updates.srs.dueDate;
-        }
-      }
-      if (updates.lastReviewedAt !== undefined) payload.last_reviewed_at = updates.lastReviewedAt;
-
+      const payload = mapCardUpdatesToSupabaseRow(updates);
       const { error } = await supabase.from("cards").update(payload).eq("id", cardId);
       if (error) throw error;
       flushOfflineQueue();
@@ -389,39 +368,29 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     set({ cards: newCardsState, decks: updatedDecks });
 
     try {
-      const results = await Promise.all(
+      const results = await Promise.allSettled(
         items.map(async ({ cardId, updates }) => {
-          const payload: Record<string, any> = {
-            updated_at: new Date().toISOString(),
-          };
-          if (updates.character !== undefined) payload.character = updates.character;
-          if (updates.traditional !== undefined) payload.traditional = updates.traditional;
-          if (updates.pinyin !== undefined) payload.pinyin = updates.pinyin;
-          if (updates.hanviet !== undefined) payload.hanviet = updates.hanviet;
-          if (updates.translation !== undefined) payload.translation = updates.translation;
-          if (updates.examples !== undefined) payload.examples = updates.examples;
-          if (updates.radical !== undefined) payload.radical = updates.radical;
-          if (updates.strokeCount !== undefined) payload.stroke_count = updates.strokeCount;
-          if (updates.hskLevel !== undefined) payload.hsk_level = updates.hskLevel;
-          if (updates.tags !== undefined) payload.tags = updates.tags;
-          if (updates.srs !== undefined) {
-            payload.srs = updates.srs;
-            if (updates.srs.dueDate) {
-              payload.srs_next_review = updates.srs.dueDate;
-            }
-          }
-          if (updates.lastReviewedAt !== undefined)
-            payload.last_reviewed_at = updates.lastReviewedAt;
-
-          return supabase.from("cards").update(payload).eq("id", cardId);
+          const payload = mapCardUpdatesToSupabaseRow(updates);
+          const { error } = await supabase.from("cards").update(payload).eq("id", cardId);
+          if (error) throw error;
         }),
       );
 
-      const hasErrors = results.some((r) => r.error);
-      if (hasErrors) {
-        throw new Error("One or more batch card updates failed");
+      const failedItems: { cardId: string; deckId: string; updates: Partial<Card> }[] = [];
+      results.forEach((res, index) => {
+        if (res.status === "rejected") {
+          failedItems.push(items[index]);
+        }
+      });
+
+      if (failedItems.length > 0) {
+        console.warn(`[batchUpdateCards] ${failedItems.length} updates failed, queuing offline.`);
+        await enqueueOfflineUpdates(
+          failedItems.map((item) => ({ ...item, timestamp: Date.now() })),
+        );
+      } else {
+        flushOfflineQueue();
       }
-      flushOfflineQueue();
     } catch (err) {
       console.error(
         "[batchUpdateCards] Supabase batch update failed, queuing offline updates:",
@@ -433,6 +402,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
 
   deleteCard: async (cardId, deckId) => {
     const existingCards = get().cards[deckId] || [];
+    const cardToDelete = existingCards.find((c) => c.id === cardId);
     const updatedCards = existingCards.filter((c) => c.id !== cardId);
     const realDueCount = computeDueCount(updatedCards);
     const realNewCount = computeNewCount(updatedCards);
@@ -454,11 +424,29 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     try {
       const { error } = await supabase.from("cards").delete().eq("id", cardId);
       if (error) throw error;
-      get()
-        .fetchDecks()
-        .catch((err) => console.warn("[deleteCard] fetchDecks sync failed:", err));
+      invalidateUserCharactersCache();
     } catch (err) {
-      console.error("[deleteCard] Supabase delete failed:", err);
+      console.error("[deleteCard] Supabase delete failed, rolling back:", err);
+      // Rollback optimistic update on failure
+      if (cardToDelete) {
+        set((s) => {
+          const rolledBackCards = [cardToDelete, ...(s.cards[deckId] || [])];
+          return {
+            cards: { ...s.cards, [deckId]: rolledBackCards },
+            decks: s.decks.map((d) =>
+              d.id === deckId
+                ? {
+                    ...d,
+                    cardCount: (d.cardCount || 0) + 1,
+                    dueCount: computeDueCount(rolledBackCards),
+                    newCount: computeNewCount(rolledBackCards),
+                  }
+                : d,
+            ),
+          };
+        });
+      }
+      throw err;
     }
   },
 
@@ -473,9 +461,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
     try {
       const { error } = await supabase.from("cards").delete().eq("deck_id", deckId);
       if (error) throw error;
-      get()
-        .fetchDecks()
-        .catch((err) => console.warn("[clearDeckCards] fetchDecks sync failed:", err));
+      invalidateUserCharactersCache();
     } catch (err) {
       console.error("[clearDeckCards] Supabase delete failed:", err);
     }
@@ -512,9 +498,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
         .eq("deck_id", deckId);
 
       if (error) throw error;
-      get()
-        .fetchDecks()
-        .catch((err) => console.warn("[resetDeckProgress] fetchDecks sync failed:", err));
+      invalidateUserCharactersCache();
     } catch (err) {
       console.error("[resetDeckProgress] Supabase update failed:", err);
     }
@@ -539,6 +523,10 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
   },
 
   fetchAllUserCharacters: async () => {
+    if (userCharactersCache && Date.now() - userCharactersCache.timestamp < CACHE_TTL_MS) {
+      return userCharactersCache.charSet;
+    }
+
     const charSet = new Set<string>();
     const cardsState = get().cards;
 
@@ -577,6 +565,7 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
       console.warn("[fetchAllUserCharacters] Fallback to local store characters:", err);
     }
 
+    userCharactersCache = { charSet, timestamp: Date.now() };
     return charSet;
   },
 
@@ -614,14 +603,17 @@ export const createCardSlice: StateCreator<CardSlice & UISlice & DeckSlice, [], 
           query = query.eq("deck_id", deckId);
         }
 
+        const safeChar = character.trim().replace(/[(),]/g, "");
+        const safeTrad = traditional ? traditional.trim().replace(/[(),]/g, "") : "";
         const orFilters: string[] = [];
-        if (cleanChar) {
-          orFilters.push(`character.eq.${character.trim()}`);
-          orFilters.push(`traditional.eq.${character.trim()}`);
+
+        if (cleanChar && safeChar) {
+          orFilters.push(`character.eq.${safeChar}`);
+          orFilters.push(`traditional.eq.${safeChar}`);
         }
-        if (cleanTrad && cleanTrad !== cleanChar) {
-          orFilters.push(`character.eq.${traditional!.trim()}`);
-          orFilters.push(`traditional.eq.${traditional!.trim()}`);
+        if (cleanTrad && safeTrad && safeTrad !== safeChar) {
+          orFilters.push(`character.eq.${safeTrad}`);
+          orFilters.push(`traditional.eq.${safeTrad}`);
         }
 
         if (orFilters.length > 0) {

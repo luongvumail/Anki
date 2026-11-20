@@ -69,7 +69,7 @@ export function useStudySession(deckId: string) {
         return;
       }
 
-      if (initializedDeckIdRef.current === deckId && session !== null) {
+      if (initializedDeckIdRef.current === deckId) {
         return;
       }
 
@@ -125,7 +125,7 @@ export function useStudySession(deckId: string) {
         pendingUpdatesRef.current = [];
       }
     };
-  }, [batchUpdateCards, deckId, deckCards, isCardsLoaded, session]);
+  }, [batchUpdateCards, deckId, deckCards, isCardsLoaded]);
 
   const markCardRevealed = useCallback((cardId: string) => {
     setRevealedCardIds((prev) => {

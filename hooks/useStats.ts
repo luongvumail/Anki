@@ -37,7 +37,7 @@ export function useStats() {
   const userId = useStore((s) => s.userId);
   const xp = useStore((s) => s.xp || 0);
 
-  const [loadingCards] = useState(false);
+  const [loadingCards, setLoadingCards] = useState(decks.length === 0);
   const [reviewHistory, setReviewHistory] = useState<Record<string, number>>({});
   const [streakCount, setStreakCount] = useState(0);
 
@@ -46,19 +46,21 @@ export function useStats() {
   const loadAllData = useCallback(async () => {
     if (!userId) return;
 
-    fetchDecks();
+    if (decks.length === 0) setLoadingCards(true);
+    await fetchDecks();
 
     const history = await getReviewHistory();
     const streak = await getStreakCount();
     setReviewHistory(history);
     setStreakCount(streak);
+    setLoadingCards(false);
 
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 300,
       useNativeDriver: true,
     }).start();
-  }, [userId, fetchDecks, fadeAnim]);
+  }, [userId, decks.length, fetchDecks, fadeAnim]);
 
   // Aggregate total stats directly from decks and cached cards
   const totalCardsCount = useMemo(() => {

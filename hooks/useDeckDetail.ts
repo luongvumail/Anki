@@ -14,7 +14,8 @@ export function useDeckDetail(id: string | undefined) {
   const fetchCards = useStore((s) => s.fetchCards);
   const deleteDeck = useStore((s) => s.deleteDeck);
   const resetDeckProgress = useStore((s) => s.resetDeckProgress);
-  const isLoading = useStore((s) => s.isLoading);
+  const isFetchingCards = useStore((s) => s.isFetchingCards);
+  const isLoading = Boolean(id && isFetchingCards?.[id]);
 
   const [showAIAddModal, setShowAIAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

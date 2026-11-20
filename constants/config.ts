@@ -20,7 +20,7 @@ export const APP_CONFIG = {
   MIN_EASE_FACTOR: 1.3,
 
   // Debounce & Timeout
-  GEMINI_DEBOUNCE_MS: 500,
+  GEMINI_DEBOUNCE_MS: 150,
   FIRESTORE_TIMEOUT_MS: 10000,
 
   // Audio Speech

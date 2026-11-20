@@ -4,9 +4,11 @@ import { APP_CONFIG } from "../constants/config";
 const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(apiKey);
 
-const CANDIDATE_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash"];
+// gemini-3.5-flash-lite: fastest, cheapest, minimal-thinking — ideal for vocabulary tasks
+// gemini-3.8-flash: fallback, full-capability
+const CANDIDATE_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash"];
 
-const REQUEST_TIMEOUT_MS = 14000;
+const REQUEST_TIMEOUT_MS = 25000;
 
 /**
  * Sleep helper for retry backoff
@@ -225,31 +227,9 @@ export interface CardData {
 export async function generateCardData(input: string): Promise<CardData> {
   await enforceRateLimit();
   const cleanInput = sanitizeInput(input);
-  const prompt = `Bạn là chuyên gia ngôn ngữ tiếng Trung. Phân tích chi tiết từ: "${cleanInput}"
-
-TRƯỜNG "radical" — BẮT BUỘC, NGẮN GỌN TỐI ĐA 2 CÂU:
-Câu 1: bộ thủ cấu thành (ký tự + nghĩa). Câu 2: mẹo nhớ hình ảnh.
-Ví dụ: "好: bộ Nữ (女) + bộ Tử (子). Mẹ ôm con → tốt đẹp."
-Ví dụ: "休: bộ Nhân (亻) + bộ Mộc (木). Người tựa cây nghỉ ngơi."
-
+  const prompt = `Phân tích từ tiếng Trung: "${cleanInput}"
 Trả về JSON (CHỈ JSON, không markdown):
-{
-  "character": "chữ giản thể",
-  "traditional": "chữ phồn thể",
-  "pinyin": "phiên âm có dấu",
-  "translation": "nghĩa tiếng Việt ngắn gọn (tối đa 3 nghĩa)",
-  "examples": [
-    {
-      "chinese": "câu ví dụ ngắn",
-      "pinyin": "phiên âm câu ví dụ",
-      "vietnamese": "dịch nghĩa"
-    }
-  ],
-  "radical": "tối đa 2 câu: bộ thủ + mẹo nhớ",
-  "strokeCount": 0,
-  "hskLevel": 1,
-  "tags": ["loại từ"]
-}`;
+{"character":"giản thể","traditional":"phồn thể","pinyin":"pinyin có dấu","translation":"nghĩa TV (≤3 nghĩa)","examples":[{"chinese":"ví dụ ngắn","pinyin":"pinyin ví dụ","vietnamese":"dịch VN"}],"radical":"bộ thủ + mẹo nhớ (≤2 câu)","strokeCount":0,"hskLevel":1,"tags":["loại từ"]}`;
 
   const text = await generateWithFallback(prompt);
   const jsonText = extractCleanJson(text);
@@ -306,36 +286,9 @@ async function generateSingleSubBatch(chunkInputs: string[]): Promise<CardData[]
   const cleanInputs = chunkInputs.map(sanitizeInput);
   const wordList = cleanInputs.map((w, i) => `${i + 1}. "${w}"`).join("\n");
 
-  const prompt = `Bạn là chuyên gia ngôn ngữ tiếng Trung. Phân tích chi tiết các từ sau đây:
+  const prompt = `Phân tích các từ tiếng Trung sau, trả về JSON array (CHỈ JSON array, không markdown):
 ${wordList}
-
-BẮT BUỘC VỀ TRƯỜNG "radical":
-Trường "radical" BẮT BUỘC phải phân tích rõ ràng từng chữ Hán được ghép từ các bộ thủ chính nào (ký tự + ý nghĩa) và mẹo nhớ. KHÔNG ĐƯỢC bỏ trống hoặc trả về chung chung.
-Ví dụ:
-- "休": "Gồm bộ Nhân (亻 - người) + bộ Mộc (木 - cây). Người tựa vào gốc cây nghỉ ngơi."
-- "语": "Gồm bộ Ngôn (讠 - lời nói) + bộ Ngũ (五) + bộ Khẩu (口 - miệng). Lời nói phát ra từ miệng."
-- "好": "Gồm bộ Nữ (女 - phụ nữ) + bộ Tử (子 - con). Mẹ ôm con tượng trưng cho sự tốt đẹp."
-
-Trả về JSON array (CHỈ JSON array, không markdown), với mỗi phần tử theo thứ tự tương ứng:
-[
-  {
-    "character": "chữ giản thể",
-    "traditional": "chữ phồn thể",
-    "pinyin": "phiên âm có dấu",
-    "translation": "nghĩa tiếng Việt ngắn gọn (tối đa 3 nghĩa)",
-    "examples": [
-      {
-        "chinese": "câu ví dụ ngắn",
-        "pinyin": "phiên âm câu ví dụ",
-        "vietnamese": "dịch nghĩa"
-      }
-    ],
-    "radical": "tên bộ thủ và cấu tạo chiết tự đầy đủ",
-    "strokeCount": 0,
-    "hskLevel": 1,
-    "tags": ["loại từ"]
-  }
-]`;
+Mỗi phần tử theo đúng thứ tự: {"character":"giản thể","traditional":"phồn thể","pinyin":"pinyin có dấu","translation":"nghĩa TV (≤3 nghĩa)","examples":[{"chinese":"ví dụ ngắn","pinyin":"pinyin ví dụ","vietnamese":"dịch VN"}],"radical":"bộ thủ chính + mẹo nhớ (≤2 câu)","strokeCount":0,"hskLevel":1,"tags":["loại từ"]}`;
 
   try {
     const text = await generateWithFallback(prompt);
@@ -395,14 +348,14 @@ Trả về JSON array (CHỈ JSON array, không markdown), với mỗi phần t�
 }
 
 /**
- * Uses Gemini request batching with automatic sub-chunking (max 6 words per chunk) to generate card data for multiple words safely and quickly.
+ * Uses Gemini request batching with automatic sub-chunking (max 20 words per chunk) to generate card data for multiple words safely and quickly.
  * Handles rate-limiting and token limits gracefully.
  */
 export async function generateCardDataBatch(inputs: string[]): Promise<CardData[]> {
   if (inputs.length === 0) return [];
   if (inputs.length === 1) return [await generateCardData(inputs[0])];
 
-  const BATCH_CHUNK_SIZE = 6;
+  const BATCH_CHUNK_SIZE = 20;
   const allResults: CardData[] = [];
 
   for (let i = 0; i < inputs.length; i += BATCH_CHUNK_SIZE) {

@@ -97,4 +97,6 @@ Anki adopts a minimal, highly unified design aesthetic. It eliminates explicit c
    - **Secondary**: Soft surface fill (`theme.bgSoft`) with primary text color (`theme.textPrimary`).
 
 4. **Subtle Surface Contrast**:
-   - Surfaces use smooth ambient elevation shadows or soft background fills (`theme.bgSoft`, `theme.purpleDim`) instead of stark lines.
+   - Surfaces use smooth ambient elevation shadows or soft background fills (`theme.bgSoft`, `theme.purpleDim`) instead of stark lines. 
+
+END
